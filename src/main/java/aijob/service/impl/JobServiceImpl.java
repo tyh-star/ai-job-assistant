@@ -30,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -227,13 +228,19 @@ public class JobServiceImpl implements JobService {
                 job.getId()
         );
 
+        int proposedCount = proposed == null ? 0 : proposed.size();
+        int appliedChangeCount = verified.size();
+
         return new TailoredResumeResponse(
                 resume.getId(),
                 job.getId(),
                 resolvedMode,
                 generatedPath.getFileName().toString(),
                 generatedPath.toString(),
-                accepted
+                accepted,
+                appliedChangeCount == 0,
+                appliedChangeCount,
+                proposedCount - accepted.size()
         );
     }
 
@@ -270,7 +277,7 @@ public class JobServiceImpl implements JobService {
         return resume;
     }
 
-    private List<TailorChange> filterSafeChanges(
+    List<TailorChange> filterSafeChanges(
             List<ResumeDocumentNode> nodes,
             List<TailorChange> proposed,
             TailorMode mode) {
@@ -281,6 +288,7 @@ public class JobServiceImpl implements JobService {
         }
 
         Set<String> allowedIds = ResumeTailorNodeGuard.allowedNodeIds(nodes);
+        Set<String> acceptedNodeIds = new LinkedHashSet<>();
         List<TailorChange> accepted = new ArrayList<>();
 
         if (proposed == null) {
@@ -322,6 +330,10 @@ public class JobServiceImpl implements JobService {
                 continue;
             }
 
+            if (acceptedNodeIds.contains(change.getNodeId())) {
+                continue;
+            }
+
             change.setEvidenceType(evidenceType);
             boolean inferred = evidenceType.equals(TailorChange.EVIDENCE_INFERRED);
             change.setRequiresConfirmation(inferred);
@@ -330,6 +342,7 @@ public class JobServiceImpl implements JobService {
                 change.setInferredSkill(null);
             }
 
+            acceptedNodeIds.add(change.getNodeId());
             accepted.add(change);
         }
 

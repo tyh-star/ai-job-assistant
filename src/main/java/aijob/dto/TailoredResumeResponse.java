@@ -18,4 +18,7 @@ public class TailoredResumeResponse {
     private String generatedFileName;
     private String generatedFilePath;
     private List<TailorChange> changes;
+    private boolean unchanged;
+    private int appliedChangeCount;
+    private int rejectedChangeCount;
 }
