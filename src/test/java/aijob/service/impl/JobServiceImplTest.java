@@ -1,5 +1,6 @@
 package aijob.service.impl;
 
+import aijob.dto.RejectedTailorChange;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.TailorChange;
 import aijob.dto.TailoredResumeResponse;
@@ -24,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -76,30 +78,70 @@ class JobServiceImplTest {
 
     @Test
     void filterSafeChanges_duplicateNodeId_keepsFirstPassingChange() {
-        List<ResumeDocumentNode> nodes = experienceNodes();
         TailorChange first = verifiedChange("p-23", NODE_TEXT, NEW_TEXT);
         TailorChange second = verifiedChange("p-23", NODE_TEXT, NEW_TEXT_SECOND);
 
-        List<TailorChange> accepted = jobService.filterSafeChanges(
-                nodes,
+        JobServiceImpl.TailorFilterResult result = jobService.filterSafeChanges(
+                experienceNodes(),
                 List.of(first, second),
                 TailorMode.CONSERVATIVE
         );
 
-        assertEquals(1, accepted.size());
-        assertEquals(NEW_TEXT, accepted.get(0).getNewText());
-        assertEquals(Boolean.TRUE, accepted.get(0).getApplied());
+        assertEquals(1, result.accepted().size());
+        assertEquals(NEW_TEXT, result.accepted().get(0).getNewText());
+        assertEquals(Boolean.TRUE, result.accepted().get(0).getApplied());
+        assertEquals(1, result.rejected().size());
+        assertEquals(RejectedTailorChange.DUPLICATE_NODE_ID, result.rejected().get(0).getReasonCode());
+        assertEquals("p-23", result.rejected().get(0).getNodeId());
     }
 
     @Test
     void filterSafeChanges_emptyProposed_returnsEmpty() {
-        List<TailorChange> accepted = jobService.filterSafeChanges(
+        JobServiceImpl.TailorFilterResult result = jobService.filterSafeChanges(
                 experienceNodes(),
                 List.of(),
                 TailorMode.CONSERVATIVE
         );
 
-        assertTrue(accepted.isEmpty());
+        assertTrue(result.accepted().isEmpty());
+        assertTrue(result.rejected().isEmpty());
+    }
+
+    @Test
+    void filterSafeChanges_blankAndUnknownEvidenceType_areRejected() {
+        TailorChange blank = verifiedChange("p-23", NODE_TEXT, NEW_TEXT);
+        blank.setEvidenceType("  ");
+        TailorChange unknown = verifiedChange("p-23", NODE_TEXT, NEW_TEXT_SECOND);
+        unknown.setEvidenceType("MAYBE");
+        TailorChange missing = verifiedChange("p-24", NODE_TEXT, NEW_TEXT);
+        missing.setEvidenceType(null);
+
+        JobServiceImpl.TailorFilterResult result = jobService.filterSafeChanges(
+                experienceNodes(),
+                List.of(blank, unknown, missing),
+                TailorMode.CONSERVATIVE
+        );
+
+        assertTrue(result.accepted().isEmpty());
+        assertEquals(3, result.rejected().size());
+        assertTrue(result.rejected().stream().allMatch(
+                item -> RejectedTailorChange.UNKNOWN_EVIDENCE_TYPE.equals(item.getReasonCode())));
+    }
+
+    @Test
+    void filterSafeChanges_conservativeInferred_isRejected() {
+        TailorChange inferred = verifiedChange("p-23", NODE_TEXT, NEW_TEXT);
+        inferred.setEvidenceType(TailorChange.EVIDENCE_INFERRED);
+
+        JobServiceImpl.TailorFilterResult result = jobService.filterSafeChanges(
+                experienceNodes(),
+                List.of(inferred),
+                TailorMode.CONSERVATIVE
+        );
+
+        assertTrue(result.accepted().isEmpty());
+        assertEquals(1, result.rejected().size());
+        assertEquals(RejectedTailorChange.INFERRED_NOT_ALLOWED, result.rejected().get(0).getReasonCode());
     }
 
     @Test
@@ -126,7 +168,9 @@ class JobServiceImplTest {
         assertEquals(1, writerChanges.getValue().size());
         assertEquals(NEW_TEXT, writerChanges.getValue().get(0).getNewText());
         assertEquals(1, response.getAppliedChangeCount());
-        assertEquals(1, response.getRejectedChangeCount());
+        assertRejectedCountMatches(response, 1);
+        assertEquals(RejectedTailorChange.DUPLICATE_NODE_ID,
+                response.getRejectedChanges().get(0).getReasonCode());
         assertFalse(response.isUnchanged());
         assertEquals(1, response.getChanges().size());
     }
@@ -145,7 +189,7 @@ class JobServiceImplTest {
 
         assertTrue(response.isUnchanged());
         assertEquals(0, response.getAppliedChangeCount());
-        assertEquals(0, response.getRejectedChangeCount());
+        assertRejectedCountMatches(response, 0);
         assertTrue(response.getChanges().isEmpty());
         verify(resumeDocxTailorService).createTailoredDocx(any(), eq(List.of()), eq(1L), eq(10L));
     }
@@ -168,10 +212,94 @@ class JobServiceImplTest {
 
         assertTrue(response.isUnchanged());
         assertEquals(0, response.getAppliedChangeCount());
-        assertEquals(0, response.getRejectedChangeCount());
+        assertRejectedCountMatches(response, 0);
         assertEquals(1, response.getChanges().size());
         assertEquals(Boolean.FALSE, response.getChanges().get(0).getApplied());
         verify(resumeDocxTailorService).createTailoredDocx(any(), eq(List.of()), eq(1L), eq(10L));
+    }
+
+    @Test
+    void tailorResume_unknownEvidenceType_isRejectedAndNotWritten() {
+        stubOwnedResources();
+        when(resumeDocumentService.parseDocx(any())).thenReturn(experienceNodes());
+        TailorChange unknown = verifiedChange("p-23", NODE_TEXT, NEW_TEXT);
+        unknown.setEvidenceType("LIKELY");
+        when(aiResumeService.generateTailorChanges(anyList(), any(), eq(TailorMode.CONSERVATIVE)))
+                .thenReturn(List.of(unknown));
+        when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
+                .thenReturn(tempDir.resolve("out.docx"));
+
+        TailoredResumeResponse response = jobService.tailorResume(
+                EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
+
+        assertTrue(response.isUnchanged());
+        assertEquals(0, response.getAppliedChangeCount());
+        assertRejectedCountMatches(response, 1);
+        assertEquals(RejectedTailorChange.UNKNOWN_EVIDENCE_TYPE,
+                response.getRejectedChanges().get(0).getReasonCode());
+        assertTrue(response.getChanges().isEmpty());
+        verify(resumeDocxTailorService).createTailoredDocx(any(), eq(List.of()), eq(1L), eq(10L));
+    }
+
+    @Test
+    void tailorResume_conservativeInferred_isRejected() {
+        stubOwnedResources();
+        when(resumeDocumentService.parseDocx(any())).thenReturn(experienceNodes());
+        TailorChange inferred = verifiedChange("p-23", NODE_TEXT, NEW_TEXT);
+        inferred.setEvidenceType(TailorChange.EVIDENCE_INFERRED);
+        when(aiResumeService.generateTailorChanges(anyList(), any(), eq(TailorMode.CONSERVATIVE)))
+                .thenReturn(List.of(inferred));
+        when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
+                .thenReturn(tempDir.resolve("out.docx"));
+
+        TailoredResumeResponse response = jobService.tailorResume(
+                EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
+
+        assertTrue(response.isUnchanged());
+        assertEquals(0, response.getAppliedChangeCount());
+        assertRejectedCountMatches(response, 1);
+        assertEquals(RejectedTailorChange.INFERRED_NOT_ALLOWED,
+                response.getRejectedChanges().get(0).getReasonCode());
+        verify(resumeDocxTailorService).createTailoredDocx(any(), eq(List.of()), eq(1L), eq(10L));
+    }
+
+    @Test
+    void tailorResume_elevenVerified_writesFirstTenAndRejectsEleventh() {
+        stubOwnedResources();
+        List<ResumeDocumentNode> nodes = manyExperienceNodes(11);
+        List<TailorChange> proposed = new ArrayList<>();
+        for (int i = 1; i <= 11; i++) {
+            proposed.add(verifiedChange(
+                    "p-" + i,
+                    bulletText(i),
+                    rewrittenBullet(i)
+            ));
+        }
+        when(resumeDocumentService.parseDocx(any())).thenReturn(nodes);
+        when(aiResumeService.generateTailorChanges(anyList(), any(), eq(TailorMode.CONSERVATIVE)))
+                .thenReturn(proposed);
+        when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
+                .thenReturn(tempDir.resolve("out.docx"));
+
+        TailoredResumeResponse response = jobService.tailorResume(
+                EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TailorChange>> writerChanges =
+                ArgumentCaptor.forClass(List.class);
+        verify(resumeDocxTailorService).createTailoredDocx(
+                any(), writerChanges.capture(), eq(1L), eq(10L));
+
+        assertEquals(10, writerChanges.getValue().size());
+        assertEquals(10, response.getAppliedChangeCount());
+        assertFalse(response.isUnchanged());
+        assertEquals(10, response.getChanges().size());
+        assertRejectedCountMatches(response, 1);
+        assertEquals("p-11", response.getRejectedChanges().get(0).getNodeId());
+        assertEquals(
+                RejectedTailorChange.MAX_CHANGE_LIMIT_EXCEEDED,
+                response.getRejectedChanges().get(0).getReasonCode()
+        );
     }
 
     @Test
@@ -188,7 +316,7 @@ class JobServiceImplTest {
 
         assertFalse(response.isUnchanged());
         assertEquals(1, response.getAppliedChangeCount());
-        assertEquals(0, response.getRejectedChangeCount());
+        assertRejectedCountMatches(response, 0);
         assertEquals(Boolean.TRUE, response.getChanges().get(0).getApplied());
     }
 
@@ -209,9 +337,19 @@ class JobServiceImplTest {
                 EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
 
         assertEquals(1, response.getAppliedChangeCount());
-        assertEquals(2, response.getRejectedChangeCount());
+        assertRejectedCountMatches(response, 2);
+        assertEquals(RejectedTailorChange.UNKNOWN_NODE_ID,
+                response.getRejectedChanges().get(0).getReasonCode());
+        assertEquals(RejectedTailorChange.ORIGINAL_TEXT_MISMATCH,
+                response.getRejectedChanges().get(1).getReasonCode());
         assertFalse(response.isUnchanged());
         assertEquals(1, response.getChanges().size());
+    }
+
+    private void assertRejectedCountMatches(TailoredResumeResponse response, int expected) {
+        assertEquals(expected, response.getRejectedChangeCount());
+        assertEquals(expected, response.getRejectedChanges().size());
+        assertEquals(response.getRejectedChanges().size(), response.getRejectedChangeCount());
     }
 
     private void stubOwnedResources() {
@@ -237,8 +375,26 @@ class JobServiceImplTest {
     private List<ResumeDocumentNode> experienceNodes() {
         return List.of(
                 new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"),
-                new ResumeDocumentNode("p-23", "PARAGRAPH", NODE_TEXT)
+                new ResumeDocumentNode("p-23", "PARAGRAPH", NODE_TEXT),
+                new ResumeDocumentNode("p-24", "PARAGRAPH", NODE_TEXT)
         );
+    }
+
+    private List<ResumeDocumentNode> manyExperienceNodes(int bullets) {
+        List<ResumeDocumentNode> nodes = new ArrayList<>();
+        nodes.add(new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"));
+        for (int i = 1; i <= bullets; i++) {
+            nodes.add(new ResumeDocumentNode("p-" + i, "PARAGRAPH", bulletText(i)));
+        }
+        return nodes;
+    }
+
+    private String bulletText(int index) {
+        return "●   Developed backend feature number " + index + " for production services.";
+    }
+
+    private String rewrittenBullet(int index) {
+        return "●   Developed Spring Boot backend feature number " + index + " for production services.";
     }
 
     private TailorChange verifiedChange(String nodeId, String originalText, String newText) {

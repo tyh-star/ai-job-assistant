@@ -21,4 +21,5 @@ public class TailoredResumeResponse {
     private boolean unchanged;
     private int appliedChangeCount;
     private int rejectedChangeCount;
+    private List<RejectedTailorChange> rejectedChanges;
 }

@@ -3,6 +3,7 @@ package aijob.service.impl;
 import aijob.dto.CreateJobRequest;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.JobResponse;
+import aijob.dto.RejectedTailorChange;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.TailorChange;
 import aijob.dto.TailoredResumeResponse;
@@ -214,8 +215,10 @@ public class JobServiceImpl implements JobService {
                         resolvedMode
                 );
 
-        List<TailorChange> accepted =
+        TailorFilterResult filtered =
                 filterSafeChanges(nodes, proposed, resolvedMode);
+        List<TailorChange> accepted = filtered.accepted();
+        List<RejectedTailorChange> rejected = filtered.rejected();
 
         List<TailorChange> verified = accepted.stream()
                 .filter(change -> Boolean.TRUE.equals(change.getApplied()))
@@ -228,7 +231,6 @@ public class JobServiceImpl implements JobService {
                 job.getId()
         );
 
-        int proposedCount = proposed == null ? 0 : proposed.size();
         int appliedChangeCount = verified.size();
 
         return new TailoredResumeResponse(
@@ -240,7 +242,8 @@ public class JobServiceImpl implements JobService {
                 accepted,
                 appliedChangeCount == 0,
                 appliedChangeCount,
-                proposedCount - accepted.size()
+                rejected.size(),
+                rejected
         );
     }
 
@@ -277,7 +280,14 @@ public class JobServiceImpl implements JobService {
         return resume;
     }
 
-    List<TailorChange> filterSafeChanges(
+    static final int MAX_VERIFIED_WRITES = 10;
+
+    record TailorFilterResult(
+            List<TailorChange> accepted,
+            List<RejectedTailorChange> rejected) {
+    }
+
+    TailorFilterResult filterSafeChanges(
             List<ResumeDocumentNode> nodes,
             List<TailorChange> proposed,
             TailorMode mode) {
@@ -290,70 +300,130 @@ public class JobServiceImpl implements JobService {
         Set<String> allowedIds = ResumeTailorNodeGuard.allowedNodeIds(nodes);
         Set<String> acceptedNodeIds = new LinkedHashSet<>();
         List<TailorChange> accepted = new ArrayList<>();
+        List<RejectedTailorChange> rejected = new ArrayList<>();
 
         if (proposed == null) {
-            return accepted;
+            return new TailorFilterResult(accepted, rejected);
         }
 
         double maxLengthRatio = mode == TailorMode.AGGRESSIVE ? 1.5 : 1.25;
+        int verifiedWriteCount = 0;
 
         for (TailorChange change : proposed) {
             if (change == null
-                    || change.getNodeId() == null
-                    || change.getNewText() == null
-                    || change.getNewText().isBlank()) {
+                    || isBlank(change.getNodeId())
+                    || isBlank(change.getNewText())) {
+                rejected.add(new RejectedTailorChange(
+                        change == null ? null : change.getNodeId(),
+                        RejectedTailorChange.EMPTY_REQUIRED_FIELD
+                ));
                 continue;
             }
 
             ResumeDocumentNode node = nodesById.get(change.getNodeId());
-            if (node == null || !allowedIds.contains(node.getNodeId())) {
+            if (node == null) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.UNKNOWN_NODE_ID
+                ));
+                continue;
+            }
+
+            if (!allowedIds.contains(node.getNodeId())) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.NODE_NOT_ALLOWED
+                ));
                 continue;
             }
 
             if (!normalizeNodeText(node.getText())
                     .equals(normalizeNodeText(change.getOriginalText()))) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.ORIGINAL_TEXT_MISMATCH
+                ));
                 continue;
             }
 
             if (normalizeNodeText(node.getText())
                     .equals(normalizeNodeText(change.getNewText()))) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.TEXT_UNCHANGED
+                ));
                 continue;
             }
 
             if (exceedsLengthLimit(change.getOriginalText(), change.getNewText(), maxLengthRatio)) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.TEXT_TOO_LONG
+                ));
                 continue;
             }
 
-            String evidenceType = normalizeEvidenceType(change.getEvidenceType());
-            if (evidenceType.equals(TailorChange.EVIDENCE_INFERRED)
-                    && mode != TailorMode.AGGRESSIVE) {
+            String evidenceType = parseEvidenceType(change.getEvidenceType());
+            if (evidenceType == null) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.UNKNOWN_EVIDENCE_TYPE
+                ));
+                continue;
+            }
+
+            boolean inferred = TailorChange.EVIDENCE_INFERRED.equals(evidenceType);
+            if (inferred && mode != TailorMode.AGGRESSIVE) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.INFERRED_NOT_ALLOWED
+                ));
                 continue;
             }
 
             if (acceptedNodeIds.contains(change.getNodeId())) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.DUPLICATE_NODE_ID
+                ));
+                continue;
+            }
+
+            if (!inferred && verifiedWriteCount >= MAX_VERIFIED_WRITES) {
+                rejected.add(new RejectedTailorChange(
+                        change.getNodeId(),
+                        RejectedTailorChange.MAX_CHANGE_LIMIT_EXCEEDED
+                ));
                 continue;
             }
 
             change.setEvidenceType(evidenceType);
-            boolean inferred = evidenceType.equals(TailorChange.EVIDENCE_INFERRED);
             change.setRequiresConfirmation(inferred);
             change.setApplied(!inferred);
             if (!inferred) {
                 change.setInferredSkill(null);
+                verifiedWriteCount++;
             }
 
             acceptedNodeIds.add(change.getNodeId());
             accepted.add(change);
         }
 
-        return accepted;
+        return new TailorFilterResult(accepted, rejected);
     }
 
-    private String normalizeEvidenceType(String evidenceType) {
+    private String parseEvidenceType(String evidenceType) {
+        if (TailorChange.EVIDENCE_VERIFIED.equalsIgnoreCase(evidenceType)) {
+            return TailorChange.EVIDENCE_VERIFIED;
+        }
         if (TailorChange.EVIDENCE_INFERRED.equalsIgnoreCase(evidenceType)) {
             return TailorChange.EVIDENCE_INFERRED;
         }
-        return TailorChange.EVIDENCE_VERIFIED;
+        return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private boolean exceedsLengthLimit(
