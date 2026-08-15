@@ -1,5 +1,6 @@
 package aijob.controller;
 
+import aijob.dto.ConfirmTailorProposalRequest;
 import aijob.dto.CreateJobRequest;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.JobResponse;
@@ -130,5 +131,41 @@ public class JobController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(tailored);
+    }
+
+    @GetMapping("/{jobId}/tailor-proposals/{proposalId}")
+    public ResponseEntity<TailoredResumeResponse> getTailorProposal(
+            Authentication authentication,
+            @PathVariable Long jobId,
+            @PathVariable Long proposalId) {
+
+        TailoredResumeResponse proposal =
+                jobService.getTailorProposal(
+                        authentication.getName(),
+                        jobId,
+                        proposalId
+                );
+
+        return ResponseEntity.ok(proposal);
+    }
+
+    @PostMapping("/{jobId}/tailor-proposals/{proposalId}/confirm")
+    public ResponseEntity<TailoredResumeResponse> confirmTailorProposal(
+            Authentication authentication,
+            @PathVariable Long jobId,
+            @PathVariable Long proposalId,
+            @Valid @RequestBody ConfirmTailorProposalRequest request) {
+
+        TailoredResumeResponse confirmed =
+                jobService.confirmTailorProposal(
+                        authentication.getName(),
+                        jobId,
+                        proposalId,
+                        request.getSelectedNodeIds()
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(confirmed);
     }
 }

@@ -10,25 +10,35 @@ import aijob.dto.TailoredResumeResponse;
 import aijob.dto.UpdateJobRequest;
 import aijob.entity.Job;
 import aijob.entity.Resume;
+import aijob.entity.TailorProposal;
 import aijob.entity.User;
 import aijob.enums.TailorMode;
 import aijob.exception.InvalidResumeFileException;
+import aijob.exception.InvalidTailorProposalException;
 import aijob.exception.JobNotFoundException;
 import aijob.exception.ResumeNotFoundException;
 import aijob.exception.ResumeTextNotAvailableException;
+import aijob.exception.TailorProposalConflictException;
+import aijob.exception.TailorProposalNotFoundException;
 import aijob.exception.UserNotFoundException;
 import aijob.mapper.JobMapper;
 import aijob.mapper.ResumeMapper;
+import aijob.mapper.TailorProposalMapper;
 import aijob.mapper.UserMapper;
 import aijob.service.AiResumeService;
 import aijob.service.JobService;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
 import aijob.util.ResumeTailorNodeGuard;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -36,32 +46,48 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 public class JobServiceImpl implements JobService {
 
     private static final String SOURCE_MANUAL = "MANUAL";
     private static final String STATUS_SAVED = "SAVED";
+    private static final int PROPOSAL_TTL_HOURS = 24;
+    private static final List<String> UNSUPPORTED_CLAIM_PHRASES = List.of(
+            "high availability",
+            "highly available",
+            "scalability",
+            "resilient infrastructure",
+            "docker",
+            "kubernetes"
+    );
 
     private final JobMapper jobMapper;
     private final UserMapper userMapper;
     private final ResumeMapper resumeMapper;
+    private final TailorProposalMapper tailorProposalMapper;
     private final AiResumeService aiResumeService;
     private final ResumeDocumentService resumeDocumentService;
     private final ResumeDocxTailorService resumeDocxTailorService;
+    private final ObjectMapper objectMapper;
 
     public JobServiceImpl(JobMapper jobMapper,
                           UserMapper userMapper,
                           ResumeMapper resumeMapper,
+                          TailorProposalMapper tailorProposalMapper,
                           AiResumeService aiResumeService,
                           ResumeDocumentService resumeDocumentService,
-                          ResumeDocxTailorService resumeDocxTailorService) {
+                          ResumeDocxTailorService resumeDocxTailorService,
+                          ObjectMapper objectMapper) {
         this.jobMapper = jobMapper;
         this.userMapper = userMapper;
         this.resumeMapper = resumeMapper;
+        this.tailorProposalMapper = tailorProposalMapper;
         this.aiResumeService = aiResumeService;
         this.resumeDocumentService = resumeDocumentService;
         this.resumeDocxTailorService = resumeDocxTailorService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -220,6 +246,16 @@ public class JobServiceImpl implements JobService {
         List<TailorChange> accepted = filtered.accepted();
         List<RejectedTailorChange> rejected = filtered.rejected();
 
+        if (resolvedMode == TailorMode.AGGRESSIVE) {
+            return createAggressiveProposal(
+                    user.getId(),
+                    resume.getId(),
+                    job.getId(),
+                    accepted,
+                    rejected
+            );
+        }
+
         List<TailorChange> verified = accepted.stream()
                 .filter(change -> Boolean.TRUE.equals(change.getApplied()))
                 .toList();
@@ -233,18 +269,365 @@ public class JobServiceImpl implements JobService {
 
         int appliedChangeCount = verified.size();
 
-        return new TailoredResumeResponse(
+        return toTailoredResponse(
                 resume.getId(),
                 job.getId(),
                 resolvedMode,
                 generatedPath.getFileName().toString(),
                 generatedPath.toString(),
                 accepted,
+                appliedChangeCount,
+                rejected,
+                null,
+                null,
+                null
+        );
+    }
+
+    @Override
+    public TailoredResumeResponse getTailorProposal(
+            String email,
+            Long jobId,
+            Long proposalId) {
+
+        User user = getUserByEmail(email);
+        getOwnedJob(jobId, user.getId());
+        TailorProposal proposal = getVisibleProposal(proposalId, user.getId(), jobId);
+        if (TailorProposal.STATUS_CONFIRMED.equals(proposal.getStatus())
+                || isExpired(proposal)) {
+            throw new TailorProposalNotFoundException("Tailor proposal not found");
+        }
+        return toProposalResponse(proposal, 0, proposalRejected(proposal), null, null);
+    }
+
+    @Override
+    public TailoredResumeResponse confirmTailorProposal(
+            String email,
+            Long jobId,
+            Long proposalId,
+            List<String> selectedNodeIds) {
+
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        if (selectedNodeIds != null) {
+            for (String nodeId : selectedNodeIds) {
+                if (!isBlank(nodeId)) {
+                    selected.add(nodeId);
+                }
+            }
+        }
+        if (selected.isEmpty()) {
+            throw new InvalidTailorProposalException("selectedNodeIds must not be empty");
+        }
+
+        User user = getUserByEmail(email);
+        getOwnedJob(jobId, user.getId());
+
+        int claimed = tailorProposalMapper.claimPending(proposalId, user.getId(), jobId);
+        if (claimed == 0) {
+            throwConfirmUnavailable(proposalId, user.getId(), jobId);
+        }
+
+        boolean completed = false;
+        try {
+            TailorProposal proposal = tailorProposalMapper.findById(proposalId);
+            if (proposal == null) {
+                throw new TailorProposalNotFoundException("Tailor proposal not found");
+            }
+
+            Resume resume = getOwnedResume(proposal.getResumeId(), user.getId());
+            if (!"docx".equalsIgnoreCase(resume.getFileType())) {
+                throw new InvalidResumeFileException(
+                        "Resume tailoring currently supports DOCX only"
+                );
+            }
+
+            Path originalPath = Path.of(resume.getFilePath());
+            if (!Files.exists(originalPath)) {
+                throw new InvalidResumeFileException("Resume file not found");
+            }
+
+            List<ResumeDocumentNode> nodes =
+                    resumeDocumentService.parseDocx(originalPath);
+            List<TailorChange> stored = readChanges(proposal.getChangesJson());
+            TailorFilterResult selectedResult = selectConfirmedChanges(nodes, stored, selected);
+
+            Path generatedPath = resumeDocxTailorService.createTailoredDocx(
+                    originalPath,
+                    selectedResult.accepted(),
+                    user.getId(),
+                    jobId
+            );
+
+            int marked = tailorProposalMapper.markConfirmed(
+                    proposalId,
+                    generatedPath.getFileName().toString(),
+                    generatedPath.toString()
+            );
+            if (marked == 0) {
+                throw new IllegalStateException("Failed to confirm tailor proposal");
+            }
+
+            completed = true;
+            proposal.setStatus(TailorProposal.STATUS_CONFIRMED);
+            proposal.setGeneratedFileName(generatedPath.getFileName().toString());
+            proposal.setGeneratedFilePath(generatedPath.toString());
+
+            List<TailorChange> responseChanges = new ArrayList<>();
+            for (TailorChange change : stored) {
+                boolean written = selectedResult.accepted().stream()
+                        .anyMatch(item -> item.getNodeId().equals(change.getNodeId()));
+                change.setApplied(written);
+                if (written) {
+                    change.setRequiresConfirmation(false);
+                }
+                responseChanges.add(change);
+            }
+
+            return toTailoredResponse(
+                    resume.getId(),
+                    jobId,
+                    TailorMode.AGGRESSIVE,
+                    generatedPath.getFileName().toString(),
+                    generatedPath.toString(),
+                    responseChanges,
+                    selectedResult.accepted().size(),
+                    selectedResult.rejected(),
+                    proposal.getId(),
+                    TailorProposal.STATUS_CONFIRMED,
+                    proposal.getExpiresAt()
+            );
+        } finally {
+            if (!completed) {
+                tailorProposalMapper.restorePending(proposalId);
+            }
+        }
+    }
+
+    private TailoredResumeResponse createAggressiveProposal(
+            Long userId,
+            Long resumeId,
+            Long jobId,
+            List<TailorChange> accepted,
+            List<RejectedTailorChange> rejected) {
+
+        for (TailorChange change : accepted) {
+            change.setApplied(false);
+        }
+
+        LocalDateTime expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusHours(PROPOSAL_TTL_HOURS);
+        TailorProposal proposal = new TailorProposal();
+        proposal.setUserId(userId);
+        proposal.setResumeId(resumeId);
+        proposal.setJobId(jobId);
+        proposal.setMode(TailorMode.AGGRESSIVE.name());
+        proposal.setStatus(TailorProposal.STATUS_PENDING);
+        proposal.setExpiresAt(expiresAt);
+        proposal.setChangesJson(writeJson(accepted));
+        proposal.setRejectedJson(writeJson(rejected));
+        tailorProposalMapper.insert(proposal);
+
+        return toTailoredResponse(
+                resumeId,
+                jobId,
+                TailorMode.AGGRESSIVE,
+                null,
+                null,
+                accepted,
+                0,
+                rejected,
+                proposal.getId(),
+                TailorProposal.STATUS_PENDING,
+                expiresAt
+        );
+    }
+
+    private TailorFilterResult selectConfirmedChanges(
+            List<ResumeDocumentNode> nodes,
+            List<TailorChange> stored,
+            Set<String> selectedNodeIds) {
+
+        Map<String, ResumeDocumentNode> nodesById = new LinkedHashMap<>();
+        for (ResumeDocumentNode node : nodes) {
+            nodesById.put(node.getNodeId(), node);
+        }
+        Set<String> allowedIds = ResumeTailorNodeGuard.allowedNodeIds(nodes);
+
+        List<TailorChange> accepted = new ArrayList<>();
+        List<RejectedTailorChange> rejected = new ArrayList<>();
+        Set<String> acceptedNodeIds = new LinkedHashSet<>();
+
+        for (TailorChange change : stored) {
+            if (change == null || !selectedNodeIds.contains(change.getNodeId())) {
+                continue;
+            }
+            if (acceptedNodeIds.contains(change.getNodeId())) {
+                continue;
+            }
+
+            String reason = validateConfirmChange(change, nodesById, allowedIds);
+            if (reason != null) {
+                rejected.add(new RejectedTailorChange(change.getNodeId(), reason));
+                continue;
+            }
+
+            change.setApplied(true);
+            change.setRequiresConfirmation(false);
+            acceptedNodeIds.add(change.getNodeId());
+            accepted.add(change);
+        }
+
+        return new TailorFilterResult(accepted, rejected);
+    }
+
+    private String validateConfirmChange(
+            TailorChange change,
+            Map<String, ResumeDocumentNode> nodesById,
+            Set<String> allowedIds) {
+
+        if (isBlank(change.getNodeId()) || isBlank(change.getNewText())) {
+            return RejectedTailorChange.EMPTY_REQUIRED_FIELD;
+        }
+
+        ResumeDocumentNode node = nodesById.get(change.getNodeId());
+        if (node == null) {
+            return RejectedTailorChange.UNKNOWN_NODE_ID;
+        }
+        if (!allowedIds.contains(node.getNodeId())) {
+            return RejectedTailorChange.NODE_NOT_ALLOWED;
+        }
+        if (!normalizeNodeText(node.getText())
+                .equals(normalizeNodeText(change.getOriginalText()))) {
+            return RejectedTailorChange.ORIGINAL_TEXT_MISMATCH;
+        }
+
+        String evidenceType = parseEvidenceType(change.getEvidenceType());
+        if (evidenceType == null) {
+            return RejectedTailorChange.UNKNOWN_EVIDENCE_TYPE;
+        }
+        if (TailorChange.EVIDENCE_VERIFIED.equals(evidenceType)) {
+            return validateVerifiedEvidence(change, nodesById);
+        }
+        return null;
+    }
+
+    private void throwConfirmUnavailable(Long proposalId, Long userId, Long jobId) {
+        TailorProposal proposal = tailorProposalMapper.findById(proposalId);
+        if (proposal != null
+                && userId.equals(proposal.getUserId())
+                && jobId.equals(proposal.getJobId())
+                && TailorProposal.STATUS_CONFIRMING.equals(proposal.getStatus())
+                && !isExpired(proposal)) {
+            throw new TailorProposalConflictException(
+                    "Tailor proposal is already being confirmed"
+            );
+        }
+        throw new TailorProposalNotFoundException("Tailor proposal not found");
+    }
+
+    private TailorProposal getVisibleProposal(Long proposalId, Long userId, Long jobId) {
+        TailorProposal proposal = tailorProposalMapper.findById(proposalId);
+        if (proposal == null
+                || !userId.equals(proposal.getUserId())
+                || !jobId.equals(proposal.getJobId())) {
+            throw new TailorProposalNotFoundException("Tailor proposal not found");
+        }
+        return proposal;
+    }
+
+    private boolean isExpired(TailorProposal proposal) {
+        return proposal.getExpiresAt() == null
+                || !proposal.getExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC));
+    }
+
+    private List<TailorChange> readChanges(String json) {
+        return readJson(json, new TypeReference<>() {
+        });
+    }
+
+    private List<RejectedTailorChange> proposalRejected(TailorProposal proposal) {
+        return readJson(proposal.getRejectedJson(), new TypeReference<>() {
+        });
+    }
+
+    private TailoredResumeResponse toProposalResponse(
+            TailorProposal proposal,
+            int appliedChangeCount,
+            List<RejectedTailorChange> rejected,
+            String generatedFileName,
+            String generatedFilePath) {
+
+        List<TailorChange> changes = readChanges(proposal.getChangesJson());
+        for (TailorChange change : changes) {
+            if (appliedChangeCount == 0) {
+                change.setApplied(false);
+            }
+        }
+        return toTailoredResponse(
+                proposal.getResumeId(),
+                proposal.getJobId(),
+                TailorMode.AGGRESSIVE,
+                generatedFileName,
+                generatedFilePath,
+                changes,
+                appliedChangeCount,
+                rejected,
+                proposal.getId(),
+                proposal.getStatus(),
+                proposal.getExpiresAt()
+        );
+    }
+
+    private TailoredResumeResponse toTailoredResponse(
+            Long resumeId,
+            Long jobId,
+            TailorMode mode,
+            String generatedFileName,
+            String generatedFilePath,
+            List<TailorChange> changes,
+            int appliedChangeCount,
+            List<RejectedTailorChange> rejected,
+            Long proposalId,
+            String status,
+            LocalDateTime expiresAt) {
+
+        return new TailoredResumeResponse(
+                resumeId,
+                jobId,
+                mode,
+                generatedFileName,
+                generatedFilePath,
+                changes,
                 appliedChangeCount == 0,
                 appliedChangeCount,
-                rejected.size(),
-                rejected
+                rejected == null ? 0 : rejected.size(),
+                rejected == null ? List.of() : rejected,
+                proposalId,
+                status,
+                expiresAt
         );
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize tailor proposal", ex);
+        }
+    }
+
+    private <T> T readJson(String json, TypeReference<T> type) {
+        if (json == null || json.isBlank()) {
+            try {
+                return objectMapper.readValue("[]", type);
+            } catch (JsonProcessingException ex) {
+                throw new IllegalStateException("Failed to deserialize tailor proposal", ex);
+            }
+        }
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to deserialize tailor proposal", ex);
+        }
     }
 
     private User getUserByEmail(String email) {
@@ -307,7 +690,6 @@ public class JobServiceImpl implements JobService {
         }
 
         double maxLengthRatio = mode == TailorMode.AGGRESSIVE ? 1.5 : 1.25;
-        int verifiedWriteCount = 0;
 
         for (TailorChange change : proposed) {
             if (change == null
@@ -381,6 +763,22 @@ public class JobServiceImpl implements JobService {
                 continue;
             }
 
+            if (!inferred) {
+                String evidenceReason = validateVerifiedEvidence(change, nodesById);
+                if (evidenceReason != null) {
+                    rejected.add(new RejectedTailorChange(change.getNodeId(), evidenceReason));
+                    continue;
+                }
+                if (mode == TailorMode.CONSERVATIVE
+                        && hasUnsupportedClaim(change.getNewText(), nodes)) {
+                    rejected.add(new RejectedTailorChange(
+                            change.getNodeId(),
+                            RejectedTailorChange.UNSUPPORTED_CLAIM
+                    ));
+                    continue;
+                }
+            }
+
             if (acceptedNodeIds.contains(change.getNodeId())) {
                 rejected.add(new RejectedTailorChange(
                         change.getNodeId(),
@@ -389,7 +787,7 @@ public class JobServiceImpl implements JobService {
                 continue;
             }
 
-            if (!inferred && verifiedWriteCount >= MAX_VERIFIED_WRITES) {
+            if (accepted.size() >= MAX_VERIFIED_WRITES) {
                 rejected.add(new RejectedTailorChange(
                         change.getNodeId(),
                         RejectedTailorChange.MAX_CHANGE_LIMIT_EXCEEDED
@@ -402,7 +800,6 @@ public class JobServiceImpl implements JobService {
             change.setApplied(!inferred);
             if (!inferred) {
                 change.setInferredSkill(null);
-                verifiedWriteCount++;
             }
 
             acceptedNodeIds.add(change.getNodeId());
@@ -424,6 +821,62 @@ public class JobServiceImpl implements JobService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String validateVerifiedEvidence(
+            TailorChange change,
+            Map<String, ResumeDocumentNode> nodesById) {
+
+        List<String> evidenceNodeIds = change.getEvidenceNodeIds();
+        if (evidenceNodeIds == null
+                || evidenceNodeIds.isEmpty()
+                || isBlank(change.getEvidenceQuote())) {
+            return RejectedTailorChange.MISSING_EVIDENCE;
+        }
+
+        StringBuilder citedText = new StringBuilder();
+        for (String evidenceNodeId : evidenceNodeIds) {
+            if (isBlank(evidenceNodeId) || !nodesById.containsKey(evidenceNodeId)) {
+                return RejectedTailorChange.UNKNOWN_EVIDENCE_NODE_ID;
+            }
+            citedText.append(' ').append(nodesById.get(evidenceNodeId).getText());
+        }
+
+        String cited = normalizeNodeText(citedText.toString());
+        String quote = normalizeNodeText(change.getEvidenceQuote());
+        if (quote.isEmpty() || !cited.contains(quote)) {
+            return RejectedTailorChange.EVIDENCE_QUOTE_MISMATCH;
+        }
+        return null;
+    }
+
+    private boolean hasUnsupportedClaim(
+            String newText,
+            List<ResumeDocumentNode> nodes) {
+
+        String rewritten = normalizeNodeText(newText);
+        StringBuilder resumeText = new StringBuilder();
+        for (ResumeDocumentNode node : nodes) {
+            resumeText.append(' ').append(node.getText());
+        }
+        String resume = normalizeNodeText(resumeText.toString());
+
+        for (String phrase : UNSUPPORTED_CLAIM_PHRASES) {
+            if (containsClaimPhrase(rewritten, phrase)
+                    && !containsClaimPhrase(resume, phrase)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsClaimPhrase(String haystack, String phrase) {
+        if (phrase.contains(" ")) {
+            return haystack.contains(phrase);
+        }
+        return Pattern.compile("\\b" + Pattern.quote(phrase) + "\\b")
+                .matcher(haystack)
+                .find();
     }
 
     private boolean exceedsLengthLimit(

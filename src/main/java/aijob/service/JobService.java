@@ -29,4 +29,17 @@ public interface JobService {
             Long resumeId,
             TailorMode mode
     );
+
+    TailoredResumeResponse getTailorProposal(
+            String email,
+            Long jobId,
+            Long proposalId
+    );
+
+    TailoredResumeResponse confirmTailorProposal(
+            String email,
+            Long jobId,
+            Long proposalId,
+            List<String> selectedNodeIds
+    );
 }

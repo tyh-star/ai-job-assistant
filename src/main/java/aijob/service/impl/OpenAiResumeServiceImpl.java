@@ -119,10 +119,23 @@ public class OpenAiResumeServiceImpl implements AiResumeService {
 
             You MUST NOT add skills, duties, or metrics that are not evidenced.
 
-            Every change must have:
+            Every VERIFIED change MUST include:
             evidenceType = VERIFIED
             inferredSkill = empty
             requiresConfirmation = false
+            evidenceNodeIds = one or more node ids whose current text supports the rewrite
+            evidenceQuote = a short quote copied from those nodes' original text
+
+            evidenceQuote must appear in the referenced nodes.
+            Do not cite a node that does not contain the quote.
+
+            You MUST NOT add skills, architecture, or outcome claims that are
+            not already written in the resume nodes. Do not add:
+            high availability, scalability, resilient infrastructure,
+            Docker, or Kubernetes unless that exact capability already
+            appears in the resume node text.
+
+            You MAY tighten grammar and wording of facts that are already present.
             """;
 
     private static final String TAILOR_AGGRESSIVE_RULES = """
@@ -135,6 +148,10 @@ public class OpenAiResumeServiceImpl implements AiResumeService {
             evidenceType = VERIFIED
             inferredSkill = empty
             requiresConfirmation = false
+            evidenceNodeIds = node ids that support the rewrite
+            evidenceQuote = a short quote copied from those nodes' original text
+            Do not add high availability, scalability, resilient infrastructure,
+            Docker, or Kubernetes unless those words already appear in the resume.
 
             INFERRED changes:
             You MAY propose plausible adjacent skills that are highly related

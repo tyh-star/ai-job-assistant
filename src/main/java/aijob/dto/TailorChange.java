@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,6 +38,12 @@ public class TailorChange {
 
     @JsonPropertyDescription("True when this change was written into the generated DOCX")
     public Boolean applied;
+
+    @JsonPropertyDescription("Node ids whose current resume text supports a VERIFIED rewrite. Required for VERIFIED; empty for INFERRED.")
+    public List<String> evidenceNodeIds;
+
+    @JsonPropertyDescription("Short quote copied from the referenced evidence nodes. Required for VERIFIED; must appear in those nodes' original text.")
+    public String evidenceQuote;
 
     public boolean inferred() {
         return EVIDENCE_INFERRED.equalsIgnoreCase(evidenceType);
