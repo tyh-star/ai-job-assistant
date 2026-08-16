@@ -2,6 +2,8 @@ package aijob.controller;
 
 import aijob.dto.ConfirmTailorProposalRequest;
 import aijob.dto.CreateJobRequest;
+import aijob.dto.ImportGreenhouseJobsRequest;
+import aijob.dto.ImportJobsResponse;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.JobResponse;
 import aijob.dto.TailoredResumeResponse;
@@ -9,11 +11,19 @@ import aijob.dto.UpdateJobRequest;
 import aijob.enums.TailorMode;
 import aijob.service.JobService;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.MalformedURLException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 
 @RestController
@@ -52,6 +62,20 @@ public class JobController {
                 );
 
         return ResponseEntity.ok(jobs);
+    }
+
+    @PostMapping("/imports/greenhouse")
+    public ResponseEntity<ImportJobsResponse> importGreenhouseJobs(
+            Authentication authentication,
+            @Valid @RequestBody ImportGreenhouseJobsRequest request) {
+
+        ImportJobsResponse imported =
+                jobService.importGreenhouseJobs(
+                        authentication.getName(),
+                        request.getBoardToken()
+                );
+
+        return ResponseEntity.ok(imported);
     }
 
     @GetMapping("/{id}")
@@ -167,5 +191,36 @@ public class JobController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(confirmed);
+    }
+
+    @GetMapping("/{jobId}/tailored/{fileName}")
+    public ResponseEntity<Resource> downloadTailoredResume(
+            Authentication authentication,
+            @PathVariable Long jobId,
+            @PathVariable String fileName) {
+
+        Path file = jobService.downloadTailoredResume(
+                authentication.getName(),
+                jobId,
+                fileName
+        );
+
+        Resource resource;
+        try {
+            resource = new UrlResource(file.toUri());
+        } catch (MalformedURLException ex) {
+            throw new IllegalStateException("Failed to read tailored resume");
+        }
+
+        ContentDisposition disposition = ContentDisposition.attachment()
+                .filename(file.getFileName().toString(), StandardCharsets.UTF_8)
+                .build();
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                ))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .body(resource);
     }
 }

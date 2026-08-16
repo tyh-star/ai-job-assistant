@@ -1,5 +1,6 @@
 package aijob.service.impl;
 
+import aijob.client.GreenhouseJobClient;
 import aijob.dto.RejectedTailorChange;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.TailorChange;
@@ -10,7 +11,9 @@ import aijob.entity.TailorProposal;
 import aijob.entity.User;
 import aijob.enums.TailorMode;
 import aijob.exception.InvalidTailorProposalException;
+import aijob.exception.JobNotFoundException;
 import aijob.exception.TailorProposalNotFoundException;
+import aijob.exception.TailoredFileNotFoundException;
 import aijob.mapper.JobMapper;
 import aijob.mapper.ResumeMapper;
 import aijob.mapper.TailorProposalMapper;
@@ -24,6 +27,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -68,6 +73,10 @@ class JobServiceImplTest {
             "●   Deployed backend services on AWS with high availability and scalability.";
     private static final String AWS_POLISH_TEXT =
             "●   Deployed production backend services on AWS.";
+    private static final String TAILORED_FILE_NAME =
+            "11111111-2222-3333-4444-555555555555.docx";
+    private static final String TAILORED_DOWNLOAD_URL =
+            "/api/v1/jobs/10/tailored/" + TAILORED_FILE_NAME;
 
     @Mock
     private JobMapper jobMapper;
@@ -83,6 +92,8 @@ class JobServiceImplTest {
     private ResumeDocxTailorService resumeDocxTailorService;
     @Mock
     private TailorProposalMapper tailorProposalMapper;
+    @Mock
+    private GreenhouseJobClient greenhouseJobClient;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -254,6 +265,7 @@ class JobServiceImplTest {
         assertRejectedCountMatches(response, 0);
         assertEquals(1, response.getChanges().size());
         assertEquals(Boolean.FALSE, response.getChanges().get(0).getApplied());
+        assertNull(response.getDownloadUrl());
     }
 
     @Test
@@ -557,7 +569,7 @@ class JobServiceImplTest {
         assertEquals("p-23", writerChanges.getValue().get(0).getNodeId());
         assertEquals(1, response.getAppliedChangeCount());
         assertEquals(TailorProposal.STATUS_CONFIRMED, response.getStatus());
-        assertEquals("out.docx", response.getGeneratedFileName());
+        assertEquals(TAILORED_FILE_NAME, response.getGeneratedFileName());
         assertNotNull(response.getGeneratedFilePath());
         assertEquals(Boolean.TRUE, appliedFor(response, "p-23"));
         assertEquals(Boolean.FALSE, appliedFor(response, "p-24"));
@@ -721,6 +733,103 @@ class JobServiceImplTest {
         verify(tailorProposalMapper, never()).claimPending(anyLong(), anyLong(), anyLong());
     }
 
+    @Test
+    void tailorResume_conservative_setsDownloadUrlAndOmitsAbsolutePathFromJson() throws Exception {
+        stubOwnedResources();
+        when(resumeDocumentService.parseDocx(any())).thenReturn(experienceNodes());
+        when(aiResumeService.generateTailorChanges(anyList(), any(), eq(TailorMode.CONSERVATIVE)))
+                .thenReturn(List.of(verifiedChange("p-23", NODE_TEXT, NEW_TEXT)));
+        when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
+                .thenReturn(tempDir.resolve(TAILORED_FILE_NAME));
+
+        TailoredResumeResponse response = jobService.tailorResume(
+                EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
+
+        assertEquals(TAILORED_FILE_NAME, response.getGeneratedFileName());
+        assertEquals(TAILORED_DOWNLOAD_URL, response.getDownloadUrl());
+        assertTrue(response.getGeneratedFilePath().contains(TAILORED_FILE_NAME));
+
+        String json = objectMapper.writeValueAsString(response);
+        assertTrue(json.contains(TAILORED_DOWNLOAD_URL));
+        assertFalse(json.contains("generatedFilePath"));
+        assertFalse(json.contains("C:\\\\") || json.contains("C:\\"));
+    }
+
+    @Test
+    void confirmTailorProposal_setsDownloadUrl() {
+        stubOwnedResources();
+        TailorProposal proposal = pendingProposal(
+                1L,
+                10L,
+                3L,
+                List.of(verifiedChange("p-23", NODE_TEXT, NEW_TEXT))
+        );
+        stubConfirmSuccess(proposal);
+
+        TailoredResumeResponse response = jobService.confirmTailorProposal(
+                EMAIL, 10L, 7L, List.of("p-23"));
+
+        assertEquals(TAILORED_DOWNLOAD_URL, response.getDownloadUrl());
+        assertEquals(TAILORED_FILE_NAME, response.getGeneratedFileName());
+    }
+
+    @Test
+    void downloadTailoredResume_ownFile_returnsResolvedPath() throws Exception {
+        stubCurrentUserAndJob();
+        Path file = createOwnedTailoredFile(TAILORED_FILE_NAME, "docx-bytes");
+        try {
+            Path downloaded = jobService.downloadTailoredResume(EMAIL, 10L, TAILORED_FILE_NAME);
+            assertEquals(file.toAbsolutePath().normalize(), downloaded.toAbsolutePath().normalize());
+            assertEquals("docx-bytes", Files.readString(downloaded));
+        } finally {
+            Files.deleteIfExists(file);
+        }
+    }
+
+    @Test
+    void downloadTailoredResume_otherUsersJob_isNotFound() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job foreign = new Job();
+        foreign.setId(99L);
+        foreign.setUserId(2L);
+        when(jobMapper.findById(99L)).thenReturn(foreign);
+
+        assertThrows(
+                JobNotFoundException.class,
+                () -> jobService.downloadTailoredResume(EMAIL, 99L, TAILORED_FILE_NAME)
+        );
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "../secret.docx",
+            "..\\secret.docx",
+            "a/b.docx",
+            "not-a-uuid.docx",
+            "11111111-2222-3333-4444-555555555555.docx.bak",
+            " ",
+            ""
+    })
+    void downloadTailoredResume_illegalFileName_isNotFound(String fileName) {
+        stubCurrentUserAndJob();
+        assertThrows(
+                TailoredFileNotFoundException.class,
+                () -> jobService.downloadTailoredResume(EMAIL, 10L, fileName)
+        );
+    }
+
+    @Test
+    void downloadTailoredResume_missingFile_isNotFound() {
+        stubCurrentUserAndJob();
+        assertThrows(
+                TailoredFileNotFoundException.class,
+                () -> jobService.downloadTailoredResume(EMAIL, 10L, TAILORED_FILE_NAME)
+        );
+    }
+
     private void assertRejectedCountMatches(TailoredResumeResponse response, int expected) {
         assertEquals(expected, response.getRejectedChangeCount());
         assertEquals(expected, response.getRejectedChanges().size());
@@ -728,6 +837,17 @@ class JobServiceImplTest {
     }
 
     private void stubOwnedResources() {
+        stubCurrentUserAndJob();
+
+        Resume resume = new Resume();
+        resume.setId(3L);
+        resume.setUserId(1L);
+        resume.setFileType("docx");
+        resume.setFilePath(resumeFile.toString());
+        when(resumeMapper.findById(3L)).thenReturn(resume);
+    }
+
+    private void stubCurrentUserAndJob() {
         User user = new User();
         user.setId(1L);
         user.setEmail(EMAIL);
@@ -738,13 +858,6 @@ class JobServiceImplTest {
         job.setUserId(1L);
         job.setDescription("Need Spring Boot security experience.");
         when(jobMapper.findById(10L)).thenReturn(job);
-
-        Resume resume = new Resume();
-        resume.setId(3L);
-        resume.setUserId(1L);
-        resume.setFileType("docx");
-        resume.setFilePath(resumeFile.toString());
-        when(resumeMapper.findById(3L)).thenReturn(resume);
     }
 
     private List<ResumeDocumentNode> experienceNodes() {
@@ -815,7 +928,7 @@ class JobServiceImplTest {
         when(tailorProposalMapper.findById(proposal.getId())).thenReturn(proposal);
         when(resumeDocumentService.parseDocx(any())).thenReturn(experienceNodes());
         when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
-                .thenReturn(tempDir.resolve("out.docx"));
+                .thenReturn(tempDir.resolve(TAILORED_FILE_NAME));
         when(tailorProposalMapper.markConfirmed(eq(proposal.getId()), any(), any())).thenReturn(1);
     }
 
@@ -852,5 +965,12 @@ class JobServiceImplTest {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private Path createOwnedTailoredFile(String fileName, String contents) throws Exception {
+        Path file = Path.of("uploads", "tailored", "1", "10", fileName);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, contents);
+        return file;
     }
 }

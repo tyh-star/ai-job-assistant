@@ -1,12 +1,14 @@
 package aijob.service;
 
 import aijob.dto.CreateJobRequest;
+import aijob.dto.ImportJobsResponse;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.JobResponse;
 import aijob.dto.TailoredResumeResponse;
 import aijob.dto.UpdateJobRequest;
 import aijob.enums.TailorMode;
 
+import java.nio.file.Path;
 import java.util.List;
 
 public interface JobService {
@@ -42,4 +44,12 @@ public interface JobService {
             Long proposalId,
             List<String> selectedNodeIds
     );
+
+    Path downloadTailoredResume(
+            String email,
+            Long jobId,
+            String fileName
+    );
+
+    ImportJobsResponse importGreenhouseJobs(String email, String boardToken);
 }

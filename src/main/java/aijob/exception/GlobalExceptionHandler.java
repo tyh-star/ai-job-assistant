@@ -240,6 +240,60 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(InvalidGreenhouseBoardException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidGreenhouseBoard(
+            InvalidGreenhouseBoardException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
+    @ExceptionHandler(GreenhouseBoardNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleGreenhouseBoardNotFound(
+            GreenhouseBoardNotFoundException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
+    @ExceptionHandler(GreenhouseServiceException.class)
+    public ResponseEntity<ErrorResponse> handleGreenhouseService(
+            GreenhouseServiceException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_GATEWAY.value(),
+                HttpStatus.BAD_GATEWAY.getReasonPhrase(),
+                "Greenhouse is temporarily unavailable",
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(error);
+    }
+
     @ExceptionHandler(JobNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleJobNotFound(
             JobNotFoundException ex,
@@ -261,6 +315,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TailorProposalNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleTailorProposalNotFound(
             TailorProposalNotFoundException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
+    @ExceptionHandler(TailoredFileNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTailoredFileNotFound(
+            TailoredFileNotFoundException ex,
             HttpServletRequest request) {
 
         ErrorResponse error = new ErrorResponse(

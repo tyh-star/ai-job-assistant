@@ -25,6 +25,8 @@ public class Job {
 
     private String status;
 
+    private String externalJobId;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

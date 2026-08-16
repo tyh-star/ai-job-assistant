@@ -11,11 +11,11 @@ public interface JobMapper {
     @Insert("""
             INSERT INTO jobs (
                 user_id, company, title, location, job_url,
-                description, source, status
+                description, source, status, external_job_id
             )
             VALUES (
                 #{userId}, #{company}, #{title}, #{location}, #{jobUrl},
-                #{description}, #{source}, #{status}
+                #{description}, #{source}, #{status}, #{externalJobId}
             )
             """)
     @Options(useGeneratedKeys = true, keyProperty = "id")

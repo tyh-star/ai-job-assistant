@@ -1,6 +1,8 @@
 package aijob.service.impl;
 
+import aijob.client.GreenhouseJobClient;
 import aijob.dto.CreateJobRequest;
+import aijob.dto.ImportJobsResponse;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.JobResponse;
 import aijob.dto.RejectedTailorChange;
@@ -20,6 +22,7 @@ import aijob.exception.ResumeNotFoundException;
 import aijob.exception.ResumeTextNotAvailableException;
 import aijob.exception.TailorProposalConflictException;
 import aijob.exception.TailorProposalNotFoundException;
+import aijob.exception.TailoredFileNotFoundException;
 import aijob.exception.UserNotFoundException;
 import aijob.mapper.JobMapper;
 import aijob.mapper.ResumeMapper;
@@ -29,6 +32,8 @@ import aijob.service.AiResumeService;
 import aijob.service.JobService;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
+import aijob.util.GreenhouseBoardToken;
+import aijob.util.HtmlTextExtractor;
 import aijob.util.ResumeTailorNodeGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -40,6 +45,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -52,8 +58,14 @@ import java.util.regex.Pattern;
 public class JobServiceImpl implements JobService {
 
     private static final String SOURCE_MANUAL = "MANUAL";
+    private static final String SOURCE_GREENHOUSE = "GREENHOUSE";
     private static final String STATUS_SAVED = "SAVED";
+    static final int MAX_GREENHOUSE_IMPORTS = 50;
     private static final int PROPOSAL_TTL_HOURS = 24;
+    private static final Path TAILORED_ROOT = Path.of("uploads", "tailored");
+    private static final Pattern TAILORED_FILE_NAME = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.docx$"
+    );
     private static final List<String> UNSUPPORTED_CLAIM_PHRASES = List.of(
             "high availability",
             "highly available",
@@ -71,6 +83,7 @@ public class JobServiceImpl implements JobService {
     private final ResumeDocumentService resumeDocumentService;
     private final ResumeDocxTailorService resumeDocxTailorService;
     private final ObjectMapper objectMapper;
+    private final GreenhouseJobClient greenhouseJobClient;
 
     public JobServiceImpl(JobMapper jobMapper,
                           UserMapper userMapper,
@@ -79,7 +92,8 @@ public class JobServiceImpl implements JobService {
                           AiResumeService aiResumeService,
                           ResumeDocumentService resumeDocumentService,
                           ResumeDocxTailorService resumeDocxTailorService,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          GreenhouseJobClient greenhouseJobClient) {
         this.jobMapper = jobMapper;
         this.userMapper = userMapper;
         this.resumeMapper = resumeMapper;
@@ -88,6 +102,7 @@ public class JobServiceImpl implements JobService {
         this.resumeDocumentService = resumeDocumentService;
         this.resumeDocxTailorService = resumeDocxTailorService;
         this.objectMapper = objectMapper;
+        this.greenhouseJobClient = greenhouseJobClient;
     }
 
     @Override
@@ -403,6 +418,160 @@ public class JobServiceImpl implements JobService {
         }
     }
 
+    @Override
+    public Path downloadTailoredResume(
+            String email,
+            Long jobId,
+            String fileName) {
+
+        User user = getUserByEmail(email);
+        getOwnedJob(jobId, user.getId());
+
+        if (!isSafeTailoredFileName(fileName)) {
+            throw new TailoredFileNotFoundException("Tailored file not found");
+        }
+
+        Path jobDirectory = TAILORED_ROOT
+                .resolve(String.valueOf(user.getId()))
+                .resolve(String.valueOf(jobId))
+                .toAbsolutePath()
+                .normalize();
+        Path resolved = jobDirectory.resolve(fileName).normalize();
+
+        if (!resolved.startsWith(jobDirectory)
+                || !jobDirectory.equals(resolved.getParent())
+                || !Files.isRegularFile(resolved)) {
+            throw new TailoredFileNotFoundException("Tailored file not found");
+        }
+
+        return resolved;
+    }
+
+    @Override
+    public ImportJobsResponse importGreenhouseJobs(String email, String boardToken) {
+        User user = getUserByEmail(email);
+        String token = GreenhouseBoardToken.parse(boardToken);
+        GreenhouseJobClient.GreenhouseBoardSnapshot snapshot =
+                greenhouseJobClient.fetchBoard(token);
+
+        String company = trimToNull(snapshot.companyName());
+        if (company == null) {
+            company = token;
+        }
+
+        List<Job> existing = jobMapper.findByUserId(user.getId());
+        if (existing == null) {
+            existing = List.of();
+        }
+
+        Set<String> greenhouseIds = new HashSet<>();
+        Set<String> jobUrls = new HashSet<>();
+        for (Job job : existing) {
+            if (SOURCE_GREENHOUSE.equals(job.getSource())) {
+                String existingExternalId = trimToNull(job.getExternalJobId());
+                if (existingExternalId != null) {
+                    greenhouseIds.add(existingExternalId);
+                }
+            }
+            String existingUrl = trimToNull(job.getJobUrl());
+            if (existingUrl != null) {
+                jobUrls.add(existingUrl);
+            }
+        }
+
+        int importedCount = 0;
+        int skippedDuplicateCount = 0;
+        int skippedNoTitleCount = 0;
+        int skippedNoUrlCount = 0;
+        int skippedNoDescriptionCount = 0;
+        int skippedOverLimitCount = 0;
+        List<JobResponse> importedJobs = new ArrayList<>();
+
+        List<GreenhouseJobClient.GreenhouseJobPosting> postings =
+                snapshot.jobs() == null ? List.of() : snapshot.jobs();
+
+        for (GreenhouseJobClient.GreenhouseJobPosting posting : postings) {
+            if (posting == null) {
+                skippedNoTitleCount++;
+                continue;
+            }
+
+            String title = trimToNull(posting.title());
+            if (title == null) {
+                skippedNoTitleCount++;
+                continue;
+            }
+
+            String jobUrl = trimToNull(posting.jobUrl());
+            if (jobUrl == null) {
+                skippedNoUrlCount++;
+                continue;
+            }
+
+            String description = HtmlTextExtractor.toPlainText(posting.htmlContent());
+            if (description.isBlank()) {
+                skippedNoDescriptionCount++;
+                continue;
+            }
+
+            String externalJobId = trimToNull(posting.externalJobId());
+            boolean duplicate = (externalJobId != null && greenhouseIds.contains(externalJobId))
+                    || jobUrls.contains(jobUrl);
+            if (duplicate) {
+                skippedDuplicateCount++;
+                continue;
+            }
+
+            if (importedCount >= MAX_GREENHOUSE_IMPORTS) {
+                skippedOverLimitCount++;
+                continue;
+            }
+
+            Job job = new Job();
+            job.setUserId(user.getId());
+            job.setCompany(company);
+            job.setTitle(title);
+            job.setLocation(trimToNull(posting.location()));
+            job.setJobUrl(jobUrl);
+            job.setDescription(description);
+            job.setSource(SOURCE_GREENHOUSE);
+            job.setStatus(STATUS_SAVED);
+            job.setExternalJobId(externalJobId);
+
+            jobMapper.insert(job);
+            Job saved = jobMapper.findById(job.getId());
+            importedJobs.add(toJobResponse(saved != null ? saved : job));
+            importedCount++;
+
+            if (externalJobId != null) {
+                greenhouseIds.add(externalJobId);
+            }
+            jobUrls.add(jobUrl);
+        }
+
+        return new ImportJobsResponse(
+                importedCount,
+                skippedDuplicateCount,
+                skippedNoTitleCount,
+                skippedNoUrlCount,
+                skippedNoDescriptionCount,
+                skippedOverLimitCount,
+                importedJobs
+        );
+    }
+
+    private boolean isSafeTailoredFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return false;
+        }
+        if (fileName.contains("/")
+                || fileName.contains("\\")
+                || fileName.contains("..")) {
+            return false;
+        }
+        return TAILORED_FILE_NAME.matcher(fileName).matches();
+    }
+
     private TailoredResumeResponse createAggressiveProposal(
             Long userId,
             Long resumeId,
@@ -590,12 +759,17 @@ public class JobServiceImpl implements JobService {
             String status,
             LocalDateTime expiresAt) {
 
+        String downloadUrl = isBlank(generatedFileName)
+                ? null
+                : "/api/v1/jobs/" + jobId + "/tailored/" + generatedFileName;
+
         return new TailoredResumeResponse(
                 resumeId,
                 jobId,
                 mode,
                 generatedFileName,
                 generatedFilePath,
+                downloadUrl,
                 changes,
                 appliedChangeCount == 0,
                 appliedChangeCount,
@@ -924,6 +1098,7 @@ public class JobServiceImpl implements JobService {
                 job.getDescription(),
                 job.getSource(),
                 job.getStatus(),
+                job.getExternalJobId(),
                 job.getCreatedAt(),
                 job.getUpdatedAt()
         );

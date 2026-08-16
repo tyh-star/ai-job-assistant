@@ -17,6 +17,7 @@ public class JobResponse {
     private String description;
     private String source;
     private String status;
+    private String externalJobId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
