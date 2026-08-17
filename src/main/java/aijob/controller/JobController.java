@@ -1,5 +1,7 @@
 package aijob.controller;
 
+import aijob.dto.BulkDeleteJobsRequest;
+import aijob.dto.BulkDeleteJobsResponse;
 import aijob.dto.ConfirmTailorProposalRequest;
 import aijob.dto.CreateJobRequest;
 import aijob.dto.ImportGreenhouseJobsRequest;
@@ -25,6 +27,7 @@ import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
@@ -76,6 +79,20 @@ public class JobController {
                 );
 
         return ResponseEntity.ok(imported);
+    }
+
+    @DeleteMapping("/bulk")
+    public ResponseEntity<BulkDeleteJobsResponse> bulkDeleteJobs(
+            Authentication authentication,
+            @Valid @RequestBody BulkDeleteJobsRequest request) {
+
+        BulkDeleteJobsResponse deleted =
+                jobService.bulkDeleteJobs(
+                        authentication.getName(),
+                        request.getJobIds()
+                );
+
+        return ResponseEntity.ok(deleted);
     }
 
     @GetMapping("/{id}")
@@ -217,10 +234,17 @@ public class JobController {
                 .build();
 
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                ))
+                .contentType(tailoredMediaType(fileName))
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
                 .body(resource);
+    }
+
+    private static MediaType tailoredMediaType(String fileName) {
+        if (fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+            return MediaType.APPLICATION_PDF;
+        }
+        return MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
     }
 }

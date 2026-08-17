@@ -38,6 +38,8 @@ class JobControllerDownloadTest {
     private static final String EMAIL = "user@example.com";
     private static final String FILE_NAME =
             "11111111-2222-3333-4444-555555555555.docx";
+    private static final String PDF_NAME =
+            "11111111-2222-3333-4444-555555555555.pdf";
     private static final String DOCX_TYPE =
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -80,6 +82,24 @@ class JobControllerDownloadTest {
     }
 
     @Test
+    void downloadTailoredResume_pdfFile_setsPdfContentType() throws Exception {
+        Path file = tempDir.resolve(PDF_NAME);
+        byte[] payload = "%PDF-1.4".getBytes(StandardCharsets.UTF_8);
+        Files.write(file, payload);
+        when(jobService.downloadTailoredResume(EMAIL, 10L, PDF_NAME)).thenReturn(file);
+
+        ResponseEntity<Resource> response =
+                controller.downloadTailoredResume(authentication, 10L, PDF_NAME);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
+        ContentDisposition disposition = response.getHeaders().getContentDisposition();
+        assertEquals("attachment", disposition.getType());
+        assertEquals(PDF_NAME, disposition.getFilename());
+        assertArrayEquals(payload, response.getBody().getContentAsByteArray());
+    }
+
+    @Test
     void downloadTailoredResume_otherUsersJob_returns404() throws Exception {
         when(jobService.downloadTailoredResume(EMAIL, 99L, FILE_NAME))
                 .thenThrow(new JobNotFoundException("Job not found"));
@@ -96,6 +116,21 @@ class JobControllerDownloadTest {
                 .thenThrow(new TailoredFileNotFoundException("Tailored file not found"));
 
         mockMvc.perform(get("/api/v1/jobs/{jobId}/tailored/{fileName}", 10L, "not-a-uuid.docx")
+                        .principal(authentication))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void downloadTailoredResume_illegalExtension_returns404() throws Exception {
+        when(jobService.downloadTailoredResume(
+                EMAIL, 10L, "11111111-2222-3333-4444-555555555555.exe"))
+                .thenThrow(new TailoredFileNotFoundException("Tailored file not found"));
+
+        mockMvc.perform(get(
+                        "/api/v1/jobs/{jobId}/tailored/{fileName}",
+                        10L,
+                        "11111111-2222-3333-4444-555555555555.exe")
                         .principal(authentication))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));

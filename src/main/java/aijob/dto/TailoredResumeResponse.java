@@ -1,5 +1,6 @@
 package aijob.dto;
 
+import aijob.enums.PdfExportStatus;
 import aijob.enums.TailorMode;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -25,6 +26,8 @@ public class TailoredResumeResponse {
     private String generatedFilePath;
 
     private String downloadUrl;
+    private String pdfDownloadUrl;
+    private PdfExportStatus pdfExportStatus;
     private List<TailorChange> changes;
     private boolean unchanged;
     private int appliedChangeCount;

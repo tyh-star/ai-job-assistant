@@ -366,6 +366,24 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(InvalidBulkDeleteException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidBulkDelete(
+            InvalidBulkDeleteException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
     @ExceptionHandler(InvalidTailorProposalException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTailorProposal(
             InvalidTailorProposalException ex,

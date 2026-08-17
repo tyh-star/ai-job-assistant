@@ -23,6 +23,7 @@ public class RejectedTailorChange {
     public static final String UNKNOWN_EVIDENCE_NODE_ID = "UNKNOWN_EVIDENCE_NODE_ID";
     public static final String EVIDENCE_QUOTE_MISMATCH = "EVIDENCE_QUOTE_MISMATCH";
     public static final String UNSUPPORTED_CLAIM = "UNSUPPORTED_CLAIM";
+    public static final String CROSS_NODE_EVIDENCE_NOT_ALLOWED = "CROSS_NODE_EVIDENCE_NOT_ALLOWED";
 
     private String nodeId;
     private String reasonCode;

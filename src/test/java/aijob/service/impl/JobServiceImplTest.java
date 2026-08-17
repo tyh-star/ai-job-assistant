@@ -9,9 +9,12 @@ import aijob.entity.Job;
 import aijob.entity.Resume;
 import aijob.entity.TailorProposal;
 import aijob.entity.User;
+import aijob.enums.PdfExportStatus;
 import aijob.enums.TailorMode;
+import aijob.exception.InvalidBulkDeleteException;
 import aijob.exception.InvalidTailorProposalException;
 import aijob.exception.JobNotFoundException;
+import aijob.exception.PdfExportException;
 import aijob.exception.TailorProposalNotFoundException;
 import aijob.exception.TailoredFileNotFoundException;
 import aijob.mapper.JobMapper;
@@ -19,6 +22,7 @@ import aijob.mapper.ResumeMapper;
 import aijob.mapper.TailorProposalMapper;
 import aijob.mapper.UserMapper;
 import aijob.service.AiResumeService;
+import aijob.service.PdfExportService;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -75,8 +79,12 @@ class JobServiceImplTest {
             "●   Deployed production backend services on AWS.";
     private static final String TAILORED_FILE_NAME =
             "11111111-2222-3333-4444-555555555555.docx";
+    private static final String TAILORED_PDF_NAME =
+            "11111111-2222-3333-4444-555555555555.pdf";
     private static final String TAILORED_DOWNLOAD_URL =
             "/api/v1/jobs/10/tailored/" + TAILORED_FILE_NAME;
+    private static final String TAILORED_PDF_DOWNLOAD_URL =
+            "/api/v1/jobs/10/tailored/" + TAILORED_PDF_NAME;
 
     @Mock
     private JobMapper jobMapper;
@@ -94,6 +102,8 @@ class JobServiceImplTest {
     private TailorProposalMapper tailorProposalMapper;
     @Mock
     private GreenhouseJobClient greenhouseJobClient;
+    @Mock
+    private PdfExportService pdfExportService;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -266,6 +276,9 @@ class JobServiceImplTest {
         assertEquals(1, response.getChanges().size());
         assertEquals(Boolean.FALSE, response.getChanges().get(0).getApplied());
         assertNull(response.getDownloadUrl());
+        assertNull(response.getPdfDownloadUrl());
+        assertNull(response.getPdfExportStatus());
+        verify(pdfExportService, never()).exportPdf(any());
     }
 
     @Test
@@ -382,6 +395,52 @@ class JobServiceImplTest {
         assertTrue(result.rejected().isEmpty());
         assertEquals(Boolean.TRUE, result.accepted().get(0).getApplied());
         assertEquals(AWS_POLISH_TEXT, result.accepted().get(0).getNewText());
+    }
+
+    @Test
+    void filterSafeChanges_conservativeCrossNodeEvidence_isRejected() {
+        TailorChange change = verifiedChange(
+                "p-16",
+                "●   Built REST APIs in Java.",
+                "●   Built REST APIs in Java on AWS."
+        );
+        change.setEvidenceNodeIds(List.of("p-18"));
+        change.setEvidenceQuote("AWS");
+
+        JobServiceImpl.TailorFilterResult result = jobService.filterSafeChanges(
+                crossNodeExperienceNodes(),
+                List.of(change),
+                TailorMode.CONSERVATIVE
+        );
+
+        assertTrue(result.accepted().isEmpty());
+        assertEquals(1, result.rejected().size());
+        assertEquals("p-16", result.rejected().get(0).getNodeId());
+        assertEquals(
+                RejectedTailorChange.CROSS_NODE_EVIDENCE_NOT_ALLOWED,
+                result.rejected().get(0).getReasonCode()
+        );
+    }
+
+    @Test
+    void filterSafeChanges_aggressiveCrossNodeEvidence_isAllowed() {
+        TailorChange change = verifiedChange(
+                "p-16",
+                "●   Built REST APIs in Java.",
+                "●   Built REST APIs in Java on AWS."
+        );
+        change.setEvidenceNodeIds(List.of("p-18"));
+        change.setEvidenceQuote("AWS");
+
+        JobServiceImpl.TailorFilterResult result = jobService.filterSafeChanges(
+                crossNodeExperienceNodes(),
+                List.of(change),
+                TailorMode.AGGRESSIVE
+        );
+
+        assertEquals(1, result.accepted().size());
+        assertTrue(result.rejected().isEmpty());
+        assertEquals(Boolean.TRUE, result.accepted().get(0).getApplied());
     }
 
     @Test
@@ -756,6 +815,68 @@ class JobServiceImplTest {
     }
 
     @Test
+    void tailorResume_conservative_pdfSuccess_setsPdfDownloadUrl() {
+        stubOwnedResources();
+        when(resumeDocumentService.parseDocx(any())).thenReturn(experienceNodes());
+        when(aiResumeService.generateTailorChanges(anyList(), any(), eq(TailorMode.CONSERVATIVE)))
+                .thenReturn(List.of(verifiedChange("p-23", NODE_TEXT, NEW_TEXT)));
+        when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
+                .thenReturn(tempDir.resolve(TAILORED_FILE_NAME));
+        when(pdfExportService.exportPdf(any()))
+                .thenReturn(tempDir.resolve(TAILORED_PDF_NAME));
+
+        TailoredResumeResponse response = jobService.tailorResume(
+                EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
+
+        assertEquals(TAILORED_DOWNLOAD_URL, response.getDownloadUrl());
+        assertEquals(TAILORED_PDF_DOWNLOAD_URL, response.getPdfDownloadUrl());
+        assertEquals(PdfExportStatus.SUCCESS, response.getPdfExportStatus());
+    }
+
+    @Test
+    void tailorResume_conservative_pdfFailure_stillReturnsDocxDownload() {
+        stubOwnedResources();
+        when(resumeDocumentService.parseDocx(any())).thenReturn(experienceNodes());
+        when(aiResumeService.generateTailorChanges(anyList(), any(), eq(TailorMode.CONSERVATIVE)))
+                .thenReturn(List.of(verifiedChange("p-23", NODE_TEXT, NEW_TEXT)));
+        when(resumeDocxTailorService.createTailoredDocx(any(), anyList(), anyLong(), anyLong()))
+                .thenReturn(tempDir.resolve(TAILORED_FILE_NAME));
+        when(pdfExportService.exportPdf(any()))
+                .thenThrow(new PdfExportException("LibreOffice exploded at C:\\secret"));
+
+        TailoredResumeResponse response = jobService.tailorResume(
+                EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
+
+        assertEquals(TAILORED_DOWNLOAD_URL, response.getDownloadUrl());
+        assertEquals(TAILORED_FILE_NAME, response.getGeneratedFileName());
+        assertNull(response.getPdfDownloadUrl());
+        assertEquals(PdfExportStatus.FAILED, response.getPdfExportStatus());
+    }
+
+    @Test
+    void confirmTailorProposal_pdfFailure_stillConfirmsDocx() {
+        stubOwnedResources();
+        TailorProposal proposal = pendingProposal(
+                1L,
+                10L,
+                3L,
+                List.of(verifiedChange("p-23", NODE_TEXT, NEW_TEXT))
+        );
+        stubConfirmSuccess(proposal);
+        when(pdfExportService.exportPdf(any()))
+                .thenThrow(new PdfExportException("converter timeout"));
+
+        TailoredResumeResponse response = jobService.confirmTailorProposal(
+                EMAIL, 10L, 7L, List.of("p-23"));
+
+        assertEquals(TAILORED_DOWNLOAD_URL, response.getDownloadUrl());
+        assertNull(response.getPdfDownloadUrl());
+        assertEquals(PdfExportStatus.FAILED, response.getPdfExportStatus());
+        verify(tailorProposalMapper).markConfirmed(eq(7L), any(), any());
+        verify(tailorProposalMapper, never()).restorePending(7L);
+    }
+
+    @Test
     void confirmTailorProposal_setsDownloadUrl() {
         stubOwnedResources();
         TailorProposal proposal = pendingProposal(
@@ -787,6 +908,19 @@ class JobServiceImplTest {
     }
 
     @Test
+    void downloadTailoredResume_pdfFile_returnsResolvedPath() throws Exception {
+        stubCurrentUserAndJob();
+        Path file = createOwnedTailoredFile(TAILORED_PDF_NAME, "pdf-bytes");
+        try {
+            Path downloaded = jobService.downloadTailoredResume(EMAIL, 10L, TAILORED_PDF_NAME);
+            assertEquals(file.toAbsolutePath().normalize(), downloaded.toAbsolutePath().normalize());
+            assertEquals("pdf-bytes", Files.readString(downloaded));
+        } finally {
+            Files.deleteIfExists(file);
+        }
+    }
+
+    @Test
     void downloadTailoredResume_otherUsersJob_isNotFound() {
         User user = new User();
         user.setId(1L);
@@ -810,6 +944,9 @@ class JobServiceImplTest {
             "a/b.docx",
             "not-a-uuid.docx",
             "11111111-2222-3333-4444-555555555555.docx.bak",
+            "11111111-2222-3333-4444-555555555555.exe",
+            "11111111-2222-3333-4444-555555555555.html",
+            "11111111-2222-3333-4444-555555555555.txt",
             " ",
             ""
     })
@@ -828,6 +965,73 @@ class JobServiceImplTest {
                 TailoredFileNotFoundException.class,
                 () -> jobService.downloadTailoredResume(EMAIL, 10L, TAILORED_FILE_NAME)
         );
+    }
+
+    @Test
+    void bulkDeleteJobs_twoGreenhouseJobs_deletesBoth() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job first = greenhouseJob(11L);
+        Job second = greenhouseJob(12L);
+        when(jobMapper.findById(11L)).thenReturn(first);
+        when(jobMapper.findById(12L)).thenReturn(second);
+        when(jobMapper.deleteByIdAndUserId(11L, 1L)).thenReturn(1);
+        when(jobMapper.deleteByIdAndUserId(12L, 1L)).thenReturn(1);
+
+        var response = jobService.bulkDeleteJobs(EMAIL, List.of(11L, 12L));
+
+        assertEquals(2, response.getDeletedCount());
+        verify(jobMapper).deleteByIdAndUserId(11L, 1L);
+        verify(jobMapper).deleteByIdAndUserId(12L, 1L);
+    }
+
+    @Test
+    void bulkDeleteJobs_empty_is400() {
+        assertThrows(
+                InvalidBulkDeleteException.class,
+                () -> jobService.bulkDeleteJobs(EMAIL, List.of())
+        );
+        verify(jobMapper, never()).deleteByIdAndUserId(any(), any());
+    }
+
+    @Test
+    void bulkDeleteJobs_containsManual_is400AndDeletesNothing() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job greenhouse = greenhouseJob(11L);
+        Job manual = greenhouseJob(12L);
+        manual.setSource("MANUAL");
+        when(jobMapper.findById(11L)).thenReturn(greenhouse);
+        when(jobMapper.findById(12L)).thenReturn(manual);
+
+        assertThrows(
+                InvalidBulkDeleteException.class,
+                () -> jobService.bulkDeleteJobs(EMAIL, List.of(11L, 12L))
+        );
+        verify(jobMapper, never()).deleteByIdAndUserId(any(), any());
+    }
+
+    @Test
+    void bulkDeleteJobs_otherUserJob_is404AndDeletesNothing() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job owned = greenhouseJob(11L);
+        Job foreign = greenhouseJob(12L);
+        foreign.setUserId(99L);
+        when(jobMapper.findById(11L)).thenReturn(owned);
+        when(jobMapper.findById(12L)).thenReturn(foreign);
+
+        assertThrows(
+                JobNotFoundException.class,
+                () -> jobService.bulkDeleteJobs(EMAIL, List.of(11L, 12L))
+        );
+        verify(jobMapper, never()).deleteByIdAndUserId(any(), any());
     }
 
     private void assertRejectedCountMatches(TailoredResumeResponse response, int expected) {
@@ -860,6 +1064,17 @@ class JobServiceImplTest {
         when(jobMapper.findById(10L)).thenReturn(job);
     }
 
+    private Job greenhouseJob(Long id) {
+        Job job = new Job();
+        job.setId(id);
+        job.setUserId(1L);
+        job.setCompany("Airbnb");
+        job.setTitle("Engineer " + id);
+        job.setSource("GREENHOUSE");
+        job.setStatus("SAVED");
+        return job;
+    }
+
     private List<ResumeDocumentNode> experienceNodes() {
         return List.of(
                 new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"),
@@ -872,6 +1087,14 @@ class JobServiceImplTest {
         return List.of(
                 new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"),
                 new ResumeDocumentNode("p-33", "PARAGRAPH", AWS_NODE_TEXT)
+        );
+    }
+
+    private List<ResumeDocumentNode> crossNodeExperienceNodes() {
+        return List.of(
+                new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"),
+                new ResumeDocumentNode("p-16", "PARAGRAPH", "●   Built REST APIs in Java."),
+                new ResumeDocumentNode("p-18", "PARAGRAPH", AWS_NODE_TEXT)
         );
     }
 

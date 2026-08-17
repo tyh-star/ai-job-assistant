@@ -14,6 +14,7 @@ import aijob.mapper.ResumeMapper;
 import aijob.mapper.TailorProposalMapper;
 import aijob.mapper.UserMapper;
 import aijob.service.AiResumeService;
+import aijob.service.PdfExportService;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -62,6 +64,8 @@ class JobServiceImplGreenhouseImportTest {
     private ResumeDocxTailorService resumeDocxTailorService;
     @Mock
     private GreenhouseJobClient greenhouseJobClient;
+    @Mock
+    private PdfExportService pdfExportService;
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -78,7 +82,8 @@ class JobServiceImplGreenhouseImportTest {
                 resumeDocumentService,
                 resumeDocxTailorService,
                 objectMapper,
-                greenhouseJobClient
+                greenhouseJobClient,
+                pdfExportService
         );
 
         User user = new User();
@@ -124,6 +129,42 @@ class JobServiceImplGreenhouseImportTest {
         assertEquals("SAVED", inserted.getStatus());
         assertEquals("123", inserted.getExternalJobId());
         verify(jobMapper, never()).update(any());
+    }
+
+    @Test
+    void importGreenhouseJobs_encodedGreenhouseHtml_savesPlainTextDescription() {
+        stubExistingJobs(List.of());
+        stubInsertAssignsIds();
+        String encodedContent = """
+                &lt;div class=&quot;content-intro&quot;&gt;
+                &lt;p style=&quot;margin: 0;&quot;&gt;About the role&lt;/p&gt;
+                &lt;p&gt;We build software for hosts &amp;amp; guests.&lt;/p&gt;
+                &lt;ul class=&quot;list&quot;&gt;
+                &lt;li&gt;5+ years of Java experience&lt;/li&gt;
+                &lt;li&gt;Experience with Spring Boot&lt;/li&gt;
+                &lt;/ul&gt;
+                &lt;/div&gt;
+                """;
+        when(greenhouseJobClient.fetchBoard(TOKEN)).thenReturn(new GreenhouseBoardSnapshot(
+                "Airbnb",
+                List.of(posting("123", "Software Engineer", JOB_URL, encodedContent))
+        ));
+
+        ImportJobsResponse response = jobService.importGreenhouseJobs(EMAIL, TOKEN);
+
+        String description = response.getJobs().get(0).getDescription();
+        assertFalse(description.contains("<"), description);
+        assertFalse(description.contains(">"), description);
+        assertFalse(description.contains("class="), description);
+        assertTrue(description.contains("About the role"), description);
+        assertTrue(description.contains("We build software for hosts & guests."), description);
+        assertTrue(description.contains("5+ years of Java experience"), description);
+        assertTrue(description.contains("Experience with Spring Boot"), description);
+        assertTrue(description.contains("\n"), description);
+
+        ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
+        verify(jobMapper).insert(captor.capture());
+        assertEquals(description, captor.getValue().getDescription());
     }
 
     @Test

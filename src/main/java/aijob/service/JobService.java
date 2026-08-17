@@ -1,5 +1,6 @@
 package aijob.service;
 
+import aijob.dto.BulkDeleteJobsResponse;
 import aijob.dto.CreateJobRequest;
 import aijob.dto.ImportJobsResponse;
 import aijob.dto.JobMatchResponse;
@@ -22,6 +23,8 @@ public interface JobService {
     JobResponse updateJob(String email, Long id, UpdateJobRequest request);
 
     void deleteJob(String email, Long id);
+
+    BulkDeleteJobsResponse bulkDeleteJobs(String email, List<Long> jobIds);
 
     JobMatchResponse matchJob(String email, Long jobId, Long resumeId);
 

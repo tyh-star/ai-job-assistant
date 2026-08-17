@@ -19,6 +19,20 @@ public class Resume {
 
     private String extractedText;
 
+    private Long parentResumeId;
+
+    private Long canonicalResumeId;
+
+    private String origin;
+
+    private String reviewStatus;
+
+    private String structuredJson;
+
+    private String layoutJson;
+
+    private String extractionStatus;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

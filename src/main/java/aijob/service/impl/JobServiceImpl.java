@@ -1,6 +1,7 @@
 package aijob.service.impl;
 
 import aijob.client.GreenhouseJobClient;
+import aijob.dto.BulkDeleteJobsResponse;
 import aijob.dto.CreateJobRequest;
 import aijob.dto.ImportJobsResponse;
 import aijob.dto.JobMatchResponse;
@@ -14,7 +15,9 @@ import aijob.entity.Job;
 import aijob.entity.Resume;
 import aijob.entity.TailorProposal;
 import aijob.entity.User;
+import aijob.enums.PdfExportStatus;
 import aijob.enums.TailorMode;
+import aijob.exception.InvalidBulkDeleteException;
 import aijob.exception.InvalidResumeFileException;
 import aijob.exception.InvalidTailorProposalException;
 import aijob.exception.JobNotFoundException;
@@ -30,6 +33,7 @@ import aijob.mapper.TailorProposalMapper;
 import aijob.mapper.UserMapper;
 import aijob.service.AiResumeService;
 import aijob.service.JobService;
+import aijob.service.PdfExportService;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
 import aijob.util.GreenhouseBoardToken;
@@ -38,7 +42,10 @@ import aijob.util.ResumeTailorNodeGuard;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,6 +64,7 @@ import java.util.regex.Pattern;
 @Service
 public class JobServiceImpl implements JobService {
 
+    private static final Logger log = LoggerFactory.getLogger(JobServiceImpl.class);
     private static final String SOURCE_MANUAL = "MANUAL";
     private static final String SOURCE_GREENHOUSE = "GREENHOUSE";
     private static final String STATUS_SAVED = "SAVED";
@@ -64,7 +72,7 @@ public class JobServiceImpl implements JobService {
     private static final int PROPOSAL_TTL_HOURS = 24;
     private static final Path TAILORED_ROOT = Path.of("uploads", "tailored");
     private static final Pattern TAILORED_FILE_NAME = Pattern.compile(
-            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.docx$"
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\.(docx|pdf)$"
     );
     private static final List<String> UNSUPPORTED_CLAIM_PHRASES = List.of(
             "high availability",
@@ -84,6 +92,7 @@ public class JobServiceImpl implements JobService {
     private final ResumeDocxTailorService resumeDocxTailorService;
     private final ObjectMapper objectMapper;
     private final GreenhouseJobClient greenhouseJobClient;
+    private final PdfExportService pdfExportService;
 
     public JobServiceImpl(JobMapper jobMapper,
                           UserMapper userMapper,
@@ -93,7 +102,8 @@ public class JobServiceImpl implements JobService {
                           ResumeDocumentService resumeDocumentService,
                           ResumeDocxTailorService resumeDocxTailorService,
                           ObjectMapper objectMapper,
-                          GreenhouseJobClient greenhouseJobClient) {
+                          GreenhouseJobClient greenhouseJobClient,
+                          PdfExportService pdfExportService) {
         this.jobMapper = jobMapper;
         this.userMapper = userMapper;
         this.resumeMapper = resumeMapper;
@@ -103,6 +113,7 @@ public class JobServiceImpl implements JobService {
         this.resumeDocxTailorService = resumeDocxTailorService;
         this.objectMapper = objectMapper;
         this.greenhouseJobClient = greenhouseJobClient;
+        this.pdfExportService = pdfExportService;
     }
 
     @Override
@@ -182,6 +193,52 @@ public class JobServiceImpl implements JobService {
         if (deleted == 0) {
             throw new JobNotFoundException("Job not found");
         }
+    }
+
+    @Override
+    @Transactional
+    public BulkDeleteJobsResponse bulkDeleteJobs(String email, List<Long> jobIds) {
+        if (jobIds == null || jobIds.isEmpty()) {
+            throw new InvalidBulkDeleteException("Job IDs cannot be empty");
+        }
+
+        List<Long> uniqueIds = new ArrayList<>();
+        Set<Long> seen = new LinkedHashSet<>();
+        for (Long jobId : jobIds) {
+            if (jobId == null || !seen.add(jobId)) {
+                continue;
+            }
+            uniqueIds.add(jobId);
+        }
+        if (uniqueIds.isEmpty()) {
+            throw new InvalidBulkDeleteException("Job IDs cannot be empty");
+        }
+
+        User user = getUserByEmail(email);
+        List<Job> jobs = new ArrayList<>();
+        for (Long jobId : uniqueIds) {
+            Job job = jobMapper.findById(jobId);
+            if (job == null || !user.getId().equals(job.getUserId())) {
+                throw new JobNotFoundException("Job not found");
+            }
+            jobs.add(job);
+        }
+        for (Job job : jobs) {
+            if (!SOURCE_GREENHOUSE.equals(job.getSource())) {
+                throw new InvalidBulkDeleteException(
+                        "Bulk delete is only allowed for Greenhouse jobs");
+            }
+        }
+
+        int deletedCount = 0;
+        for (Job job : jobs) {
+            int deleted = jobMapper.deleteByIdAndUserId(job.getId(), user.getId());
+            if (deleted == 0) {
+                throw new JobNotFoundException("Job not found");
+            }
+            deletedCount += deleted;
+        }
+        return new BulkDeleteJobsResponse(deletedCount);
     }
 
     @Override
@@ -283,6 +340,7 @@ public class JobServiceImpl implements JobService {
         );
 
         int appliedChangeCount = verified.size();
+        PdfExportFields pdf = exportTailoredPdf(job.getId(), generatedPath);
 
         return toTailoredResponse(
                 resume.getId(),
@@ -290,6 +348,8 @@ public class JobServiceImpl implements JobService {
                 resolvedMode,
                 generatedPath.getFileName().toString(),
                 generatedPath.toString(),
+                pdf.pdfDownloadUrl(),
+                pdf.status(),
                 accepted,
                 appliedChangeCount,
                 rejected,
@@ -398,12 +458,16 @@ public class JobServiceImpl implements JobService {
                 responseChanges.add(change);
             }
 
+            PdfExportFields pdf = exportTailoredPdf(jobId, generatedPath);
+
             return toTailoredResponse(
                     resume.getId(),
                     jobId,
                     TailorMode.AGGRESSIVE,
                     generatedPath.getFileName().toString(),
                     generatedPath.toString(),
+                    pdf.pdfDownloadUrl(),
+                    pdf.status(),
                     responseChanges,
                     selectedResult.accepted().size(),
                     selectedResult.rejected(),
@@ -601,6 +665,8 @@ public class JobServiceImpl implements JobService {
                 TailorMode.AGGRESSIVE,
                 null,
                 null,
+                null,
+                null,
                 accepted,
                 0,
                 rejected,
@@ -674,7 +740,7 @@ public class JobServiceImpl implements JobService {
             return RejectedTailorChange.UNKNOWN_EVIDENCE_TYPE;
         }
         if (TailorChange.EVIDENCE_VERIFIED.equals(evidenceType)) {
-            return validateVerifiedEvidence(change, nodesById);
+            return validateVerifiedEvidence(change, nodesById, null);
         }
         return null;
     }
@@ -737,6 +803,8 @@ public class JobServiceImpl implements JobService {
                 TailorMode.AGGRESSIVE,
                 generatedFileName,
                 generatedFilePath,
+                null,
+                null,
                 changes,
                 appliedChangeCount,
                 rejected,
@@ -752,6 +820,8 @@ public class JobServiceImpl implements JobService {
             TailorMode mode,
             String generatedFileName,
             String generatedFilePath,
+            String pdfDownloadUrl,
+            PdfExportStatus pdfExportStatus,
             List<TailorChange> changes,
             int appliedChangeCount,
             List<RejectedTailorChange> rejected,
@@ -770,6 +840,8 @@ public class JobServiceImpl implements JobService {
                 generatedFileName,
                 generatedFilePath,
                 downloadUrl,
+                pdfDownloadUrl,
+                pdfExportStatus,
                 changes,
                 appliedChangeCount == 0,
                 appliedChangeCount,
@@ -779,6 +851,32 @@ public class JobServiceImpl implements JobService {
                 status,
                 expiresAt
         );
+    }
+
+    private PdfExportFields exportTailoredPdf(Long jobId, Path generatedDocx) {
+        try {
+            Path pdf = pdfExportService.exportPdf(generatedDocx);
+            if (pdf == null || pdf.getFileName() == null) {
+                return PdfExportFields.failed();
+            }
+            String pdfName = pdf.getFileName().toString();
+            if (!pdfName.toLowerCase(Locale.ROOT).endsWith(".pdf")) {
+                return PdfExportFields.failed();
+            }
+            return new PdfExportFields(
+                    "/api/v1/jobs/" + jobId + "/tailored/" + pdfName,
+                    PdfExportStatus.SUCCESS
+            );
+        } catch (RuntimeException ex) {
+            log.warn("PDF export failed: {}", ex.getClass().getSimpleName());
+            return PdfExportFields.failed();
+        }
+    }
+
+    private record PdfExportFields(String pdfDownloadUrl, PdfExportStatus status) {
+        static PdfExportFields failed() {
+            return new PdfExportFields(null, PdfExportStatus.FAILED);
+        }
     }
 
     private String writeJson(Object value) {
@@ -938,7 +1036,7 @@ public class JobServiceImpl implements JobService {
             }
 
             if (!inferred) {
-                String evidenceReason = validateVerifiedEvidence(change, nodesById);
+                String evidenceReason = validateVerifiedEvidence(change, nodesById, mode);
                 if (evidenceReason != null) {
                     rejected.add(new RejectedTailorChange(change.getNodeId(), evidenceReason));
                     continue;
@@ -999,7 +1097,8 @@ public class JobServiceImpl implements JobService {
 
     private String validateVerifiedEvidence(
             TailorChange change,
-            Map<String, ResumeDocumentNode> nodesById) {
+            Map<String, ResumeDocumentNode> nodesById,
+            TailorMode mode) {
 
         List<String> evidenceNodeIds = change.getEvidenceNodeIds();
         if (evidenceNodeIds == null
@@ -1014,6 +1113,14 @@ public class JobServiceImpl implements JobService {
                 return RejectedTailorChange.UNKNOWN_EVIDENCE_NODE_ID;
             }
             citedText.append(' ').append(nodesById.get(evidenceNodeId).getText());
+        }
+
+        if (mode == TailorMode.CONSERVATIVE) {
+            for (String evidenceNodeId : evidenceNodeIds) {
+                if (!change.getNodeId().equals(evidenceNodeId)) {
+                    return RejectedTailorChange.CROSS_NODE_EVIDENCE_NOT_ALLOWED;
+                }
+            }
         }
 
         String cited = normalizeNodeText(citedText.toString());
