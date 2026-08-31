@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 COMPOSE_FILE="${ROOT}/infra/aws/docker-compose.ec2.yml"
 ENV_FILE="${ROOT}/infra/aws/.env.aws"
-PROJECT="${COMPOSE_PROJECT_NAME:-aijob}"
+PROJECT="aijob"
 BACKUP_DIR="${BACKUP_DIR:-${ROOT}/backups}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 

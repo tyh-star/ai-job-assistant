@@ -42,7 +42,7 @@ First boot uses `infra/aws/mysql-init/01-schema.sql` (MySQL runs `/docker-entryp
 The application user is `MYSQL_USER` (not `root`). Repeatable recovery if the volume already exists and tables are missing:
 
 ```bash
-docker compose --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml exec -T mysql \
+docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml exec -T mysql \
   mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" \
   < infra/aws/mysql-init/01-schema.sql
 ```
@@ -134,7 +134,7 @@ Backup later:
 From the repo root, with Docker installed:
 
 ```bash
-docker compose --env-file infra/aws/.env.aws.example -f infra/aws/docker-compose.ec2.yml config
+docker compose -p aijob --env-file infra/aws/.env.aws.example -f infra/aws/docker-compose.ec2.yml config
 ```
 
 A live local smoke test must use a **throwaway** Compose project name, placeholder secrets that are not production keys, and must not call real OpenAI/JSearch. Stop the project afterward:

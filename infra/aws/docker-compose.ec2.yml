@@ -15,11 +15,15 @@ services:
       - mysql_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 20
-      start_period: 20s
+      retries: 24
+      start_period: 30s
 
   backend:
     build:
@@ -51,7 +55,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/auth/login); echo $$code | grep -qE '^(400|401|403|405|415)$$'",
+          "code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:8080/api/v1/auth/login); echo $$code | grep -qE '^(400|401|403|405|415)$$'",
         ]
       interval: 10s
       timeout: 5s
