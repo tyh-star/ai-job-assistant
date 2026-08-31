@@ -50,6 +50,10 @@ regression-test-output.docx
 .env.*
 !.env.example
 !**/.env.example
+!.env.aws.example
+!**/.env.aws.example
+infra/aws/.env.aws
+.deploy/
 application-local.yml
 application-local.yaml
 application-secret.yml
@@ -63,6 +67,7 @@ application-secret.yaml
 *.sql.bak
 *.sql.zip
 db-backups/
+backups/
 
 ### Test storage created by ApplicationContext tests ###
 /target/aijob-test-uploads/

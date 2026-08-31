@@ -1,0 +1,5 @@
+infra/aws/*.sh text eol=lf
+infra/aws/Caddyfile text eol=lf
+infra/aws/mysql-init/*.sql text eol=lf
+Dockerfile text eol=lf
+frontend/Dockerfile text eol=lf

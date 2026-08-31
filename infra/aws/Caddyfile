@@ -1,0 +1,32 @@
+{$PUBLIC_HOST} {
+	encode gzip
+
+	request_body {
+		max_size 12MB
+	}
+
+	header X-Content-Type-Options nosniff
+	header Referrer-Policy strict-origin-when-cross-origin
+	header -Server
+
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			header_up Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+			transport http {
+				dial_timeout 10s
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
+
+	handle {
+		root * /usr/share/caddy
+		try_files {path} /index.html
+		file_server
+	}
+}

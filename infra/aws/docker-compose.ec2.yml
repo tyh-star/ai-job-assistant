@@ -1,0 +1,86 @@
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=256M
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      AIJOB_DB_URL: ${AIJOB_DB_URL}
+      AIJOB_DB_USERNAME: ${AIJOB_DB_USERNAME}
+      AIJOB_DB_PASSWORD: ${AIJOB_DB_PASSWORD}
+      AIJOB_JWT_SECRET: ${AIJOB_JWT_SECRET}
+      AIJOB_JWT_EXPIRATION: ${AIJOB_JWT_EXPIRATION:-86400000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      JSEARCH_API_KEY: ${JSEARCH_API_KEY}
+      JSEARCH_API_BASE_URL: ${JSEARCH_API_BASE_URL:-https://api.openwebninja.com}
+      JOB_SEARCH_PRIMARY_PROVIDER: ${JOB_SEARCH_PRIMARY_PROVIDER:-JSEARCH}
+      JSEARCH_MAX_PAGES_PER_SEARCH: ${JSEARCH_MAX_PAGES_PER_SEARCH:-10}
+      AIJOB_STORAGE_ROOT: ${AIJOB_STORAGE_ROOT:-/data/uploads}
+      AIJOB_TAILOR_ENGINE: ${AIJOB_TAILOR_ENGINE:-V3}
+      PDF_EXPORT_SOFFICE_PATH: ${PDF_EXPORT_SOFFICE_PATH:-/usr/bin/soffice}
+      PDF_EXPORT_TIMEOUT_SECONDS: ${PDF_EXPORT_TIMEOUT_SECONDS:-60}
+    volumes:
+      - uploads_data:/data/uploads
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "code=$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/auth/login); echo $$code | grep -qE '^(400|401|403|405|415)$$'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+
+  web:
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  mysql_data:
+  uploads_data:
+  caddy_data:
+  caddy_config:
