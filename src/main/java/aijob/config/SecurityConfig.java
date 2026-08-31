@@ -1,6 +1,7 @@
 package aijob.config;
 
 import aijob.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -14,15 +15,43 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final List<String> allowedOrigins;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            @Value("${aijob.cors.allowed-origins}") String allowedOriginsRaw) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.allowedOrigins = parseAllowedOrigins(allowedOriginsRaw);
+    }
+
+    static List<String> parseAllowedOrigins(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalStateException("aijob.cors.allowed-origins must not be empty");
+        }
+        LinkedHashSet<String> origins = new LinkedHashSet<>();
+        for (String part : raw.split(",")) {
+            String origin = part.trim();
+            if (origin.isEmpty()) {
+                continue;
+            }
+            if (origin.contains("*")) {
+                throw new IllegalStateException(
+                        "CORS origins must be exact values; wildcards are not allowed: " + origin);
+            }
+            origins.add(origin);
+        }
+        if (origins.isEmpty()) {
+            throw new IllegalStateException("aijob.cors.allowed-origins must not be empty");
+        }
+        return List.copyOf(origins);
     }
 
     @Bean
@@ -33,9 +62,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // JWT is sent in Authorization, not cookies. Browsers still send Origin on
-        // same-origin JSON POSTs; a localhost-only allowlist returns 403 on public HTTPS.
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(new ArrayList<>(allowedOrigins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(List.of("Content-Disposition"));

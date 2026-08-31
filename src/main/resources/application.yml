@@ -34,6 +34,11 @@ pdf:
     soffice-path: C:/LibreOffice/program/soffice.exe
     timeout-seconds: 60
 
+server:
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:framework}
+
 aijob:
   storage:
     root: ${AIJOB_STORAGE_ROOT:uploads}
+  cors:
+    allowed-origins: ${AIJOB_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}

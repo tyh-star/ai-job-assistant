@@ -9,16 +9,25 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.ApplicationContext;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.filter.ForwardedHeaderFilter;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(
@@ -31,31 +40,110 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "jwt.secret=test-only-jwt-secret-key-must-be-32b!!",
                 "openai.api-key=test-openai-key-not-real",
-                "aijob.storage.root=target/aijob-test-uploads"
+                "aijob.storage.root=target/aijob-test-uploads",
+                "aijob.cors.allowed-origins=https://example.sslip.io,http://localhost:5173,http://127.0.0.1:5173",
+                "server.forward-headers-strategy=framework"
         }
 )
 @AutoConfigureMockMvc
 class PublicAuthRoutingSecurityTest {
 
+    private static final String PRODUCTION_ORIGIN = "https://example.sslip.io";
+
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ApplicationContext applicationContext;
+
     @Test
-    void registerEmptyJson_is400Not401Or403() throws Exception {
+    void registerEmptyJson_fromConfiguredOrigin_is400Not401Or403() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .header("Origin", PRODUCTION_ORIGIN))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        assertEquals("/api/v1/auth/register", result.getRequest().getRequestURI());
+    }
+
+    @Test
+    void loginEmptyJson_fromConfiguredOrigin_is400Not401Or403() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .header("Origin", PRODUCTION_ORIGIN))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        assertEquals("/api/v1/auth/login", result.getRequest().getRequestURI());
+    }
+
+    @Test
+    void registerAndLogin_fromDefaultLocalViteOrigins_are400() throws Exception {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .header("Origin", "https://203.0.113.10.sslip.io"))
+                        .header("Origin", "http://localhost:5173"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .header("Origin", "http://127.0.0.1:5173"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void loginEmptyJson_is400Not401Or403() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/login")
+    void registerFromUnlistedOrigin_is403CorsRejection() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
-                        .header("Origin", "https://203.0.113.10.sslip.io"))
-                .andExpect(status().isBadRequest());
+                        .header("Origin", "https://evil.example"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void registerWithoutOrigin_reachesControllerAs400() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.path").value("/api/v1/auth/register"));
+    }
+
+    @Test
+    void forwardedHttpsHeaders_areRecognizedBehindProxy() throws Exception {
+        boolean forwardedFilterRegistered = applicationContext.getBeansOfType(FilterRegistrationBean.class)
+                .values()
+                .stream()
+                .anyMatch(bean -> bean.getFilter() instanceof ForwardedHeaderFilter);
+        assertTrue(forwardedFilterRegistered, "ForwardedHeaderFilter must be registered");
+
+        ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+        MockHttpServletRequest forwarded = new MockHttpServletRequest("POST", "/api/v1/auth/register");
+        forwarded.setScheme("http");
+        forwarded.setServerName("backend");
+        forwarded.setServerPort(8080);
+        forwarded.addHeader("Origin", PRODUCTION_ORIGIN);
+        forwarded.addHeader("Host", "example.sslip.io");
+        forwarded.addHeader("X-Forwarded-Proto", "https");
+        forwarded.addHeader("X-Forwarded-Host", "example.sslip.io");
+        filter.doFilter(forwarded, new org.springframework.mock.web.MockHttpServletResponse(), (req, res) -> {
+            HttpServletRequest http = (HttpServletRequest) req;
+            assertEquals("https", http.getScheme());
+            assertEquals("example.sslip.io", http.getServerName());
+            assertTrue(http.isSecure());
+        });
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .header("Origin", PRODUCTION_ORIGIN)
+                        .header("Host", "example.sslip.io")
+                        .header("X-Forwarded-Proto", "https")
+                        .header("X-Forwarded-Host", "example.sslip.io"))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        assertEquals("/api/v1/auth/register", result.getRequest().getRequestURI());
     }
 
     @Test
@@ -66,29 +154,24 @@ class PublicAuthRoutingSecurityTest {
                 .getStatus();
         assertNotEquals(200, status);
         assertNotEquals(400, status);
-        org.junit.jupiter.api.Assertions.assertTrue(status == 401 || status == 403, "status=" + status);
+        assertTrue(status == 401 || status == 403, "status=" + status);
     }
 
     @Test
-    void corsPreflightFromPublicHttps_isAllowed() throws Exception {
-        mockMvc.perform(options("/api/v1/auth/register")
-                        .header("Origin", "https://203.0.113.10.sslip.io")
-                        .header("Access-Control-Request-Method", "POST")
-                        .header("Access-Control-Request-Headers", "content-type"))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void corsConfiguration_allowsPublicHttpsOriginWithoutWideningPermitAll() {
-        SecurityConfig config = new SecurityConfig(mock(JwtAuthenticationFilter.class));
+    void corsConfiguration_allowsConfiguredOriginsOnly() {
+        SecurityConfig config = new SecurityConfig(
+                mock(JwtAuthenticationFilter.class),
+                "https://example.sslip.io, http://localhost:5173,http://127.0.0.1:5173"
+        );
         CorsConfigurationSource source = config.corsConfigurationSource();
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/register");
         CorsConfiguration cors = source.getCorsConfiguration(request);
         assertNotNull(cors);
-        assertEquals(
-                "https://203.0.113.10.sslip.io",
-                cors.checkOrigin("https://203.0.113.10.sslip.io")
-        );
+        assertEquals(PRODUCTION_ORIGIN, cors.checkOrigin(PRODUCTION_ORIGIN));
         assertEquals("http://localhost:5173", cors.checkOrigin("http://localhost:5173"));
+        assertEquals("http://127.0.0.1:5173", cors.checkOrigin("http://127.0.0.1:5173"));
+        assertNull(cors.checkOrigin("https://evil.example"));
+        assertFalse(Boolean.TRUE.equals(cors.getAllowCredentials()));
+        assertTrue(cors.getAllowedOriginPatterns() == null || cors.getAllowedOriginPatterns().isEmpty());
     }
 }

@@ -46,6 +46,12 @@ class SecretConfigurationBindingTest {
     @Value("${aijob.storage.root}")
     private String storageRoot;
 
+    @Value("${aijob.cors.allowed-origins}")
+    private String corsAllowedOrigins;
+
+    @Value("${server.forward-headers-strategy}")
+    private String forwardHeadersStrategy;
+
     @Test
     void bindsIndependentTestSecretsInsteadOfLocalMachineValues() {
         assertEquals("test-only-jwt-secret-key-must-be-32b!!", jwtSecret);
@@ -64,6 +70,13 @@ class SecretConfigurationBindingTest {
         assertEquals("target/aijob-test-uploads", storageRoot);
         assertFalse(root.startsWith(realUploads));
         assertFalse(realUploads.equals(root));
+    }
+
+    @Test
+    void corsDefaultsToLocalViteOriginsAndForwardedHeadersUseFramework() {
+        assertEquals("http://localhost:5173,http://127.0.0.1:5173", corsAllowedOrigins);
+        assertFalse(corsAllowedOrigins.contains("*"));
+        assertEquals("framework", forwardHeadersStrategy);
     }
 
     @Test

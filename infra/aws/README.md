@@ -113,6 +113,8 @@ Fill every empty secret on the server. Required names:
 - `OPENAI_API_KEY`
 - `JSEARCH_API_KEY`
 - `AIJOB_STORAGE_ROOT` (keep `/data/uploads`)
+- `AIJOB_CORS_ALLOWED_ORIGINS` — public site origin **including the scheme**, for example `https://203.0.113.10.sslip.io`. Comma-separate additional origins. Do not use `*`.
+- `SERVER_FORWARD_HEADERS_STRATEGY` — keep `framework` so Spring honors Caddy `X-Forwarded-Proto`
 
 Keep `AIJOB_TAILOR_ENGINE=V3` so Quick Optimize (BASIC) and Enhanced are both available.
 
@@ -147,7 +149,9 @@ docker compose -p aijob-smoke --env-file /tmp/aijob-smoke.env -f infra/aws/docke
 
 The production image builds with `VITE_API_BASE_URL=/api/v1` so the browser talks to the same origin. Caddy forwards `/api/*` to `backend:8080` without stripping the path (`/api/v1/auth/login` stays `/api/v1/auth/login`). Frontend endpoints are relative (`/auth/login`); do not prefix them with `/api/v1` again.
 
-Browsers send an `Origin` header on JSON POSTs even for same-origin pages. CORS must allow the public HTTPS origin (JWT is in `Authorization`, credentials are false). Do not treat a 403 on `/api/v1/auth/register` as a reason to widen `permitAll`.
+Browsers send an `Origin` header on JSON POSTs even for same-origin pages. Set `AIJOB_CORS_ALLOWED_ORIGINS` to the public HTTPS origin **including the scheme** (`https://<PUBLIC_HOST>`). Multiple origins are comma-separated. Do not use `*` origins or patterns. JWT is in `Authorization`; `allowCredentials` stays false. Do not treat a 403 on `/api/v1/auth/register` as a reason to widen `permitAll`.
+
+Caddy sets `X-Forwarded-Proto`. Keep `SERVER_FORWARD_HEADERS_STRATEGY=framework` so Spring treats the request as HTTPS behind the proxy.
 
 Read-only public smoke (no accounts, no OpenAI/JSearch):
 
