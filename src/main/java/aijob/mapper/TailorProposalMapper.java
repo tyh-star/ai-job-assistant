@@ -54,6 +54,20 @@ public interface TailorProposalMapper {
 
     @Update("""
             UPDATE tailor_proposals
+            SET changes_json = #{changesJson},
+                rejected_json = #{rejectedJson},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = #{id}
+              AND status = 'CONFIRMING'
+            """)
+    int updateConfirmingContents(
+            @Param("id") Long id,
+            @Param("changesJson") String changesJson,
+            @Param("rejectedJson") String rejectedJson
+    );
+
+    @Update("""
+            UPDATE tailor_proposals
             SET status = 'CONFIRMED',
                 generated_file_name = #{generatedFileName},
                 generated_file_path = #{generatedFilePath},

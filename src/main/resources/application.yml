@@ -3,9 +3,9 @@ spring:
     name: aijob
 
   datasource:
-    url: jdbc:mysql://localhost:3306/AIjob?useSSL=false&serverTimezone=UTC
-    username: root
-    password: Tyh20050919!
+    url: ${AIJOB_DB_URL}
+    username: ${AIJOB_DB_USERNAME}
+    password: ${AIJOB_DB_PASSWORD}
 
   servlet:
     multipart:
@@ -22,8 +22,8 @@ mybatis:
     map-underscore-to-camel-case: true
 
 jwt:
-  secret: aijob-local-development-secret-key-must-be-at-least-32-bytes-long
-  expiration: 86400000
+  secret: ${AIJOB_JWT_SECRET}
+  expiration: ${AIJOB_JWT_EXPIRATION:86400000}
 
 openai:
   api-key: ${OPENAI_API_KEY}
@@ -33,3 +33,7 @@ pdf:
   export:
     soffice-path: C:/LibreOffice/program/soffice.exe
     timeout-seconds: 60
+
+aijob:
+  storage:
+    root: ${AIJOB_STORAGE_ROOT:uploads}

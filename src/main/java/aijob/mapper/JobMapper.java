@@ -31,6 +31,18 @@ public interface JobMapper {
             """)
     List<Job> findByUserId(Long userId);
 
+    @Select("""
+            SELECT * FROM jobs
+            WHERE user_id = #{userId}
+              AND source = #{source}
+              AND external_job_id = #{externalJobId}
+            LIMIT 1
+            """)
+    Job findByUserIdAndSourceAndExternalJobId(
+            @Param("userId") Long userId,
+            @Param("source") String source,
+            @Param("externalJobId") String externalJobId);
+
     @Update("""
             UPDATE jobs
             SET company = #{company},

@@ -1,5 +1,10 @@
 package aijob.service;
 
+import aijob.dto.ConservativeCandidateRanking;
+import aijob.dto.ConservativeRewriteCandidate;
+import aijob.dto.ConservativeRewriteCandidatesResponse;
+import aijob.dto.ConservativeRewritePlan;
+import aijob.dto.ConservativeRewriteRepair;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.ResumeAnalysisResponse;
 import aijob.dto.ResumeDocumentNode;
@@ -18,5 +23,19 @@ public interface AiResumeService {
             List<ResumeDocumentNode> nodes,
             String jobDescription,
             TailorMode mode
+    );
+
+    ConservativeRewriteCandidatesResponse generateConstrainedTailorCandidates(
+            ResumeDocumentNode node,
+            ConservativeRewritePlan plan,
+            String jobDescription,
+            ConservativeRewriteRepair repair
+    );
+
+    ConservativeCandidateRanking rankConservativeCandidates(
+            String originalText,
+            String rewriteGoal,
+            List<String> relevantJobTerms,
+            List<ConservativeRewriteCandidate> candidates
     );
 }

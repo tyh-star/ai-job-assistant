@@ -1,5 +1,6 @@
 package aijob.service.impl;
 
+import aijob.config.StoragePathResolver;
 import aijob.dto.TailorChange;
 import aijob.exception.InvalidResumeFileException;
 import aijob.service.ResumeDocumentService;
@@ -32,15 +33,18 @@ public class ResumeDocxTailorServiceImpl implements ResumeDocxTailorService {
     private static final Logger log =
             LoggerFactory.getLogger(ResumeDocxTailorServiceImpl.class);
 
-    private static final Path TAILORED_ROOT = Path.of("uploads", "tailored");
     private static final Pattern BULLET_ONLY = Pattern.compile(
             "^\\s*[●•▪◦‣∙·]\\s*$"
     );
 
     private final ResumeDocumentService resumeDocumentService;
+    private final StoragePathResolver storagePathResolver;
 
-    public ResumeDocxTailorServiceImpl(ResumeDocumentService resumeDocumentService) {
+    public ResumeDocxTailorServiceImpl(
+            ResumeDocumentService resumeDocumentService,
+            StoragePathResolver storagePathResolver) {
         this.resumeDocumentService = resumeDocumentService;
+        this.storagePathResolver = storagePathResolver;
     }
 
     @Override
@@ -51,9 +55,8 @@ public class ResumeDocxTailorServiceImpl implements ResumeDocxTailorService {
             Long jobId) {
 
         Path original = originalDocx.toAbsolutePath().normalize();
-        Path outputPath = TAILORED_ROOT
-                .resolve(String.valueOf(userId))
-                .resolve(String.valueOf(jobId))
+        Path outputPath = storagePathResolver
+                .tailoredJobDirectory(userId, jobId)
                 .toAbsolutePath()
                 .normalize()
                 .resolve(UUID.randomUUID() + ".docx");

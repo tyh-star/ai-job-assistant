@@ -1,5 +1,5 @@
 import type { AxiosError } from 'axios'
-import type { ResumeResponse, TailorMode, TailoredResumeResponse } from '../api/types'
+import type { ResumeResponse, TailoredResumeResponse } from '../api/types'
 
 export type TailorProgress = 'recognizing' | 'preparing' | 'tailoring'
 
@@ -22,25 +22,23 @@ export class ResumeFileUnavailableError extends Error {
 
 type StructureClient = (id: number) => Promise<unknown>
 type CanonicalizeClient = (id: number) => Promise<{ data: ResumeResponse }>
-type TailorClient = (
+type TailorResumeClient = (
   jobId: number,
   resumeId: number,
-  mode: TailorMode,
+  mode: 'CONSERVATIVE',
 ) => Promise<{ data: TailoredResumeResponse }>
 
 export async function runTailorFlow(options: {
   resume: ResumeResponse
   jobId: number
-  mode: TailorMode
   getResumeStructure: StructureClient
   canonicalizeResume: CanonicalizeClient
-  tailorResume: TailorClient
+  tailorResume: TailorResumeClient
   onProgress?: (step: TailorProgress) => void
 }): Promise<TailoredResumeResponse> {
   const {
     resume,
     jobId,
-    mode,
     getResumeStructure,
     canonicalizeResume,
     tailorResume,
@@ -68,7 +66,7 @@ export async function runTailorFlow(options: {
   }
 
   onProgress?.('tailoring')
-  const { data } = await tailorResume(jobId, tailorResumeId, mode)
+  const { data } = await tailorResume(jobId, tailorResumeId, 'CONSERVATIVE')
   return data
 }
 

@@ -1,5 +1,6 @@
 package aijob.service.impl;
 
+import aijob.config.StoragePathResolver;
 import aijob.dto.PdfLayout;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.ResumeFileDownload;
@@ -28,13 +29,11 @@ import aijob.util.ResumeStructureDraftBuilder;
 import aijob.util.ResumeTextExtractor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -47,6 +46,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -97,13 +99,11 @@ class ResumeServiceImplTest {
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
-    @InjectMocks
-    private ResumeServiceImpl resumeService;
-
     @TempDir
     Path tempDir;
 
-    private final List<Path> uploadedPaths = new ArrayList<>();
+    private StoragePathResolver storagePathResolver;
+    private ResumeServiceImpl resumeService;
     private Resume lastInserted;
     private User owner;
 
@@ -112,25 +112,20 @@ class ResumeServiceImplTest {
         owner = new User();
         owner.setId(2L);
         owner.setEmail(EMAIL);
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        for (Path path : uploadedPaths) {
-            Files.deleteIfExists(path);
-        }
-        Path canonicalizeDir = Path.of("uploads", "resumes", "2");
-        if (Files.isDirectory(canonicalizeDir)) {
-            try (var files = Files.list(canonicalizeDir)) {
-                files.forEach(path -> {
-                            try {
-                                Files.deleteIfExists(path);
-                            } catch (Exception ignored) {
-                                // best-effort cleanup
-                            }
-                        });
-            }
-        }
+        storagePathResolver = StoragePathResolver.forRoot(tempDir.resolve("uploads"));
+        resumeService = new ResumeServiceImpl(
+                resumeMapper,
+                userMapper,
+                resumeTextExtractor,
+                aiResumeService,
+                resumeDocumentService,
+                pdfLayoutExtractor,
+                resumeStructureDraftBuilder,
+                resumeStructureLlmService,
+                resumeTemplateDocxService,
+                objectMapper,
+                storagePathResolver
+        );
     }
 
     @Test
@@ -171,6 +166,41 @@ class ResumeServiceImplTest {
         assertFalse(Boolean.TRUE.equals(draft.getLlmClassified()));
         verify(resumeDocumentService, never()).parseDocx(any());
         verify(resumeStructureLlmService, never()).classify(any(), any());
+    }
+
+    @Test
+    void uploadAndTeardown_neverTouchProjectUploadsOrSentinel() throws Exception {
+        Path projectUploads = Path.of("uploads", "resumes").toAbsolutePath().normalize();
+        Set<String> beforeProject = snapshotFiles(projectUploads);
+
+        Path simulatedRealDir = tempDir.resolve("simulated-project")
+                .resolve("uploads")
+                .resolve("resumes")
+                .resolve("2");
+        Files.createDirectories(simulatedRealDir);
+        Path sentinel = simulatedRealDir.resolve("sentinel-existing.pdf");
+        Files.writeString(sentinel, "keep-me");
+
+        when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
+        stubInsert();
+        when(resumeTextExtractor.extract(any(Path.class), eq("pdf"))).thenReturn(SAMPLE_TEXT);
+        when(pdfLayoutExtractor.extract(any(Path.class))).thenReturn(sampleLayout());
+
+        resumeService.uploadResume(EMAIL, new MockMultipartFile(
+                "file",
+                "jane.pdf",
+                "application/pdf",
+                "dummy-pdf".getBytes(StandardCharsets.UTF_8)
+        ));
+
+        Path written = Path.of(lastInserted.getFilePath()).toAbsolutePath().normalize();
+        assertTrue(written.startsWith(tempDir.toAbsolutePath().normalize()));
+        assertTrue(written.startsWith(storagePathResolver.resumeDirectory(2L)));
+        assertFalse(written.startsWith(projectUploads));
+        assertFalse(written.startsWith(simulatedRealDir));
+        assertEquals(beforeProject, snapshotFiles(projectUploads));
+        assertTrue(Files.exists(sentinel));
+        assertEquals("keep-me", Files.readString(sentinel));
     }
 
     @Test
@@ -457,7 +487,7 @@ class ResumeServiceImplTest {
         assertEquals("yaohang.pdf", download.getFileName());
         assertArrayEquals(payload, Files.readAllBytes(download.getPath()));
         assertTrue(download.getPath().startsWith(
-                Path.of("uploads", "resumes", "2").toAbsolutePath().normalize()));
+                storagePathResolver.resumeDirectory(2L).toAbsolutePath().normalize()));
     }
 
     @Test
@@ -503,8 +533,7 @@ class ResumeServiceImplTest {
 
     @Test
     void downloadResume_missingFile_is404() throws Exception {
-        Path missing = Path.of("uploads", "resumes", "2", "missing.pdf").toAbsolutePath().normalize();
-        Files.createDirectories(missing.getParent());
+        Path missing = storagePathResolver.resumeDirectory(2L).resolve("missing.pdf");
         Resume resume = storedPdfResume(4L, "keep", yaohangStructure());
         resume.setFilePath(missing.toString());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
@@ -561,7 +590,7 @@ class ResumeServiceImplTest {
 
     @Test
     void getResume_missingFile_setsUnavailableAndNullDownloadUrl() {
-        Path missing = Path.of("uploads", "resumes", "2", "missing.pdf").toAbsolutePath().normalize();
+        Path missing = storagePathResolver.resumeDirectory(2L).resolve("missing.pdf");
         Resume resume = storedPdfResume(4L, "keep", yaohangStructure());
         resume.setFilePath(missing.toString());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
@@ -590,7 +619,7 @@ class ResumeServiceImplTest {
 
     @Test
     void deleteResume_missingFile_stillDeletesDbRow() {
-        Path missing = Path.of("uploads", "resumes", "2", "gone.docx").toAbsolutePath().normalize();
+        Path missing = storagePathResolver.resumeDirectory(2L).resolve("gone.docx");
         Resume resume = storedOwnedUpload(12L, "docx", "cv.docx", "x".getBytes(StandardCharsets.UTF_8));
         resume.setFilePath(missing.toString());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
@@ -785,7 +814,6 @@ class ResumeServiceImplTest {
 
         assertEquals(41L, second.getId());
         Path secondChildPath = Path.of(lastInserted.getFilePath());
-        uploadedPaths.add(secondChildPath);
         assertFalse(secondChildPath.equals(firstChildPath));
         assertTrue(Files.exists(secondChildPath));
         assertFalse(Files.exists(firstChildPath));
@@ -828,7 +856,6 @@ class ResumeServiceImplTest {
         when(resumeMapper.insert(any(Resume.class))).thenAnswer(invocation -> {
             lastInserted = invocation.getArgument(0);
             lastInserted.setId(12L);
-            uploadedPaths.add(Path.of(lastInserted.getFilePath()));
             return 1;
         });
         when(resumeMapper.findById(12L)).thenAnswer(invocation -> lastInserted);
@@ -848,18 +875,16 @@ class ResumeServiceImplTest {
         when(resumeMapper.insert(any(Resume.class))).thenAnswer(invocation -> {
             lastInserted = invocation.getArgument(0);
             lastInserted.setId(41L);
-            uploadedPaths.add(Path.of(lastInserted.getFilePath()));
             return 1;
         });
     }
 
     private Resume storedOwnedUpload(long id, String fileType, String displayName, byte[] bytes) {
         try {
-            Path directory = Path.of("uploads", "resumes", "2");
+            Path directory = storagePathResolver.resumeDirectory(2L);
             Files.createDirectories(directory);
             Path stored = directory.resolve(id + "-stored." + fileType).toAbsolutePath().normalize();
             Files.write(stored, bytes);
-            uploadedPaths.add(stored);
             Resume resume = new Resume();
             resume.setId(id);
             resume.setUserId(2L);
@@ -1055,5 +1080,16 @@ class ResumeServiceImplTest {
                 .map(ResumeTextBlock::getText)
                 .reduce((a, b) -> a + "\n" + b)
                 .orElse("");
+    }
+
+    private static Set<String> snapshotFiles(Path directory) throws Exception {
+        if (!Files.isDirectory(directory)) {
+            return Set.of();
+        }
+        try (Stream<Path> walk = Files.walk(directory)) {
+            return walk.filter(Files::isRegularFile)
+                    .map(path -> directory.relativize(path).toString().replace('\\', '/'))
+                    .collect(Collectors.toCollection(java.util.TreeSet::new));
+        }
     }
 }

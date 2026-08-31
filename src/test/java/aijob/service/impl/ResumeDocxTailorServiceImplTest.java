@@ -1,12 +1,13 @@
 package aijob.service.impl;
 
+import aijob.config.StoragePathResolver;
 import aijob.dto.TailorChange;
 import org.apache.poi.xwpf.usermodel.XWPFAbstractNum;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFNumbering;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTAbstractNum;
@@ -18,23 +19,24 @@ import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResumeDocxTailorServiceImplTest {
 
-    private final ResumeDocxTailorServiceImpl tailor =
-            new ResumeDocxTailorServiceImpl(new ResumeDocumentServiceImpl());
+    @TempDir
+    Path tempDir;
 
-    private final List<Path> generatedFiles = new ArrayList<>();
+    private ResumeDocxTailorServiceImpl tailor;
 
-    @AfterEach
-    void cleanup() throws Exception {
-        for (Path path : generatedFiles) {
-            Files.deleteIfExists(path);
-        }
+    @BeforeEach
+    void setUp() {
+        tailor = new ResumeDocxTailorServiceImpl(
+                new ResumeDocumentServiceImpl(),
+                StoragePathResolver.forRoot(tempDir.resolve("uploads"))
+        );
     }
 
     @Test
@@ -248,7 +250,7 @@ class ResumeDocxTailorServiceImplTest {
     }
 
     @Test
-    void savedDocxStillContainsAppliedText(@TempDir Path tempDir) throws Exception {
+    void savedDocxStillContainsAppliedText() throws Exception {
         Path original = tempDir.resolve("original.docx");
         try (XWPFDocument document = new XWPFDocument();
              OutputStream outputStream = Files.newOutputStream(original)) {
@@ -263,7 +265,7 @@ class ResumeDocxTailorServiceImplTest {
         change.setApplied(true);
 
         Path generated = tailor.createTailoredDocx(original, List.of(change), 1L, 1L);
-        generatedFiles.add(generated);
+        assertTrue(generated.startsWith(tempDir.toAbsolutePath().normalize()));
 
         try (InputStream inputStream = Files.newInputStream(generated);
              XWPFDocument generatedDocument = new XWPFDocument(inputStream)) {

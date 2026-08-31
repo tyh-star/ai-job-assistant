@@ -11,6 +11,7 @@ target/
 *.iws
 *.iml
 *.ipr
+.idea/
 
 ### Eclipse ###
 .apt_generated
@@ -40,21 +41,28 @@ build/
 ### Uploaded resumes ###
 uploads/
 
-### Local secrets ###
-.env
-
 ### Deterministic DOCX writer regression output ###
-regression-test-output.docx
-
-
-# Runtime uploads
-uploads/
-
-# Generated regression test files
 regression-test-output.docx
 ~$*.docx
 
-# Secrets / local configuration
+### Secrets / local configuration ###
 .env
+.env.*
+!.env.example
+!**/.env.example
+application-local.yml
+application-local.yaml
+application-secret.yml
+application-secret.yaml
+**/secrets.properties
+**/local.secrets
 
-.idea/
+### Database dumps (keep outside git) ###
+*.dump
+*.sql.gz
+*.sql.bak
+*.sql.zip
+db-backups/
+
+### Test storage created by ApplicationContext tests ###
+/target/aijob-test-uploads/

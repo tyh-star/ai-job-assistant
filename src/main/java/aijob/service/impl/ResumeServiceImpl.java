@@ -1,5 +1,6 @@
 package aijob.service.impl;
 
+import aijob.config.StoragePathResolver;
 import aijob.dto.PdfLayout;
 import aijob.dto.ResumeAnalysisResponse;
 import aijob.dto.ResumeDocumentNode;
@@ -59,7 +60,6 @@ public class ResumeServiceImpl implements ResumeService {
 
     private static final Logger log = LoggerFactory.getLogger(ResumeServiceImpl.class);
 
-    private static final Path UPLOAD_ROOT = Path.of("uploads", "resumes");
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".pdf", ".docx");
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "application/pdf",
@@ -76,6 +76,7 @@ public class ResumeServiceImpl implements ResumeService {
     private final ResumeStructureLlmService resumeStructureLlmService;
     private final ResumeTemplateDocxService resumeTemplateDocxService;
     private final ObjectMapper objectMapper;
+    private final StoragePathResolver storagePathResolver;
 
     public ResumeServiceImpl(ResumeMapper resumeMapper,
                              UserMapper userMapper,
@@ -86,7 +87,8 @@ public class ResumeServiceImpl implements ResumeService {
                              ResumeStructureDraftBuilder resumeStructureDraftBuilder,
                              ResumeStructureLlmService resumeStructureLlmService,
                              ResumeTemplateDocxService resumeTemplateDocxService,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             StoragePathResolver storagePathResolver) {
         this.resumeMapper = resumeMapper;
         this.userMapper = userMapper;
         this.resumeTextExtractor = resumeTextExtractor;
@@ -97,6 +99,7 @@ public class ResumeServiceImpl implements ResumeService {
         this.resumeStructureLlmService = resumeStructureLlmService;
         this.resumeTemplateDocxService = resumeTemplateDocxService;
         this.objectMapper = objectMapper;
+        this.storagePathResolver = storagePathResolver;
     }
 
     @Override
@@ -110,7 +113,7 @@ public class ResumeServiceImpl implements ResumeService {
         String fileType = extension.substring(1);
         String storedFileName = UUID.randomUUID() + extension;
 
-        Path directory = UPLOAD_ROOT.resolve(String.valueOf(user.getId()));
+        Path directory = storagePathResolver.resumeDirectory(user.getId());
         Path savedPath = directory.resolve(storedFileName).toAbsolutePath().normalize();
 
         try {
@@ -375,7 +378,7 @@ public class ResumeServiceImpl implements ResumeService {
                 : Path.of(existingChild.getFilePath());
 
         String storedFileName = UUID.randomUUID() + ".docx";
-        Path directory = UPLOAD_ROOT.resolve(String.valueOf(user.getId()));
+        Path directory = storagePathResolver.resumeDirectory(user.getId());
         Path newPath = directory.resolve(storedFileName).toAbsolutePath().normalize();
 
         try {
@@ -895,10 +898,7 @@ public class ResumeServiceImpl implements ResumeService {
             return null;
         }
 
-        Path allowedRoot = UPLOAD_ROOT
-                .resolve(String.valueOf(userId))
-                .toAbsolutePath()
-                .normalize();
+        Path allowedRoot = storagePathResolver.resumeDirectory(userId).toAbsolutePath().normalize();
         Path resolved;
         try {
             resolved = Path.of(resume.getFilePath()).toAbsolutePath().normalize();

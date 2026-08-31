@@ -14,6 +14,7 @@ public class TailorChange {
 
     public static final String EVIDENCE_VERIFIED = "VERIFIED";
     public static final String EVIDENCE_INFERRED = "INFERRED";
+    public static final String EVIDENCE_USER_EDITED = "USER_EDITED";
 
     @JsonPropertyDescription("Stable document node id from parseDocx, such as p-22 or t-0-r-2-c-1-p-0")
     public String nodeId;
@@ -26,6 +27,18 @@ public class TailorChange {
 
     @JsonPropertyDescription("Short reason for the rewrite")
     public String reason;
+
+    @JsonPropertyDescription("Chinese readable explanation of why the rewrite is better")
+    public String reasonZh;
+
+    @JsonPropertyDescription("SUBSTANTIVE_REWRITE, CLARITY_IMPROVEMENT, or GRAMMAR_FIX")
+    public String upliftType;
+
+    @JsonPropertyDescription("Chinese summary of the improvement, suitable for the main UI")
+    public String improvementSummaryZh;
+
+    @JsonPropertyDescription("English summary of the improvement, suitable for the main UI")
+    public String improvementSummaryEn;
 
     @JsonPropertyDescription("VERIFIED if the resume already contains evidence; INFERRED if this is a plausible adjacent skill that needs user confirmation")
     public String evidenceType;
@@ -44,6 +57,15 @@ public class TailorChange {
 
     @JsonPropertyDescription("Short quote copied from the referenced evidence nodes. Required for VERIFIED; must appear in those nodes' original text.")
     public String evidenceQuote;
+
+    @JsonPropertyDescription("Opportunity type such as GRAMMAR, TENSE, CLARITY, or NO_VALUABLE_CHANGE")
+    public String opportunityType;
+
+    @JsonPropertyDescription("KEEP or VETO from the language Judge")
+    public String judgeVerdict;
+
+    @JsonPropertyDescription("0-100 Judge confidence when available")
+    public Integer judgeConfidence;
 
     public boolean inferred() {
         return EVIDENCE_INFERRED.equalsIgnoreCase(evidenceType);

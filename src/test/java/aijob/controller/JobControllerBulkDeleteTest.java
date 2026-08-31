@@ -38,7 +38,7 @@ class JobControllerBulkDeleteTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new JobController(jobService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new JobController(jobService, null))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter())
                 .build();

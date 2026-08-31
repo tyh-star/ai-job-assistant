@@ -1,12 +1,15 @@
 package aijob.service.impl;
 
+import aijob.config.StoragePathResolver;
 import aijob.dto.TailorChange;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTInd;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTPPr;
 
@@ -32,12 +35,22 @@ class ResumeDocxTailorWriterRegressionTest {
             "●   Developed and integrated IP rate-limiting and black/white list management features to strengthen access control and mitigate potential attack traffic.";
     private static final String NEW_TEXT =
             "●   Developed Spring Boot security features using IP rate-limiting and black/white list management.";
-    private static final Path FIXED_OUTPUT = Path.of("regression-test-output.docx");
     private static final Pattern BULLET_ONLY = Pattern.compile("^\\s*[●•▪◦‣∙·]\\s*$");
 
     private final ResumeDocumentService documentService = new ResumeDocumentServiceImpl();
-    private final ResumeDocxTailorService tailor =
-            new ResumeDocxTailorServiceImpl(documentService);
+
+    @TempDir
+    Path tempDir;
+
+    private ResumeDocxTailorService tailor;
+
+    @BeforeEach
+    void setUp() {
+        tailor = new ResumeDocxTailorServiceImpl(
+                documentService,
+                StoragePathResolver.forRoot(tempDir.resolve("uploads"))
+        );
+    }
 
     @Test
     void writesFixedP23WithoutOpenaiAndPreservesBulletLayout() throws Exception {
@@ -63,12 +76,15 @@ class ResumeDocxTailorWriterRegressionTest {
         change.setEvidenceType(TailorChange.EVIDENCE_VERIFIED);
 
         Path generated = tailor.createTailoredDocx(original, List.of(change), 0L, 0L);
-        Files.copy(generated, FIXED_OUTPUT, StandardCopyOption.REPLACE_EXISTING);
+        Path fixedOutput = tempDir.resolve("regression-test-output.docx");
+        Files.copy(generated, fixedOutput, StandardCopyOption.REPLACE_EXISTING);
+        assertTrue(generated.startsWith(tempDir.toAbsolutePath().normalize()));
+        assertFalse(generated.startsWith(Path.of("uploads").toAbsolutePath().normalize()));
 
         assertEquals(originalHashBefore, sha256(Files.readAllBytes(original)));
         assertTrue(MessageDigest.isEqual(originalBytesBefore, Files.readAllBytes(original)));
 
-        try (InputStream inputStream = Files.newInputStream(FIXED_OUTPUT);
+        try (InputStream inputStream = Files.newInputStream(fixedOutput);
              XWPFDocument document = new XWPFDocument(inputStream)) {
             ParagraphLayout p22 = snapshot(paragraph(document, "p-22"));
             ParagraphLayout p23 = snapshot(paragraph(document, NODE_ID));
@@ -111,8 +127,7 @@ class ResumeDocxTailorWriterRegressionTest {
     }
 
     private Path copyClasspathResume() throws Exception {
-        Path original = Files.createTempFile("regression-resume-", ".docx");
-        original.toFile().deleteOnExit();
+        Path original = tempDir.resolve("regression-resume.docx");
         try (InputStream inputStream = getClass().getResourceAsStream("/regression/test-resume.docx")) {
             assertNotNull(inputStream, "Missing src/test/resources/regression/test-resume.docx");
             Files.copy(inputStream, original, StandardCopyOption.REPLACE_EXISTING);

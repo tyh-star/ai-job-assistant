@@ -9,11 +9,16 @@ import {
 const pdfResume = resume({ id: 11, fileType: 'pdf', reviewStatus: 'PENDING_REVIEW' })
 const docxResume = resume({ id: 22, fileType: 'docx', reviewStatus: 'READY' })
 const childResume = resume({ id: 99, fileType: 'docx', origin: 'TEMPLATE' })
-const tailored = {
+const applied = {
   resumeId: 99,
   jobId: 7,
   mode: 'CONSERVATIVE',
-  downloadUrl: '/jobs/7/tailored/1',
+  engineVersion: 'V3',
+  productMode: 'BASIC',
+  status: 'APPLIED',
+  downloadUrl: '/api/v1/jobs/7/tailored/out.docx',
+  pdfDownloadUrl: '/api/v1/jobs/7/tailored/out.pdf',
+  pdfExportStatus: 'SUCCESS',
   changes: [],
   unchanged: true,
   appliedChangeCount: 0,
@@ -22,16 +27,15 @@ const tailored = {
 } satisfies TailoredResumeResponse
 
 describe('runTailorFlow', () => {
-  it('DOCX only calls tailor with the selected resume id', async () => {
+  it('native DOCX skips canonicalize and calls tailorResume with CONSERVATIVE', async () => {
     const getResumeStructure = vi.fn()
     const canonicalizeResume = vi.fn()
-    const tailorResume = vi.fn().mockResolvedValue({ data: tailored })
+    const tailorResume = vi.fn().mockResolvedValue({ data: applied })
     const onProgress = vi.fn()
 
     await runTailorFlow({
       resume: docxResume,
       jobId: 7,
-      mode: 'CONSERVATIVE',
       getResumeStructure,
       canonicalizeResume,
       tailorResume,
@@ -45,16 +49,15 @@ describe('runTailorFlow', () => {
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual(['tailoring'])
   })
 
-  it('PDF calls structure, canonicalize, then tailor with the child id', async () => {
+  it('PDF canonicalizes then calls tailorResume with the child id', async () => {
     const getResumeStructure = vi.fn().mockResolvedValue({ data: {} })
     const canonicalizeResume = vi.fn().mockResolvedValue({ data: childResume })
-    const tailorResume = vi.fn().mockResolvedValue({ data: tailored })
+    const tailorResume = vi.fn().mockResolvedValue({ data: applied })
     const onProgress = vi.fn()
 
     await runTailorFlow({
       resume: pdfResume,
       jobId: 7,
-      mode: 'AGGRESSIVE',
       getResumeStructure,
       canonicalizeResume,
       tailorResume,
@@ -63,8 +66,8 @@ describe('runTailorFlow', () => {
 
     expect(getResumeStructure).toHaveBeenCalledWith(11)
     expect(canonicalizeResume).toHaveBeenCalledWith(11)
-    expect(tailorResume).toHaveBeenCalledWith(7, 99, 'AGGRESSIVE')
-    expect(tailorResume).not.toHaveBeenCalledWith(7, 11, 'AGGRESSIVE')
+    expect(tailorResume).toHaveBeenCalledWith(7, 99, 'CONSERVATIVE')
+    expect(tailorResume).not.toHaveBeenCalledWith(7, 11, 'CONSERVATIVE')
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual([
       'recognizing',
       'preparing',
@@ -86,7 +89,6 @@ describe('runTailorFlow', () => {
       runTailorFlow({
         resume: pdfResume,
         jobId: 7,
-        mode: 'CONSERVATIVE',
         getResumeStructure,
         canonicalizeResume,
         tailorResume,
@@ -105,7 +107,6 @@ describe('runTailorFlow', () => {
       runTailorFlow({
         resume: resume({ id: 11, fileType: 'pdf', fileAvailable: false }),
         jobId: 7,
-        mode: 'CONSERVATIVE',
         getResumeStructure,
         canonicalizeResume,
         tailorResume,

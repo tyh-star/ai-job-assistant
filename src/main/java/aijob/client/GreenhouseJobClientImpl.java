@@ -48,6 +48,33 @@ public class GreenhouseJobClientImpl implements GreenhouseJobClient {
         return new GreenhouseBoardSnapshot(companyName, jobs);
     }
 
+    @Override
+    public GreenhouseJobPosting fetchJob(String boardToken, String jobId) {
+        JobJson job = execute(() -> greenhouseRestClient.get()
+                .uri("/{boardToken}/jobs/{jobId}", boardToken, jobId)
+                .retrieve()
+                .onStatus(status -> status.value() == 404, (request, response) -> {
+                    throw new GreenhouseBoardNotFoundException("Greenhouse job not found");
+                })
+                .onStatus(HttpStatusCode::is5xxServerError, (request, response) -> {
+                    throw new GreenhouseServiceException("Greenhouse is temporarily unavailable");
+                })
+                .onStatus(HttpStatusCode::isError, (request, response) -> {
+                    throw new GreenhouseServiceException("Greenhouse is temporarily unavailable");
+                })
+                .body(JobJson.class));
+        if (job == null) {
+            return null;
+        }
+        return new GreenhouseJobPosting(
+                job.id == null ? null : String.valueOf(job.id),
+                job.title,
+                job.location == null ? null : job.location.name,
+                job.absoluteUrl,
+                job.content
+        );
+    }
+
     private BoardJson getBoard(String boardToken) {
         return execute(() -> greenhouseRestClient.get()
                 .uri("/{boardToken}", boardToken)

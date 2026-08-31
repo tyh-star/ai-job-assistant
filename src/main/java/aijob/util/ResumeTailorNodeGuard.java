@@ -166,7 +166,19 @@ public final class ResumeTailorNodeGuard {
     }
 
     private static boolean isUrlLine(String text) {
-        return URL.matcher(text).find() && !isBulletLike(text);
+        String stripped = TEXT_BULLET_PREFIX.matcher(text.strip()).replaceFirst("").strip();
+        if (!URL.matcher(stripped).find()) {
+            return false;
+        }
+        String lower = stripped.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("project link")) {
+            return true;
+        }
+        String withoutUrl = stripped.replaceAll(
+                "(?i)(https?://\\S+|www\\.\\S+|github\\.com/\\S+|linkedin\\.com/\\S+)",
+                ""
+        ).strip();
+        return withoutUrl.isEmpty() || withoutUrl.split("\\s+").length <= 2;
     }
 
     private static boolean isTitleOrDateLine(String text) {

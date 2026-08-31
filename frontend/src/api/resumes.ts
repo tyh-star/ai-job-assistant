@@ -1,5 +1,10 @@
 import { api, API_BASE_URL, readApiErrorMessage } from './client'
-import type { ResumeResponse, ResumeStructure } from './types'
+import type {
+  ResumeEvidenceItem,
+  ResumeResponse,
+  ResumeStructure,
+  SaveResumeEvidenceRequest,
+} from './types'
 
 export function listResumes(includeDerived = false) {
   return api.get<ResumeResponse[]>('/resumes', {
@@ -31,6 +36,18 @@ export function updateResumeStructure(id: number, structure: ResumeStructure) {
 
 export function canonicalizeResume(id: number) {
   return api.post<ResumeResponse>(`/resumes/${id}/canonicalize`)
+}
+
+export function listResumeEvidence(resumeId: number) {
+  return api.get<ResumeEvidenceItem[]>(`/resumes/${resumeId}/evidence`)
+}
+
+export function saveResumeEvidence(resumeId: number, body: SaveResumeEvidenceRequest) {
+  return api.post<ResumeEvidenceItem>(`/resumes/${resumeId}/evidence`, body)
+}
+
+export function deleteResumeEvidence(resumeId: number, evidenceId: number) {
+  return api.delete(`/resumes/${resumeId}/evidence/${evidenceId}`)
 }
 
 export async function downloadByUrl(downloadUrl: string, fallbackName: string) {

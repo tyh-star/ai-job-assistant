@@ -45,18 +45,80 @@ export function apiErrorKey(error: unknown): string {
     return 'errors.forbidden'
   }
   if (status === 404) {
+    if (message.toLowerCase().includes('tailor proposal')) {
+      return 'tailor.proposalExpired'
+    }
+    if (message.toLowerCase().includes('search session')) {
+      return 'errors.jobSearchSessionNotFound'
+    }
     return 'errors.notFound'
   }
-  if (status === 409) {
-    return message.toLowerCase().includes('email')
-      ? 'errors.emailExists'
-      : 'errors.conflict'
+  if (status === 410) {
+    return 'errors.jobSearchSessionExpired'
+  }
+    if (status === 409) {
+    if (message.toLowerCase().includes('email')) {
+      return 'errors.emailExists'
+    }
+    if (message.toLowerCase().includes('search page')) {
+      return 'errors.jobSearchPageConflict'
+    }
+    if (
+      message.toLowerCase().includes('already saved evidence')
+      || message.toLowerCase().includes('delete the existing evidence')
+    ) {
+      return 'tailor.evidenceConflict'
+    }
+    if (message.toLowerCase().includes('already being confirmed')) {
+      return 'tailor.confirmInProgress'
+    }
+    if (
+      message.toLowerCase().includes('no longer pending')
+      || message.toLowerCase().includes('expired')
+    ) {
+      return 'tailor.proposalExpired'
+    }
+    return 'errors.conflict'
   }
   if (status === 400) {
+    const lower = message.toLowerCase()
+    if (lower.includes('keywords')) {
+      return 'errors.jobSearchKeywordsRequired'
+    }
+    if (
+      lower.includes('select at least')
+      || lower.includes('at most 20')
+    ) {
+      return 'errors.jobSearchImportSelectionInvalid'
+    }
+    if (
+      lower.includes('yes/no')
+      || lower.includes('actual maintenance')
+      || lower.includes('not enough')
+      || lower.includes('answertext is required')
+    ) {
+      return 'tailor.needRealDetails'
+    }
+    if (
+      lower.includes('snippet')
+      || lower.includes('full job description')
+      || lower.includes('fulldescription')
+    ) {
+      return 'errors.jobSearchFullDescriptionRequired'
+    }
     return 'errors.badRequest'
+  }
+  if (status === 429) {
+    return 'errors.jobSearchRateLimited'
+  }
+  if (status === 504) {
+    return 'errors.jobSearchTimeout'
   }
   if (status === 502) {
     const lower = message.toLowerCase()
+    if (lower.includes('job search')) {
+      return 'errors.jobSearchUnavailable'
+    }
     if (lower.includes('greenhouse')) {
       return 'errors.greenhouseUnavailable'
     }

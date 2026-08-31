@@ -1,10 +1,16 @@
 package aijob.service.impl;
 
+import aijob.dto.ConservativeCandidateRanking;
+import aijob.dto.ConservativeRewriteCandidate;
+import aijob.dto.ConservativeRewriteCandidatesResponse;
+import aijob.dto.ConservativeRewritePlan;
+import aijob.dto.ConservativeRewriteRepair;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.ResumeAnalysisResponse;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.TailorChange;
 import aijob.dto.TailorChangesResponse;
+import aijob.dto.RejectedTailorChange;
 import aijob.enums.TailorMode;
 import aijob.exception.AiServiceException;
 import aijob.service.AiResumeService;
@@ -138,6 +144,68 @@ public class OpenAiResumeServiceImpl implements AiResumeService {
             You MAY tighten grammar and wording of facts that are already present.
             """;
 
+    private static final String TAILOR_CONSTRAINED_RULES = """
+            MODE: CONSERVATIVE CONSTRAINED REWRITE
+
+            Rewrite ONE resume node only.
+            Return exactly three candidates with clearly different wording and the same facts.
+            If a fact-safe rewrite is impossible, return fewer rather than inventing facts.
+            Do not fill evidenceType, evidenceNodeIds, evidenceQuote, or applied.
+            The server overwrites those fields.
+
+            Constraints you MUST obey:
+            - Use EVIDENCE_PACKET_JSON as the only allowed fact source besides originalText
+            - Every candidate MUST keep every requiredFact (except role:*, which may change tense, not seniority)
+            - supportingFacts are optional and may be used only from supportingNodeIds
+            - usedFactNodeIds must list every fact node you actually used
+            - nodeId must equal targetNodeId
+            - usedSupportingNodeIds must be a subset of supportingNodeIds
+            - improvementIntent is a hint only; the server reclassifies it
+            - claimedFacts lists facts you believe newText contains; the server re-checks them
+            - Do not use facts from any other project or job
+            - Do not use Skills or Summary as proof that a project used a tool
+            - Do not add tools, skills, scale, metrics, duties, or outcomes
+              that are not already written in originalText or the evidence packet
+            - Do not add enhanced/improved/increased/reduced/optimized/efficiency/performance/scalable/reliable
+              unless that exact outcome is already written in originalText or supporting facts
+            - "optimal components" is not an outcome metric and must not become "optimized for performance"
+            - Do not add purpose, result, or condition phrases such as
+              "based on user/business needs", "to meet business needs", or
+              "ensuring improved outcomes" unless that wording already appears in
+              originalText or supporting facts
+            - manage user authentication / shopping cart / product data is not leadership
+            - Obey forbiddenClaims, including unfounded leadership and education-status upgrades
+            - Each newText MUST be <= maxCharacters
+            - Do not invent companies, titles, degrees, dates, or numbers
+            - Do not make a synonym-only, plurality-only, or word-order-only change
+            - Do not replace designed/implemented with a vague verb such as created
+            - Do not write in job-description voice
+            - Do not only insert job keywords
+            - Do not pack the whole project into one bullet unless newText keeps every
+              material fact of each supporting bullet you are replacing
+              (action, technologies, objects/tasks, constraints such as budget,
+              and user/value context such as helping users select)
+            - List a supporting node in usedSupportingNodeIds only if newText uses a
+              concrete fact from that node. Generic words such as project, application,
+              or system do not count as a supporting hit
+            - A partial borrow of another bullet must not be treated as replacing it
+            - Prefer finite verbs. Write "and deployed ... to AWS", not
+              ", successfully deploying ...". Do not add empty adverbs such as
+              successfully unless they already appear in originalText
+            - When supportingNodeIds is not empty, return three structurally different candidates:
+              (A) SAME_ENTRY_EVIDENCE_ENRICHMENT: newText MUST use at least one supporting fact
+                  and usedSupportingNodeIds MUST list that node; for a Spring Boot/MVC target,
+                  try the REST/auth/product/cart supporting node when it is in the packet
+              (B) CLARITY_IMPROVEMENT: clearer professional wording of originalText only
+              (C) GRAMMAR_FIX or a shorter concise rewrite of originalText only
+              Do not return three synonym variants of the same sentence.
+            - Return up to three candidates. If a fact-safe rewrite is impossible, return fewer.
+              Never invent facts or relax these rules to fill a quota of three.
+
+            Follow rewriteGoal and rewriteIntent for this node.
+            Keep every fact from originalText.
+            """;
+
     private static final String TAILOR_AGGRESSIVE_RULES = """
             MODE: AGGRESSIVE
 
@@ -254,6 +322,300 @@ public class OpenAiResumeServiceImpl implements AiResumeService {
         }
 
         return response.changes;
+    }
+
+    @Override
+    public ConservativeRewriteCandidatesResponse generateConstrainedTailorCandidates(
+            ResumeDocumentNode node,
+            ConservativeRewritePlan plan,
+            String jobDescription,
+            ConservativeRewriteRepair repair) {
+
+        if (node == null || plan == null) {
+            return emptyCandidates(node, plan);
+        }
+
+        ConservativeRewriteCandidatesResponse response = requestStructuredOutput(
+                buildConstrainedInstructions(plan, repair),
+                buildConstrainedInput(node, plan, jobDescription),
+                ConservativeRewriteCandidatesResponse.class,
+                "resume tailor constrained candidates"
+        );
+        if (response == null || response.getCandidates() == null || response.getCandidates().isEmpty()) {
+            return emptyCandidates(node, plan);
+        }
+        response.setNodeId(plan.nodeId());
+        return response;
+    }
+
+    @Override
+    public ConservativeCandidateRanking rankConservativeCandidates(
+            String originalText,
+            String rewriteGoal,
+            List<String> relevantJobTerms,
+            List<ConservativeRewriteCandidate> candidates) {
+
+        if (candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        try {
+            StringBuilder input = new StringBuilder();
+            input.append("originalText: ").append(originalText == null ? "" : originalText).append('\n');
+            input.append("rewriteGoal: ").append(rewriteGoal == null ? "" : rewriteGoal).append('\n');
+            input.append("relevantJobTerms: ")
+                    .append(relevantJobTerms == null ? "" : String.join(", ", relevantJobTerms))
+                    .append('\n');
+            int index = 0;
+            for (ConservativeRewriteCandidate candidate : candidates) {
+                input.append("candidate[").append(index).append("]: ")
+                        .append(candidate == null ? "" : candidate.getNewText())
+                        .append('\n');
+                index++;
+            }
+            ConservativeCandidateRanking ranking = requestStructuredOutput(
+                    """
+                            Rank resume rewrite candidates. Do not write new text.
+                            Score only the given candidates.
+                            Check grammaticality, natural resume English, awkward wording,
+                            semantic precision, and whether the candidate is actually better than original.
+                            Reject or score below 60 for awkward phrases such as
+                            "utilizing Java Spring Boot with an MVC architecture",
+                            "updates to products", "shopping cart processes",
+                            or "suggest dynamic component selections".
+                            factualPreservationScore below 60 means the candidate must not be selected.
+                            selectedIndex must point to a candidate that preserves every original fact.
+                            Do not invent replacement text and do not restore previously rejected rewrites.
+                            """,
+                    input.toString(),
+                    ConservativeCandidateRanking.class,
+                    "resume tailor candidate ranking"
+            );
+            if (ranking == null
+                    || ranking.getSelectedIndex() == null
+                    || ranking.getSelectedIndex() < 0
+                    || ranking.getSelectedIndex() >= candidates.size()) {
+                return null;
+            }
+            return ranking;
+        } catch (RuntimeException ex) {
+            log.warn("Conservative ranking judge failed: {}", ex.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    static String buildConstrainedInstructions(
+            ConservativeRewritePlan plan,
+            ConservativeRewriteRepair repair) {
+
+        StringBuilder instructions = new StringBuilder();
+        instructions.append(TAILOR_SHARED_RULES)
+                .append(System.lineSeparator())
+                .append(TAILOR_CONSTRAINED_RULES)
+                .append(System.lineSeparator())
+                .append("nodeId=").append(plan.nodeId()).append('\n')
+                .append("nodeRole=").append(plan.nodeRole() == null ? "" : plan.nodeRole()).append('\n')
+                .append("maxCharacters=").append(plan.maxCharacters()).append('\n')
+                .append("sameEntryEvidenceAllowed=true").append('\n')
+                .append("crossEntryEvidenceAllowed=false").append('\n')
+                .append("rewriteIntent=").append(plan.rewriteIntent() == null ? "" : plan.rewriteIntent()).append('\n')
+                .append("rewriteGoal=").append(plan.rewriteGoal()).append('\n');
+        if (repair != null && repair.reasonCode() != null) {
+            instructions.append(System.lineSeparator())
+                    .append(repairInstructions(plan, repair));
+        }
+        return instructions.toString();
+    }
+
+    static String buildConstrainedInput(
+            ResumeDocumentNode node,
+            ConservativeRewritePlan plan,
+            String jobDescription) {
+
+        String original = node.getText() == null ? "" : node.getText();
+        String terms = plan.relevantJobTerms() == null
+                ? ""
+                : String.join(", ", plan.relevantJobTerms());
+        String packetJson = plan.allowedFactsText() == null || plan.allowedFactsText().isBlank()
+                ? original
+                : plan.allowedFactsText();
+        String required = plan.requiredFacts() == null ? "" : String.join(" | ", plan.requiredFacts());
+        String supportingIds = plan.supportingNodeIds() == null ? "" : String.join(", ", plan.supportingNodeIds());
+        String forbidden = plan.forbiddenClaims() == null ? "" : String.join(" | ", plan.forbiddenClaims());
+        return """
+                nodeId: %s
+                targetNodeId: %s
+                entryKey: %s
+                nodeRole: %s
+                rewriteIntent: %s
+                originalText: %s
+                requiredFacts: %s
+                supportingNodeIds: %s
+                forbiddenClaims: %s
+                EVIDENCE_PACKET_JSON:
+                %s
+                allowedSameEntryFacts:
+                %s
+                relevantJobTerms: %s
+                matchedRequirementIds: %s
+                maxCharacters: %d
+                sameEntryEvidenceAllowed: true
+                crossEntryEvidenceAllowed: false
+
+                JOB DESCRIPTION:
+                %s
+                """.formatted(
+                plan.nodeId(),
+                plan.targetNodeId() == null ? plan.nodeId() : plan.targetNodeId(),
+                plan.entryKey() == null ? "" : plan.entryKey(),
+                plan.nodeRole() == null ? "" : plan.nodeRole(),
+                plan.rewriteIntent() == null ? "" : plan.rewriteIntent(),
+                original,
+                required,
+                supportingIds,
+                forbidden,
+                packetJson,
+                packetJson,
+                terms,
+                plan.matchedRequirementIds() == null ? "" : String.join(", ", plan.matchedRequirementIds()),
+                plan.maxCharacters(),
+                jobDescription == null ? "" : jobDescription
+        );
+    }
+
+    static String repairInstructions(
+            ConservativeRewritePlan plan,
+            ConservativeRewriteRepair repair) {
+
+        String previous = repair.previousNewText() == null ? "" : repair.previousNewText();
+        String reason = repair.reasonCode();
+        if (RejectedTailorChange.TEXT_TOO_LONG.equals(reason)) {
+            return """
+                    REPAIR: TEXT_TOO_LONG
+                    Previous newText was too long.
+                    maxCharacters=%d
+                    Shorten newText to at most %d characters.
+                    Keep only facts from originalText.
+                    previousNewText: %s
+                    """.formatted(plan.maxCharacters(), plan.maxCharacters(), previous);
+        }
+        if (RejectedTailorChange.TEXT_UNCHANGED.equals(reason)) {
+            return """
+                    REPAIR: TEXT_UNCHANGED
+                    Previous newText did not change the node.
+                    Keep every fact from originalText.
+                    Produce a materially clearer professional resume bullet.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.ROLE_SEMANTIC_ESCALATION.equals(reason)) {
+            return """
+                    REPAIR: ROLE_SEMANTIC_ESCALATION
+                    Do not upgrade individual-contributor verbs (developed/implemented/built)
+                    to leadership (led/directed/managed/oversaw/owned).
+                    Do not write "directed the creation".
+                    Keep the original role and every requiredFact.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.INFORMATION_LOSS.equals(reason)) {
+            return """
+                    REPAIR: INFORMATION_LOSS
+                    Previous newText dropped requiredFacts such as design, implement, Java, Maven, Spring Boot, or MVC.
+                    Keep every requiredFact from originalText. Do not replace designed/implemented with created.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.LOW_VALUE_REWRITE.equals(reason)) {
+            return """
+                    REPAIR: LOW_VALUE_REWRITE
+                    Previous candidates only changed plurality, articles, punctuation, or synonyms.
+                    Do not rewrite "that dynamically suggests" into "to dynamically suggest".
+                    Do not rewrite "(CPU, GPU & RAM)" into "such as CPU, GPU, and RAM".
+                    Do not swap application/project or helps users select/enables users to choose.
+                    Produce a materially clearer professional resume bullet while preserving every fact.
+                    Start with a strong action verb. Prefer past tense for completed work.
+                    If the entry dates include Present, keep present tense for ongoing duties.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.FACT_CARDINALITY_CHANGED.equals(reason)) {
+            return """
+                    REPAIR: FACT_CARDINALITY_CHANGED
+                    Do not change singular facts into plurals (application→applications, API→APIs, project→projects)
+                    unless originalText or same-entry evidence already uses the plural.
+                    Keep the original count. Preserve every fact from originalText.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.OPPORTUNITY_NOT_RESOLVED.equals(reason)) {
+            return """
+                    REPAIR: OPPORTUNITY_NOT_RESOLVED
+                    Fix the marked opportunity without changing facts.
+                    If originalText contains "managements", change it to management or operations.
+                    If the entry dates include Present, keep present tense for ongoing duties.
+                    Use past tense only for completed outcomes or ended entries.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.SOURCE_FACT_WOULD_DUPLICATE.equals(reason)) {
+            return """
+                    REPAIR: SOURCE_FACT_WOULD_DUPLICATE
+                    Do not copy material facts from other bullets (OOP, AWS, REST, CPU/GPU/RAM).
+                    Supporting bullets are context only. Rewrite only the current originalText.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.UNSUPPORTED_ACTION.equals(reason)) {
+            return """
+                    REPAIR: UNSUPPORTED_ACTION
+                    Do not add actions missing from originalText.
+                    Do not change Implemented into Designed and implemented.
+                    Keep the original action family.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.GRAMMAR_QUALITY_FAILED.equals(reason)) {
+            return """
+                    REPAIR: GRAMMAR_QUALITY_FAILED
+                    Previous newText had grammar problems.
+                    Fix grammar while preserving every fact from originalText.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        if (RejectedTailorChange.EVIDENCE_QUOTE_MISMATCH.equals(reason)) {
+            return """
+                    REPAIR: EVIDENCE_QUOTE_MISMATCH
+                    Ignore model-invented evidenceQuote.
+                    evidenceQuote must be copied from originalText.
+                    evidenceNodeIds must be exactly [%s].
+                    previousNewText: %s
+                    """.formatted(plan.nodeId(), previous);
+        }
+        if (RejectedTailorChange.CROSS_NODE_EVIDENCE_NOT_ALLOWED.equals(reason)
+                || RejectedTailorChange.CROSS_ENTRY_EVIDENCE_NOT_ALLOWED.equals(reason)) {
+            return """
+                    REPAIR: CROSS_ENTRY_EVIDENCE_NOT_ALLOWED
+                    Use only originalText and ALLOWED SAME-ENTRY FACTS.
+                    Do not use facts from any other project or job.
+                    Do not use Skills or Summary as project evidence.
+                    previousNewText: %s
+                    """.formatted(previous);
+        }
+        return "REPAIR: retry once without adding facts.";
+    }
+
+    private static ConservativeRewriteCandidatesResponse emptyCandidates(
+            ResumeDocumentNode node,
+            ConservativeRewritePlan plan) {
+
+        ConservativeRewriteCandidatesResponse response = new ConservativeRewriteCandidatesResponse();
+        if (plan != null) {
+            response.setNodeId(plan.nodeId());
+        } else if (node != null) {
+            response.setNodeId(node.getNodeId());
+        }
+        response.setCandidates(new ArrayList<>());
+        return response;
     }
 
     private <T> T requestStructuredOutput(

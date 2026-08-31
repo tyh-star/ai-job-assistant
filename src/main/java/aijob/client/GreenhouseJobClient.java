@@ -6,6 +6,8 @@ public interface GreenhouseJobClient {
 
     GreenhouseBoardSnapshot fetchBoard(String boardToken);
 
+    GreenhouseJobPosting fetchJob(String boardToken, String jobId);
+
     record GreenhouseBoardSnapshot(
             String companyName,
             List<GreenhouseJobPosting> jobs

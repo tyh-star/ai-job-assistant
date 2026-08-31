@@ -294,6 +294,132 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(InvalidJobSearchException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidJobSearch(
+            InvalidJobSearchException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
+    @ExceptionHandler(JobSearchSessionNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleJobSearchSessionNotFound(
+            JobSearchSessionNotFoundException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
+    @ExceptionHandler(JobSearchPageConflictException.class)
+    public ResponseEntity<ErrorResponse> handleJobSearchPageConflict(
+            JobSearchPageConflictException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
+    @ExceptionHandler(JobSearchSessionExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleJobSearchSessionExpired(
+            JobSearchSessionExpiredException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.GONE.value(),
+                HttpStatus.GONE.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.GONE)
+                .body(error);
+    }
+
+    @ExceptionHandler(JobSearchRateLimitedException.class)
+    public ResponseEntity<ErrorResponse> handleJobSearchRateLimited(
+            JobSearchRateLimitedException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                "Job search rate limit reached. Try again later.",
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(error);
+    }
+
+    @ExceptionHandler(JobSearchTimeoutException.class)
+    public ResponseEntity<ErrorResponse> handleJobSearchTimeout(
+            JobSearchTimeoutException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.GATEWAY_TIMEOUT.value(),
+                HttpStatus.GATEWAY_TIMEOUT.getReasonPhrase(),
+                "Job search timed out.",
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.GATEWAY_TIMEOUT)
+                .body(error);
+    }
+
+    @ExceptionHandler(JobSearchUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleJobSearchUnavailable(
+            JobSearchUnavailableException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_GATEWAY.value(),
+                HttpStatus.BAD_GATEWAY.getReasonPhrase(),
+                "Job search is temporarily unavailable.",
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_GATEWAY)
+                .body(error);
+    }
+
     @ExceptionHandler(JobNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleJobNotFound(
             JobNotFoundException ex,
@@ -366,6 +492,24 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(EvidenceConflictException.class)
+    public ResponseEntity<ErrorResponse> handleEvidenceConflict(
+            EvidenceConflictException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
     @ExceptionHandler(InvalidBulkDeleteException.class)
     public ResponseEntity<ErrorResponse> handleInvalidBulkDelete(
             InvalidBulkDeleteException ex,
@@ -387,6 +531,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidTailorProposalException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTailorProposal(
             InvalidTailorProposalException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
+    @ExceptionHandler(InvalidEvidenceRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidEvidenceRequest(
+            InvalidEvidenceRequestException ex,
             HttpServletRequest request) {
 
         ErrorResponse error = new ErrorResponse(

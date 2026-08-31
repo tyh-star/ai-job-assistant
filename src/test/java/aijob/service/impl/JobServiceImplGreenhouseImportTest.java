@@ -1,6 +1,7 @@
 package aijob.service.impl;
 
 import aijob.client.GreenhouseJobClient;
+import aijob.config.StoragePathResolver;
 import aijob.client.GreenhouseJobClient.GreenhouseBoardSnapshot;
 import aijob.client.GreenhouseJobClient.GreenhouseJobPosting;
 import aijob.dto.ImportJobsResponse;
@@ -21,11 +22,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,6 +72,9 @@ class JobServiceImplGreenhouseImportTest {
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
+    @TempDir
+    Path tempDir;
+
     private JobServiceImpl jobService;
 
     @BeforeEach
@@ -83,7 +89,8 @@ class JobServiceImplGreenhouseImportTest {
                 resumeDocxTailorService,
                 objectMapper,
                 greenhouseJobClient,
-                pdfExportService
+                pdfExportService,
+                StoragePathResolver.forRoot(tempDir.resolve("uploads"))
         );
 
         User user = new User();
