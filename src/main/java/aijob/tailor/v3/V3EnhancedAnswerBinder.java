@@ -59,11 +59,6 @@ public final class V3EnhancedAnswerBinder {
                 || EvidenceTopics.ENHANCED_EVENT_DRIVEN.equals(key);
     }
 
-    public static String topicLabel(V3EnhancedQuestion question) {
-        String key = canonicalTopicKey(question);
-        return key.isBlank() ? "project-detail" : question.topic();
-    }
-
     /**
      * Canonical closed-catalog topic from the replanned question. Never parsed
      * from questionId, English askable copy, or client text.

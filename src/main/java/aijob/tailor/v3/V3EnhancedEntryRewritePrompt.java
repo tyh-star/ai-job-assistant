@@ -1,7 +1,5 @@
 package aijob.tailor.v3;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -97,19 +95,5 @@ final class V3EnhancedEntryRewritePrompt {
         text.append("Do not rewrite just to look more professional or clearer.\n");
         text.append(V3LanguageGuide.TEXT).append('\n');
         return text.toString();
-    }
-
-    static List<V3UserEvidence> confirmedFor(V3EntryRewriteRequest request) {
-        return request == null ? List.of() : new ArrayList<>(request.userConfirmedFacts());
-    }
-
-    static LinkedHashSet<String> confirmedSurfaces(V3EntryRewriteRequest request) {
-        LinkedHashSet<String> surfaces = new LinkedHashSet<>();
-        for (V3UserEvidence item : confirmedFor(request)) {
-            if (!item.combinedText().isBlank()) {
-                surfaces.add(item.combinedText());
-            }
-        }
-        return surfaces;
     }
 }

@@ -48,13 +48,6 @@ export function saveSession(jobId: string, resumeId: string, snapshot: TailorSes
   }
 }
 
-export function clearSession(jobId: string, resumeId: string): void {
-  if (!jobId || !resumeId) {
-    return
-  }
-  sessionStorage.removeItem(sessionKey(jobId, resumeId))
-}
-
 export function hasLocalUnsavedWork(snapshot: Partial<TailorSessionSnapshot> | null): boolean {
   if (!snapshot) {
     return false

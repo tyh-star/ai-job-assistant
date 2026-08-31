@@ -18,10 +18,6 @@ final class V3EnhancedWhyBetter {
             en = en == null ? "" : en;
             zh = zh == null ? "" : zh;
         }
-
-        static Copy empty() {
-            return new Copy("", "");
-        }
     }
 
     private V3EnhancedWhyBetter() {

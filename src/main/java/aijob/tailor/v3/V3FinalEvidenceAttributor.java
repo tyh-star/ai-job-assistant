@@ -7,7 +7,6 @@ import aijob.util.EvidenceTopics;
 import aijob.util.TermAliasNormalizer;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -86,20 +85,6 @@ public final class V3FinalEvidenceAttributor {
         return used;
     }
 
-    public static List<Long> usedEntryIds(
-            List<V3UserEvidence> evidence,
-            String entryKey,
-            String originalText,
-            String proposedText) {
-        LinkedHashSet<Long> ids = new LinkedHashSet<>();
-        for (V3UserEvidence item : usedInEntry(evidence, entryKey, originalText, proposedText)) {
-            if (item.evidenceItemId() != null) {
-                ids.add(item.evidenceItemId());
-            }
-        }
-        return List.copyOf(ids);
-    }
-
     public static List<V3UserEvidence> missingRequired(
             List<V3UserEvidence> required,
             String originalText,
@@ -111,29 +96,6 @@ public final class V3FinalEvidenceAttributor {
             }
         }
         return missing;
-    }
-
-    public static boolean usedInSkills(
-            V3UserEvidence item,
-            List<String> addedSkills,
-            String originalSkills) {
-        if (item == null || !item.confirmed() || addedSkills == null || addedSkills.isEmpty()) {
-            return false;
-        }
-        List<V3SkillsProjector.Extracted> extracted = V3SkillsProjector.extract(item);
-        if (extracted.isEmpty()) {
-            return false;
-        }
-        for (V3SkillsProjector.Extracted skill : extracted) {
-            if (!containsSkill(addedSkills, skill.display())) {
-                continue;
-            }
-            if (containsSkill(V3SkillsProjector.splitSkills(originalSkills), skill.display())) {
-                continue;
-            }
-            return true;
-        }
-        return false;
     }
 
     private static boolean nxUsed(String original, String proposed, String evidenceText) {
@@ -289,18 +251,6 @@ public final class V3FinalEvidenceAttributor {
         }
         return TermAliasNormalizer.containsPhrase(
                 EvidenceText.normalize(haystack), EvidenceText.normalize(phrase));
-    }
-
-    private static boolean containsSkill(List<String> skills, String candidate) {
-        if (skills == null) {
-            return false;
-        }
-        for (String skill : skills) {
-            if (TermAliasNormalizer.sameTerm(skill, candidate)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static boolean looksLikeMetric(V3UserEvidence item) {

@@ -22,14 +22,6 @@ public final class V3EvidenceUsageRecorder {
             List<V3UserEvidence> evidence,
             List<V3EntryReview> entryReviews,
             V3SkillsProjector.Result skills,
-            String originalResumeText) {
-        return record(evidence, entryReviews, skills, originalResumeText, List.of());
-    }
-
-    public static List<V3EvidenceUsage> record(
-            List<V3UserEvidence> evidence,
-            List<V3EntryReview> entryReviews,
-            V3SkillsProjector.Result skills,
             String originalResumeText,
             List<Long> unusedRequiredIds) {
         List<V3EvidenceUsage> usages = new ArrayList<>();
