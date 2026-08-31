@@ -1,4 +1,6 @@
 import { api, API_BASE_URL, readApiErrorMessage } from './client'
+import { endpoints } from './endpoints'
+import { stripApiV1Prefix } from './url'
 import type {
   ResumeEvidenceItem,
   ResumeResponse,
@@ -7,7 +9,7 @@ import type {
 } from './types'
 
 export function listResumes(includeDerived = false) {
-  return api.get<ResumeResponse[]>('/resumes', {
+  return api.get<ResumeResponse[]>(endpoints.resumes, {
     params: includeDerived ? { includeDerived: true } : undefined,
   })
 }
@@ -15,39 +17,39 @@ export function listResumes(includeDerived = false) {
 export function uploadResume(file: File) {
   const data = new FormData()
   data.append('file', file)
-  return api.post<ResumeResponse>('/resumes', data)
+  return api.post<ResumeResponse>(endpoints.resumes, data)
 }
 
 export function deleteResume(id: number) {
-  return api.delete(`/resumes/${id}`)
+  return api.delete(endpoints.resume(id))
 }
 
 export function deleteResumeFamily(id: number) {
-  return api.delete(`/resumes/${id}/family`)
+  return api.delete(endpoints.resumeFamily(id))
 }
 
 export function getResumeStructure(id: number) {
-  return api.get<ResumeStructure>(`/resumes/${id}/structure`)
+  return api.get<ResumeStructure>(endpoints.resumeStructure(id))
 }
 
 export function updateResumeStructure(id: number, structure: ResumeStructure) {
-  return api.put<ResumeStructure>(`/resumes/${id}/structure`, structure)
+  return api.put<ResumeStructure>(endpoints.resumeStructure(id), structure)
 }
 
 export function canonicalizeResume(id: number) {
-  return api.post<ResumeResponse>(`/resumes/${id}/canonicalize`)
+  return api.post<ResumeResponse>(endpoints.resumeCanonicalize(id))
 }
 
 export function listResumeEvidence(resumeId: number) {
-  return api.get<ResumeEvidenceItem[]>(`/resumes/${resumeId}/evidence`)
+  return api.get<ResumeEvidenceItem[]>(endpoints.resumeEvidence(resumeId))
 }
 
 export function saveResumeEvidence(resumeId: number, body: SaveResumeEvidenceRequest) {
-  return api.post<ResumeEvidenceItem>(`/resumes/${resumeId}/evidence`, body)
+  return api.post<ResumeEvidenceItem>(endpoints.resumeEvidence(resumeId), body)
 }
 
 export function deleteResumeEvidence(resumeId: number, evidenceId: number) {
-  return api.delete(`/resumes/${resumeId}/evidence/${evidenceId}`)
+  return api.delete(endpoints.resumeEvidenceItem(resumeId, evidenceId))
 }
 
 export async function downloadByUrl(downloadUrl: string, fallbackName: string) {
@@ -65,25 +67,11 @@ export async function downloadByUrl(downloadUrl: string, fallbackName: string) {
 }
 
 export function toApiPath(downloadUrl: string): string {
-  let path = downloadUrl.trim()
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    if (path.startsWith(API_BASE_URL)) {
-      path = path.slice(API_BASE_URL.length)
-    } else {
-      const marker = '/api/v1'
-      const index = path.indexOf(marker)
-      path = index >= 0 ? path.slice(index + marker.length) : path
-    }
+  const path = downloadUrl.trim()
+  if (/^https?:\/\//i.test(path) && path.startsWith(API_BASE_URL)) {
+    return stripApiV1Prefix(path.slice(API_BASE_URL.length) || '/')
   }
-  if (path.startsWith('/api/v1/')) {
-    path = path.slice('/api/v1'.length)
-  } else if (path === '/api/v1') {
-    path = '/'
-  }
-  if (!path.startsWith('/')) {
-    path = `/${path}`
-  }
-  return path
+  return stripApiV1Prefix(path)
 }
 
 function filenameFromDisposition(header: string | undefined, fallback: string): string {

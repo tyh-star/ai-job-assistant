@@ -1,19 +1,30 @@
-import axios, { type AxiosError } from 'axios'
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiErrorBody } from './types'
 import { TOKEN_KEY, clearSession } from '../auth/session'
+import {
+  isPublicAuthEndpoint,
+  resolveApiBase,
+  stripApiV1Prefix,
+} from './url'
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ||
-  'http://localhost:8080/api/v1'
+export const API_BASE_URL = resolveApiBase(import.meta.env)
+
+export { joinApiUrl, resolveApiBase, stripApiV1Prefix } from './url'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
 })
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY)
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (config.url && !/^https?:\/\//i.test(config.url)) {
+    config.url = stripApiV1Prefix(config.url)
+  }
+  const requestUrl = `${config.baseURL ?? ''}${config.url ?? ''}`
+  if (!isPublicAuthEndpoint(config.url ?? '') && !isPublicAuthEndpoint(requestUrl)) {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
   }
   return config
 })

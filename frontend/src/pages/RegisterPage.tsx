@@ -5,7 +5,14 @@ import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
-import { AuthShell } from './LoginPage'
+import {
+  AUTH_FOOTER_CLASS,
+  AUTH_INPUT_CLASS,
+  AUTH_LABEL_CLASS,
+  AUTH_SUBMIT_CLASS,
+  AUTH_TITLE_CLASS,
+  AuthShell,
+} from './LoginPage'
 
 export function RegisterPage() {
   const { t } = useTranslation()
@@ -51,32 +58,32 @@ export function RegisterPage() {
 
   return (
     <AuthShell>
-      <h1 className="text-2xl font-semibold text-slate-900">{t('auth.registerTitle')}</h1>
+      <h1 className={AUTH_TITLE_CLASS}>{t('auth.registerTitle')}</h1>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
-        <label className="block text-sm">
+        <label className={AUTH_LABEL_CLASS}>
           <span className="text-slate-700">{t('auth.name')}</span>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className={AUTH_INPUT_CLASS}
             value={name}
             onChange={(event) => setName(event.target.value)}
             autoComplete="name"
           />
         </label>
-        <label className="block text-sm">
+        <label className={AUTH_LABEL_CLASS}>
           <span className="text-slate-700">{t('auth.email')}</span>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className={AUTH_INPUT_CLASS}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
           />
         </label>
-        <label className="block text-sm">
+        <label className={AUTH_LABEL_CLASS}>
           <span className="text-slate-700">{t('auth.password')}</span>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className={AUTH_INPUT_CLASS}
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -86,13 +93,13 @@ export function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
+          className={AUTH_SUBMIT_CLASS}
         >
           {loading ? t('common.loading') : t('auth.submitRegister')}
         </button>
       </form>
       {loading ? <div className="mt-4"><Spinner label={t('common.loading')} /></div> : null}
-      <p className="mt-6 text-sm text-slate-600">
+      <p className={AUTH_FOOTER_CLASS}>
         {t('auth.hasAccount')}{' '}
         <Link className="font-medium text-slate-900 underline" to="/login">
           {t('auth.goLogin')}

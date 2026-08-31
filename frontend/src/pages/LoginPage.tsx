@@ -7,6 +7,20 @@ import { Alert } from '../components/Alert'
 import { LanguageSwitch } from '../components/LanguageSwitch'
 import { Spinner } from '../components/Spinner'
 
+export const AUTH_SHELL_CLASS =
+  'auth-shell flex min-h-screen flex-col bg-slate-50'
+export const AUTH_CARD_CLASS =
+  'auth-card w-full max-w-[min(92vw,540px)] rounded-2xl border border-slate-200 bg-white px-8 py-10 shadow-sm sm:px-10'
+export const AUTH_TITLE_CLASS =
+  'auth-title text-3xl font-semibold tracking-tight text-slate-900'
+export const AUTH_SUBTITLE_CLASS = 'auth-subtitle mt-2 text-base text-slate-500'
+export const AUTH_LABEL_CLASS = 'auth-label block text-base'
+export const AUTH_INPUT_CLASS =
+  'auth-input mt-1 min-h-12 w-full rounded-lg border border-slate-300 px-3 py-3 text-base'
+export const AUTH_SUBMIT_CLASS =
+  'auth-submit min-h-12 w-full rounded-lg bg-slate-900 px-4 py-3 text-base font-medium text-white disabled:opacity-60'
+export const AUTH_FOOTER_CLASS = 'auth-footer mt-6 text-base text-slate-600'
+
 export function LoginPage() {
   const { t } = useTranslation()
   const { isAuthenticated, login } = useAuth()
@@ -46,24 +60,24 @@ export function LoginPage() {
 
   return (
     <AuthShell>
-      <h1 className="text-2xl font-semibold text-slate-900">{t('auth.loginTitle')}</h1>
-      <p className="mt-1 text-sm text-slate-500">{t('app.tagline')}</p>
+      <h1 className={AUTH_TITLE_CLASS}>{t('auth.loginTitle')}</h1>
+      <p className={AUTH_SUBTITLE_CLASS}>{t('app.tagline')}</p>
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
-        <label className="block text-sm">
+        <label className={AUTH_LABEL_CLASS}>
           <span className="text-slate-700">{t('auth.email')}</span>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className={AUTH_INPUT_CLASS}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
           />
         </label>
-        <label className="block text-sm">
+        <label className={AUTH_LABEL_CLASS}>
           <span className="text-slate-700">{t('auth.password')}</span>
           <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className={AUTH_INPUT_CLASS}
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -73,13 +87,13 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
+          className={AUTH_SUBMIT_CLASS}
         >
           {loading ? t('common.loading') : t('auth.submitLogin')}
         </button>
       </form>
       {loading ? <div className="mt-4"><Spinner label={t('common.loading')} /></div> : null}
-      <p className="mt-6 text-sm text-slate-600">
+      <p className={AUTH_FOOTER_CLASS}>
         {t('auth.noAccount')}{' '}
         <Link className="font-medium text-slate-900 underline" to="/register">
           {t('auth.goRegister')}
@@ -92,13 +106,13 @@ export function LoginPage() {
 export function AuthShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className={AUTH_SHELL_CLASS} data-testid="auth-shell">
       <div className="flex justify-end px-6 py-4">
-        <LanguageSwitch />
+        <LanguageSwitch size="auth" />
       </div>
-      <div className="flex flex-1 items-start justify-center px-4 pb-16">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">{t('app.name')}</p>
+      <div className="flex flex-1 items-center justify-center px-4 pb-16">
+        <div className={AUTH_CARD_CLASS} data-testid="auth-card">
+          <p className="text-base font-medium text-slate-500">{t('app.name')}</p>
           {children}
         </div>
       </div>

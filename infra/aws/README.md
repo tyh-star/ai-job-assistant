@@ -145,4 +145,12 @@ docker compose -p aijob-smoke --env-file /tmp/aijob-smoke.env -f infra/aws/docke
 
 ## Frontend API
 
-The production image builds with `VITE_API_BASE_URL=/api/v1` so the browser talks to the same origin. Caddy forwards `/api/*` to `backend:8080` without stripping the path (`/api/v1/auth/login` stays `/api/v1/auth/login`).
+The production image builds with `VITE_API_BASE_URL=/api/v1` so the browser talks to the same origin. Caddy forwards `/api/*` to `backend:8080` without stripping the path (`/api/v1/auth/login` stays `/api/v1/auth/login`). Frontend endpoints are relative (`/auth/login`); do not prefix them with `/api/v1` again.
+
+Browsers send an `Origin` header on JSON POSTs even for same-origin pages. CORS must allow the public HTTPS origin (JWT is in `Authorization`, credentials are false). Do not treat a 403 on `/api/v1/auth/register` as a reason to widen `permitAll`.
+
+Read-only public smoke (no accounts, no OpenAI/JSearch):
+
+```bash
+./infra/aws/smoke.sh "$PUBLIC_HOST"
+```
