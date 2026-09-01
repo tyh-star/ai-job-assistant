@@ -16,6 +16,18 @@ public class JobSearchProviderRegistry {
     public static final String PRIMARY_PROPERTY = "JOB_SEARCH_PRIMARY_PROVIDER";
     public static final String DEFAULT_PRIMARY = "JSEARCH";
 
+    /**
+     * Serves user searches from this deployment's own {@code job_catalog}. While it is
+     * the primary provider, the outbound job-search providers are not even registered,
+     * so no external job API can be reached from a user request.
+     */
+    public static final String LOCAL_CATALOG = "LOCAL_CATALOG";
+
+    public static boolean isLocalCatalogPrimary(String configuredPrimary) {
+        return configuredPrimary != null
+                && LOCAL_CATALOG.equalsIgnoreCase(configuredPrimary.strip());
+    }
+
     private final Map<String, JobSearchProvider> providersByName;
     private final Environment environment;
 

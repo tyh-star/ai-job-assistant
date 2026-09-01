@@ -1,0 +1,45 @@
+[
+  {
+    "id": "6f2a1c40-0000-4000-8000-000000000001",
+    "text": "Backend Engineer",
+    "createdAt": 1785312000000,
+    "country": "CA",
+    "workplaceType": "hybrid",
+    "categories": {
+      "commitment": "Full-time",
+      "location": "Toronto, ON",
+      "allLocations": ["Toronto, ON", "Montreal, QC"],
+      "team": "Engineering"
+    },
+    "descriptionPlain": "Join the backend team.",
+    "description": "<p>Join the backend team.</p>",
+    "lists": [
+      {
+        "text": "Requirements",
+        "content": "<li>Kotlin or Java</li><li>Postgres</li>"
+      }
+    ],
+    "additionalPlain": "Acme is an equal opportunity employer.",
+    "additional": "<p>Acme is an equal opportunity employer.</p>",
+    "salaryRange": { "min": 120000, "max": 160000, "currency": "cad", "interval": "per-year-salary" },
+    "hostedUrl": "https://jobs.lever.co/acme/6f2a1c40-0000-4000-8000-000000000001",
+    "applyUrl": "https://jobs.lever.co/acme/6f2a1c40-0000-4000-8000-000000000001/apply"
+  },
+  {
+    "id": "6f2a1c40-0000-4000-8000-000000000002",
+    "text": "Support Specialist",
+    "createdAt": 0,
+    "categories": { "commitment": "Contract", "location": "Remote (Worldwide)" },
+    "descriptionPlain": "Help customers.",
+    "description": "<p>Help customers.</p>",
+    "lists": [],
+    "hostedUrl": "https://jobs.lever.co/acme/6f2a1c40-0000-4000-8000-000000000002"
+  },
+  {
+    "id": "6f2a1c40-0000-4000-8000-000000000003",
+    "text": "Empty Posting",
+    "categories": { "location": "Berlin" },
+    "lists": [],
+    "hostedUrl": "https://jobs.lever.co/acme/6f2a1c40-0000-4000-8000-000000000003"
+  }
+]

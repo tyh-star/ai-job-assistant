@@ -6,6 +6,10 @@ spring:
     url: ${AIJOB_DB_URL}
     username: ${AIJOB_DB_USERNAME}
     password: ${AIJOB_DB_PASSWORD}
+    hikari:
+      # Explicit so the collector container can be given a smaller share of the
+      # MySQL connections than the API. 10 is Hikari's own default.
+      maximum-pool-size: ${AIJOB_DB_POOL_MAX:10}
 
   servlet:
     multipart:
@@ -42,3 +46,22 @@ aijob:
     root: ${AIJOB_STORAGE_ROOT:uploads}
   cors:
     allowed-origins: ${AIJOB_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  # Background ATS collection. Only the `collector` profile schedules anything, and
+  # collection stays off until an operator sets JOB_COLLECTOR_ENABLED=true.
+  collector:
+    enabled: ${JOB_COLLECTOR_ENABLED:false}
+    interval-minutes: ${JOB_COLLECTOR_INTERVAL_MINUTES:120}
+    initial-delay-minutes: ${JOB_COLLECTOR_INITIAL_DELAY_MINUTES:1}
+    max-concurrency: ${JOB_COLLECTOR_MAX_CONCURRENCY:2}
+    batch-size: ${JOB_COLLECTOR_BATCH_SIZE:100}
+    expiry-grace-hours: ${JOB_EXPIRY_GRACE_HOURS:72}
+    user-agent: ${JOB_COLLECTOR_USER_AGENT:AiJobAssistantCollector/1.0}
+    contact-email: ${JOB_COLLECTOR_CONTACT_EMAIL:}
+    request-timeout-seconds: ${JOB_COLLECTOR_REQUEST_TIMEOUT_SECONDS:20}
+    max-retries: ${JOB_COLLECTOR_MAX_RETRIES:3}
+    max-jobs-per-source: ${JOB_COLLECTOR_MAX_JOBS_PER_SOURCE:2000}
+    max-description-chars: ${JOB_COLLECTOR_MAX_DESCRIPTION_CHARS:100000}
+    max-raw-payload-chars: ${JOB_COLLECTOR_MAX_RAW_PAYLOAD_CHARS:200000}
+    raw-payload-retention-days: ${JOB_COLLECTOR_RAW_PAYLOAD_RETENTION_DAYS:30}
+    run-history-retention-days: ${JOB_COLLECTOR_RUN_HISTORY_RETENTION_DAYS:30}
+    heartbeat-file: ${JOB_COLLECTOR_HEARTBEAT_FILE:/tmp/aijob-collector-heartbeat}

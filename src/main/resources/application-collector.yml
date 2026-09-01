@@ -1,0 +1,14 @@
+# Collector container overrides. The collector shares the API's Spring context but
+# never serves HTTP, never calls OpenAI and never calls a job-search API, so the
+# credentials those features need are replaced with obvious placeholders instead of
+# being copied into a second container.
+spring:
+  main:
+    web-application-type: none
+
+openai:
+  api-key: unused-by-collector
+
+# Job search is a user-facing API concern; the collector only writes to job_catalog,
+# so no outbound job-search provider is ever constructed here.
+JOB_SEARCH_PRIMARY_PROVIDER: LOCAL_CATALOG

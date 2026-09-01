@@ -1,5 +1,6 @@
 package aijob.service.impl;
 
+import aijob.config.ExternalJobSearchEnabledCondition;
 import aijob.dto.JobSearchRequest;
 import aijob.exception.InvalidJobSearchException;
 import aijob.exception.JobSearchRateLimitedException;
@@ -16,6 +17,7 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
@@ -30,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 @Component
+@Conditional(ExternalJobSearchEnabledCondition.class)
 public class AdzunaJobSearchProvider implements JobSearchProvider {
 
     public static final String SOURCE = "ADZUNA";

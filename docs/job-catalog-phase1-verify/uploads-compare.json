@@ -1,0 +1,21 @@
+﻿{
+    "comparedAtUtc":  "2026-09-01T13:49:45.0152984Z",
+    "before":  "docs\\job-catalog-phase1-verify\\uploads-before.json",
+    "after":  "docs\\job-catalog-phase1-verify\\uploads-after.json",
+    "addedCount":  0,
+    "deletedCount":  0,
+    "changedCount":  0,
+    "lockedCount":  0,
+    "added":  [
+
+              ],
+    "deleted":  [
+
+                ],
+    "changed":  [
+
+                ],
+    "locked":  [
+
+               ]
+}

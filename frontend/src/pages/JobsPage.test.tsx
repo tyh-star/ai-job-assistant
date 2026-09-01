@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter } from 'react-router-dom'
 import i18n from '../i18n'
+import { endpoints } from '../api/endpoints'
 import {
   analyzeTailorFit,
   createTailorProposal,
@@ -13,7 +14,8 @@ import {
   saveSearchResult,
   searchJobs,
 } from '../api/jobs'
-import type { ImportSearchResultsResponse, JobSearchResult } from '../api/types'
+import { saveJobCatalogJob, searchJobCatalog } from '../api/jobCatalog'
+import type { JobCatalogSummary } from '../api/types'
 import { JobsPage } from './JobsPage'
 
 vi.mock('../api/jobs', () => ({
@@ -32,20 +34,55 @@ vi.mock('../api/jobs', () => ({
   refreshJobRequirementProfile: vi.fn(),
 }))
 
-const snippet = 'Build APIs with Java.'
+vi.mock('../api/jobCatalog', () => ({
+  searchJobCatalog: vi.fn(),
+  getJobCatalogJob: vi.fn(),
+  saveJobCatalogJob: vi.fn(),
+}))
 
-const searchResult: JobSearchResult = {
-  externalJobId: 'raw-1',
+const activeJob: JobCatalogSummary = {
+  id: 501,
   title: 'Java Developer',
-  company: 'Acme',
-  location: 'Toronto',
+  companyName: 'Acme',
+  locationText: 'Toronto, ON',
+  countryCode: 'CA',
+  remoteType: 'HYBRID',
+  employmentType: 'FULL_TIME',
+  salaryMin: null,
+  salaryMax: null,
+  currency: null,
+  applyUrl: 'https://boards.greenhouse.io/acme/jobs/501',
+  canonicalUrl: 'https://boards.greenhouse.io/acme/jobs/501',
+  source: 'GREENHOUSE',
   postedAt: '2026-08-01T12:00:00Z',
-  descriptionSnippet: snippet,
-  source: 'JSEARCH',
-  sourceUrl: 'https://jobs.acme.com/java',
-  publisher: 'LinkedIn',
-  fullDescriptionAvailable: true,
-  alreadySaved: false,
+  firstSeenAt: '2026-08-02T00:00:00Z',
+  lastSeenAt: '2026-08-20T00:00:00Z',
+  status: 'ACTIVE',
+  descriptionSnippet: 'Build APIs with Java.',
+  saved: false,
+  personalJobId: null,
+}
+
+const expiredJob: JobCatalogSummary = {
+  ...activeJob,
+  id: 502,
+  title: 'Platform Engineer',
+  status: 'EXPIRED',
+  descriptionSnippet: 'Run the platform.',
+}
+
+function pageOf(results: JobCatalogSummary[], overrides: Record<string, unknown> = {}) {
+  return {
+    data: {
+      page: 1,
+      size: 20,
+      totalCount: results.length,
+      totalPages: results.length === 0 ? 0 : 1,
+      hasMore: false,
+      results,
+      ...overrides,
+    },
+  } as never
 }
 
 function renderPage() {
@@ -58,333 +95,197 @@ function renderPage() {
   )
 }
 
-describe('JobsPage search and import', () => {
-  const scrollIntoView = vi.fn()
-  const windowScrollTo = vi.fn()
-  let originalScrollIntoView: typeof Element.prototype.scrollIntoView
+/**
+ * The catalog panel and the manual "add a job" form share label text such as
+ * 地点, so every catalog assertion is scoped to the catalog section.
+ */
+function catalog(headingName = '全球公开职位') {
+  const heading = screen.getByRole('heading', { name: headingName })
+  const section = heading.closest('section')
+  if (!section) {
+    throw new Error('catalog section not found')
+  }
+  return within(section)
+}
 
+async function renderAndSettle() {
+  renderPage()
+  await waitFor(() => expect(listJobs).toHaveBeenCalled())
+  await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
+}
+
+describe('JobsPage catalog search', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    scrollIntoView.mockReset()
-    windowScrollTo.mockReset()
-    originalScrollIntoView = Element.prototype.scrollIntoView
-    Element.prototype.scrollIntoView = scrollIntoView
-    vi.stubGlobal('scrollTo', windowScrollTo)
     await i18n.changeLanguage('zh-CN')
     vi.mocked(listJobs).mockResolvedValue({ data: [] } as never)
-    vi.mocked(searchJobs).mockResolvedValue({
-      data: {
-        searchSessionId: '11111111-1111-1111-1111-111111111111',
-        provider: 'JSEARCH',
-        page: 1,
-        pageSize: 10,
-        hasMore: true,
-        totalCount: null,
-        results: [searchResult],
-      },
-    } as never)
-    vi.mocked(fetchNextSearchPage).mockResolvedValue({
-      data: {
-        searchSessionId: '11111111-1111-1111-1111-111111111111',
-        provider: 'JSEARCH',
-        page: 2,
-        pageSize: 10,
-        hasMore: true,
-        totalCount: null,
-        results: [],
-      },
-    } as never)
-    vi.mocked(importSearchResults).mockResolvedValue({
-      data: {
-        imported: [{ externalJobId: 'raw-1', jobId: 101 }],
-        existing: [{ externalJobId: 'raw-2', jobId: 88 }],
-        failed: [{ externalJobId: 'raw-3', reason: 'DESCRIPTION_MISSING' }],
-      } satisfies ImportSearchResultsResponse,
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob]))
+    vi.mocked(saveJobCatalogJob).mockResolvedValue({
+      data: { jobId: 101, catalogJobId: 501, alreadySaved: false, job: null },
     } as never)
   })
 
-  afterEach(() => {
-    Element.prototype.scrollIntoView = originalScrollIntoView
-    vi.unstubAllGlobals()
+  afterEach(async () => {
     cleanup()
+    await i18n.changeLanguage('zh-CN')
   })
 
-  async function searchFirstPage(user: ReturnType<typeof userEvent.setup>) {
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-    await user.type(screen.getByLabelText('关键词'), 'java')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    scrollIntoView.mockClear()
-    windowScrollTo.mockClear()
-  }
+  it('reads the local catalog and never calls the external job search', async () => {
+    await renderAndSettle()
 
-  function mockPage2() {
-    vi.mocked(fetchNextSearchPage).mockResolvedValue({
-      data: {
-        searchSessionId: '11111111-1111-1111-1111-111111111111',
-        provider: 'JSEARCH',
-        page: 2,
-        pageSize: 10,
-        hasMore: false,
-        totalCount: null,
-        limitReached: false,
-        loadedResultCount: 2,
-        results: [{
-          ...searchResult,
-          externalJobId: 'raw-2',
-          title: 'Platform Engineer',
-          sourceUrl: 'https://jobs.acme.com/k8s',
-        }],
-      },
-    } as never)
-  }
-
-  it('searches only after submit and does not paste a full JD', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-
-    expect(screen.queryByText('从 Greenhouse 导入')).not.toBeInTheDocument()
-    expect(screen.queryByText('需要完整职位描述')).not.toBeInTheDocument()
-    await user.type(screen.getByLabelText('关键词'), 'java')
+    expect(await catalog().findByText('Java Developer')).toBeInTheDocument()
+    expect(catalog().getByText('Acme')).toBeInTheDocument()
+    expect(catalog().getByText(/GREENHOUSE/)).toBeInTheDocument()
     expect(searchJobs).not.toHaveBeenCalled()
-
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(screen.getByText('完整描述可导入')).toBeInTheDocument()
-    expect(screen.getByText(/LinkedIn/)).toBeInTheDocument()
-    expect(screen.queryByText('Jobs by Adzuna')).not.toBeInTheDocument()
-    expect(screen.queryByText('需要完整职位描述')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('完整职位描述')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '打开原始职位' })).toHaveAttribute(
-      'href',
-      'https://jobs.acme.com/java',
-    )
-    expect(analyzeTailorFit).not.toHaveBeenCalled()
-    expect(createTailorProposal).not.toHaveBeenCalled()
-    expect(saveSearchResult).not.toHaveBeenCalled()
+    expect(fetchNextSearchPage).not.toHaveBeenCalled()
     expect(importSearchResults).not.toHaveBeenCalled()
-  })
-
-  it('imports selected jobs and only links to tailor', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-    await user.type(screen.getByLabelText('关键词'), 'java')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    await user.click(await screen.findByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: '导入所选' }))
-
-    await waitFor(() => expect(importSearchResults).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(importSearchResults).mock.calls[0][0]).toEqual({
-      searchSessionId: '11111111-1111-1111-1111-111111111111',
-      selectedExternalJobIds: ['raw-1'],
-    })
-    expect(await screen.findByText('成功导入 1 条')).toBeInTheDocument()
-    expect(screen.getByText('已存在 1 条')).toBeInTheDocument()
-    expect(screen.getByText('失败 1 条')).toBeInTheDocument()
-    const analyzeLinks = screen.getAllByRole('link', { name: '分析职位匹配' })
-    const tailorLinks = screen.getAllByRole('link', { name: '生成定向建议' })
-    expect(analyzeLinks[0]).toHaveAttribute('href', '/tailor?jobId=101')
-    expect(tailorLinks[0]).toHaveAttribute('href', '/tailor?jobId=101')
-    expect(analyzeLinks[1]).toHaveAttribute('href', '/tailor?jobId=88')
     expect(saveSearchResult).not.toHaveBeenCalled()
     expect(analyzeTailorFit).not.toHaveBeenCalled()
     expect(createTailorProposal).not.toHaveBeenCalled()
   })
 
-  it('loads the next page, keeps previous local, and imports across pages', async () => {
-    const user = userEvent.setup()
-    const page2: JobSearchResult = {
-      ...searchResult,
-      externalJobId: 'raw-2',
-      title: 'Platform Engineer',
-      sourceUrl: 'https://jobs.acme.com/k8s',
+  it('targets relative catalog paths with a single /api/v1 prefix and no hardcoded host', async () => {
+    await renderAndSettle()
+
+    for (const path of [
+      endpoints.jobCatalogSearch,
+      endpoints.jobCatalogJob(501),
+      endpoints.jobCatalogSave(501),
+    ]) {
+      expect(path.startsWith('/')).toBe(true)
+      expect(path).not.toContain('/api/v1')
+      expect(path).not.toMatch(/localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+|https?:/)
     }
-    vi.mocked(fetchNextSearchPage).mockResolvedValue({
-      data: {
-        searchSessionId: '11111111-1111-1111-1111-111111111111',
-        provider: 'JSEARCH',
-        page: 2,
-        pageSize: 10,
-        hasMore: false,
-        totalCount: null,
-        limitReached: false,
-        loadedResultCount: 2,
-        results: [page2],
-      },
-    } as never)
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-    await user.type(screen.getByLabelText('关键词'), 'java')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(screen.getByText(/每加载一个新页面约消耗1次搜索额度/)).toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    await waitFor(() => expect(fetchNextSearchPage).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(fetchNextSearchPage).mock.calls[0][0]).toBe('11111111-1111-1111-1111-111111111111')
-    expect(vi.mocked(fetchNextSearchPage).mock.calls[0][1]).toBe(1)
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    expect(screen.queryByText('Java Developer')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: '上一页' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(fetchNextSearchPage).toHaveBeenCalledTimes(1)
-    expect(searchJobs).toHaveBeenCalledTimes(1)
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    expect(fetchNextSearchPage).toHaveBeenCalledTimes(1)
-    await user.click(screen.getByRole('button', { name: '导入所选' }))
-    await waitFor(() => expect(importSearchResults).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(importSearchResults).mock.calls[0][0].selectedExternalJobIds).toEqual(['raw-1', 'raw-2'])
   })
 
-  it('clears pagination on a new search and keeps state when next fails', async () => {
+  it('sends keyword and filter parameters to the catalog', async () => {
     const user = userEvent.setup()
-    vi.mocked(fetchNextSearchPage)
-      .mockRejectedValueOnce({ response: { status: 502, data: { message: 'Job search is temporarily unavailable.' } } })
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-    await user.type(screen.getByLabelText('关键词'), 'java')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    await user.click(await screen.findByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox')).toBeChecked()
-    await user.type(screen.getByLabelText('关键词'), ' spring')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    await waitFor(() => expect(searchJobs).toHaveBeenCalledTimes(2))
-    expect(fetchNextSearchPage).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('checkbox')).not.toBeChecked()
+    await renderAndSettle()
+
+    const panel = catalog()
+    await user.type(panel.getByLabelText('关键词'), 'java')
+    await user.type(panel.getByLabelText('地点'), 'Toronto')
+    await user.selectOptions(panel.getByLabelText('国家'), 'CA')
+    await user.selectOptions(panel.getByLabelText('工作方式'), 'REMOTE')
+    await user.selectOptions(panel.getByLabelText('职位类型'), 'FULL_TIME')
+    await user.selectOptions(panel.getByLabelText('发布时间'), '7')
+    await user.click(panel.getByRole('button', { name: '搜索' }))
+
+    await waitFor(() => expect(searchJobCatalog).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(searchJobCatalog).mock.calls[1][0]).toMatchObject({
+      q: 'java',
+      location: 'Toronto',
+      country: 'CA',
+      remoteType: 'REMOTE',
+      employmentType: 'FULL_TIME',
+      postedWithinDays: 7,
+      page: 1,
+      size: 20,
+    })
+    expect(searchJobs).not.toHaveBeenCalled()
   })
 
-  it('disables next when hasMore is false and shows the safety limit', async () => {
+  it('pages forward and back on the server', async () => {
     const user = userEvent.setup()
-    vi.mocked(searchJobs).mockResolvedValue({
-      data: {
-        searchSessionId: '11111111-1111-1111-1111-111111111111',
-        provider: 'JSEARCH',
-        page: 1,
-        pageSize: 10,
-        hasMore: false,
-        totalCount: null,
-        limitReached: true,
-        results: [searchResult],
-      },
-    } as never)
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-    await user.type(screen.getByLabelText('关键词'), 'java')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '下一页' })).toBeDisabled()
-    expect(screen.getByText(/100条安全上限/)).toBeInTheDocument()
-  })
-
-  it('prevents double-clicking next while loading', async () => {
-    const user = userEvent.setup()
-    let resolveNext: ((value: unknown) => void) | undefined
-    vi.mocked(fetchNextSearchPage).mockImplementation(
-      () => new Promise((resolve) => {
-        resolveNext = resolve
-      }) as never,
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([activeJob], { page: 1, totalCount: 40, totalPages: 2, hasMore: true }),
     )
-    renderPage()
-    await waitFor(() => expect(listJobs).toHaveBeenCalled())
-    await user.type(screen.getByLabelText('关键词'), 'java')
-    await user.click(screen.getByRole('button', { name: '搜索' }))
-    await screen.findByText('Java Developer')
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(fetchNextSearchPage).toHaveBeenCalledTimes(1)
-    resolveNext?.({
-      data: {
-        searchSessionId: '11111111-1111-1111-1111-111111111111',
-        provider: 'JSEARCH',
-        page: 2,
-        pageSize: 10,
-        hasMore: false,
-        totalCount: null,
-        results: [{ ...searchResult, externalJobId: 'raw-2', title: 'Next Role' }],
-      },
+    await renderAndSettle()
+    expect(await catalog().findByText('Java Developer')).toBeInTheDocument()
+
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([expiredJob], { page: 2, totalCount: 40, totalPages: 2, hasMore: false }),
+    )
+    await user.click(catalog().getByRole('button', { name: '下一页' }))
+
+    await waitFor(() => expect(searchJobCatalog).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(searchJobCatalog).mock.calls[1][0].page).toBe(2)
+    expect(await catalog().findByText('Platform Engineer')).toBeInTheDocument()
+
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([activeJob], { page: 1, totalCount: 40, totalPages: 2, hasMore: true }),
+    )
+    await user.click(catalog().getByRole('button', { name: '上一页' }))
+    await waitFor(() => expect(searchJobCatalog).toHaveBeenCalledTimes(3))
+    expect(vi.mocked(searchJobCatalog).mock.calls[2][0].page).toBe(1)
+    expect(await catalog().findByText('Java Developer')).toBeInTheDocument()
+  })
+
+  it('shows an empty state without falling back to another provider', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([]))
+    await renderAndSettle()
+
+    expect(await catalog().findByText(/没有符合条件的已收录职位/)).toBeInTheDocument()
+    expect(searchJobs).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a local error instead of silently retrying elsewhere', async () => {
+    vi.mocked(searchJobCatalog).mockRejectedValue({
+      response: { status: 500, data: { message: 'boom' } },
     })
-    expect(await screen.findByText('Next Role')).toBeInTheDocument()
+    await renderAndSettle()
+
+    const alert = await catalog().findByRole('alert')
+    expect(alert).toHaveTextContent('搜索已收录职位失败')
+    expect(searchJobs).not.toHaveBeenCalled()
   })
 
-  it('scrolls to the results top after a successful next page load', async () => {
+  it('saves a posting, exposes the personal job id, and blocks a second save', async () => {
     const user = userEvent.setup()
-    mockPage2()
-    await searchFirstPage(user)
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(windowScrollTo).not.toHaveBeenCalled()
+    await renderAndSettle()
+
+    await user.click(await catalog().findByRole('button', { name: '保存职位' }))
+
+    await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith(501))
+    expect(await catalog().findByText('已保存')).toBeInTheDocument()
+    expect(catalog().queryByRole('button', { name: '保存职位' })).not.toBeInTheDocument()
+    expect(catalog().getByRole('link', { name: '分析职位匹配' })).toHaveAttribute(
+      'href',
+      '/tailor?jobId=101',
+    )
+    expect(catalog().getByRole('link', { name: '生成针对性建议' })).toHaveAttribute(
+      'href',
+      '/tailor?jobId=101',
+    )
+    // Saving copies the posting into the user's own jobs, so the list reloads.
+    await waitFor(() => expect(listJobs).toHaveBeenCalledTimes(2))
+    expect(saveJobCatalogJob).toHaveBeenCalledTimes(1)
   })
 
-  it('scrolls to the results top after previous', async () => {
-    const user = userEvent.setup()
-    mockPage2()
-    await searchFirstPage(user)
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    scrollIntoView.mockClear()
-    windowScrollTo.mockClear()
-    await user.click(screen.getByRole('button', { name: '上一页' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(windowScrollTo).not.toHaveBeenCalled()
+  it('marks a job already saved when the catalog says so', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([{ ...activeJob, saved: true, personalJobId: 77 }]),
+    )
+    await renderAndSettle()
+
+    expect(await catalog().findByText('已保存')).toBeInTheDocument()
+    expect(catalog().queryByRole('button', { name: '保存职位' })).not.toBeInTheDocument()
+    expect(catalog().getByRole('link', { name: '分析职位匹配' })).toHaveAttribute(
+      'href',
+      '/tailor?jobId=77',
+    )
+    expect(saveJobCatalogJob).not.toHaveBeenCalled()
   })
 
-  it('scrolls when switching to an already loaded page locally', async () => {
-    const user = userEvent.setup()
-    mockPage2()
-    await searchFirstPage(user)
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '上一页' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    scrollIntoView.mockClear()
-    windowScrollTo.mockClear()
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    expect(fetchNextSearchPage).toHaveBeenCalledTimes(1)
-    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(windowScrollTo).not.toHaveBeenCalled()
+  it('labels postings that are no longer listed', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([expiredJob]))
+    await renderAndSettle()
+
+    const item = (await catalog().findByText('Platform Engineer')).closest('li')
+    expect(item).not.toBeNull()
+    expect(within(item as HTMLElement).getByText('已下线')).toBeInTheDocument()
   })
 
-  it('does not scroll when next fails and keeps the page and selection', async () => {
-    const user = userEvent.setup()
-    vi.mocked(fetchNextSearchPage).mockRejectedValueOnce({
-      response: { status: 502, data: { message: 'Job search is temporarily unavailable.' } },
-    })
-    await searchFirstPage(user)
-    await user.click(screen.getByRole('checkbox'))
-    expect(screen.getByRole('checkbox')).toBeChecked()
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox')).toBeChecked()
-    expect(screen.getByText('第 1 页')).toBeInTheDocument()
-    expect(scrollIntoView).not.toHaveBeenCalled()
-    expect(windowScrollTo).not.toHaveBeenCalled()
-  })
+  it('translates the catalog panel without claiming full global coverage', async () => {
+    await renderAndSettle()
+    expect(screen.getByRole('heading', { name: '全球公开职位' })).toBeInTheDocument()
+    expect(screen.queryByText(/所有全球职位/)).not.toBeInTheDocument()
 
-  it('keeps checkboxes across page changes', async () => {
-    const user = userEvent.setup()
-    mockPage2()
-    await searchFirstPage(user)
-    await user.click(screen.getByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox')).not.toBeChecked()
-    await user.click(screen.getByRole('checkbox'))
-    await user.click(screen.getByRole('button', { name: '上一页' }))
-    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox')).toBeChecked()
-    await user.click(screen.getByRole('button', { name: '下一页' }))
-    expect(await screen.findByText('Platform Engineer')).toBeInTheDocument()
-    expect(screen.getByRole('checkbox')).toBeChecked()
+    await i18n.changeLanguage('en')
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Global public jobs' })).toBeInTheDocument(),
+    )
+    expect(catalog('Global public jobs').getByRole('button', { name: 'Search' })).toBeInTheDocument()
+    expect(screen.queryByText(/all jobs worldwide/i)).not.toBeInTheDocument()
   })
 })

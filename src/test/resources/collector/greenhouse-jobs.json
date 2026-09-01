@@ -1,0 +1,31 @@
+{
+  "jobs": [
+    {
+      "id": 4001,
+      "title": "Java Developer",
+      "updated_at": "2026-08-20T10:55:28-04:00",
+      "first_published": "2026-08-01T09:30:00-04:00",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4001",
+      "location": { "name": "Toronto, ON, Canada" },
+      "offices": [{ "name": "Toronto HQ", "location": "Toronto, Canada" }],
+      "content": "<p>Build APIs with Java.</p><script>steal()</script><ul><li>5 years Java</li></ul>"
+    },
+    {
+      "id": 4002,
+      "title": "Remote Platform Engineer",
+      "first_published": "2026-08-10T09:30:00-04:00",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4002",
+      "location": { "name": "Remote - United States" },
+      "offices": [],
+      "content": "<p>Own the platform.</p>"
+    },
+    {
+      "id": 4003,
+      "title": "Job With No Description",
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4003",
+      "location": { "name": "Berlin, Germany" },
+      "content": ""
+    }
+  ],
+  "meta": { "total": 3 }
+}

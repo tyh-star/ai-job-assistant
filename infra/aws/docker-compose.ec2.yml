@@ -64,6 +64,60 @@ services:
       retries: 18
       start_period: 60s
 
+  # Background ATS collection. No published port; reachable only on the compose
+  # network. Collection itself stays off until JOB_COLLECTOR_ENABLED=true, and the
+  # container still reports healthy while idle.
+  collector:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.collector
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      AIJOB_DB_URL: ${AIJOB_DB_URL}
+      AIJOB_DB_USERNAME: ${AIJOB_DB_USERNAME}
+      AIJOB_DB_PASSWORD: ${AIJOB_DB_PASSWORD}
+      AIJOB_JWT_SECRET: ${AIJOB_JWT_SECRET}
+      JOB_COLLECTOR_ENABLED: ${JOB_COLLECTOR_ENABLED:-false}
+      JOB_COLLECTOR_INTERVAL_MINUTES: ${JOB_COLLECTOR_INTERVAL_MINUTES:-120}
+      JOB_COLLECTOR_INITIAL_DELAY_MINUTES: ${JOB_COLLECTOR_INITIAL_DELAY_MINUTES:-1}
+      JOB_COLLECTOR_MAX_CONCURRENCY: ${JOB_COLLECTOR_MAX_CONCURRENCY:-2}
+      JOB_COLLECTOR_BATCH_SIZE: ${JOB_COLLECTOR_BATCH_SIZE:-100}
+      JOB_EXPIRY_GRACE_HOURS: ${JOB_EXPIRY_GRACE_HOURS:-72}
+      JOB_COLLECTOR_USER_AGENT: ${JOB_COLLECTOR_USER_AGENT:-AiJobAssistantCollector/1.0}
+      JOB_COLLECTOR_CONTACT_EMAIL: ${JOB_COLLECTOR_CONTACT_EMAIL:-}
+      JOB_COLLECTOR_REQUEST_TIMEOUT_SECONDS: ${JOB_COLLECTOR_REQUEST_TIMEOUT_SECONDS:-20}
+      JOB_COLLECTOR_MAX_RETRIES: ${JOB_COLLECTOR_MAX_RETRIES:-3}
+      JOB_COLLECTOR_MAX_JOBS_PER_SOURCE: ${JOB_COLLECTOR_MAX_JOBS_PER_SOURCE:-2000}
+      JOB_COLLECTOR_MAX_DESCRIPTION_CHARS: ${JOB_COLLECTOR_MAX_DESCRIPTION_CHARS:-100000}
+      JOB_COLLECTOR_MAX_RAW_PAYLOAD_CHARS: ${JOB_COLLECTOR_MAX_RAW_PAYLOAD_CHARS:-200000}
+      JOB_COLLECTOR_RAW_PAYLOAD_RETENTION_DAYS: ${JOB_COLLECTOR_RAW_PAYLOAD_RETENTION_DAYS:-30}
+      JOB_COLLECTOR_RUN_HISTORY_RETENTION_DAYS: ${JOB_COLLECTOR_RUN_HISTORY_RETENTION_DAYS:-30}
+      AIJOB_DB_POOL_MAX: ${JOB_COLLECTOR_DB_POOL_MAX:-3}
+    healthcheck:
+      # The scheduler rewrites the heartbeat once a minute after proving it can reach
+      # MySQL, so a stale file means the collector is wedged even if the JVM is up.
+      test:
+        [
+          "CMD-SHELL",
+          "test $$(( $$(date +%s) - $$(stat -c %Y /var/run/aijob/collector-heartbeat) )) -lt 180",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 4
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   web:
     build:
       context: ../..

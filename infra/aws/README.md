@@ -20,14 +20,17 @@ This package deploys an **empty** database and empty uploads volume. Do not copy
 | File | Role |
 |---|---|
 | `Dockerfile` | Java 21 Spring Boot jar + LibreOffice Writer for PDF |
+| `Dockerfile.collector` | Same jar, JRE-only image, non-root, no LibreOffice, no HTTP port |
 | `frontend/Dockerfile` | Vite build with `VITE_API_BASE_URL=/api/v1`, then Caddy |
-| `infra/aws/docker-compose.ec2.yml` | `mysql`, `backend`, `web` |
+| `infra/aws/docker-compose.ec2.yml` | `mysql`, `backend`, `collector`, `web` |
 | `infra/aws/Caddyfile` | HTTPS, `/api` proxy, SPA fallback |
 | `infra/aws/.env.aws.example` | Names only; copy to `.env.aws` on the server |
 | `infra/aws/mysql-init/01-schema.sql` | Empty-DB `CREATE TABLE` matching current production tables |
 | `infra/aws/ec2-bootstrap.sh` | Docker + read-only deploy key |
 | `infra/aws/deploy.sh` | Build and start |
 | `infra/aws/backup.sh` | App-user mysqldump + uploads volume tar |
+| `schema/job_catalog_phase1.sql` | Additive migration for the job catalog tables |
+| `docs/job-catalog.md` | Catalog and collector operations guide |
 
 Published ports: **80/tcp, 443/tcp, 443/udp**. Do not map 8080 or 3306.
 
@@ -37,7 +40,8 @@ Published ports: **80/tcp, 443/tcp, 443/udp**. Do not map 8080 or 3306.
 
 First boot uses `infra/aws/mysql-init/01-schema.sql` (MySQL runs `/docker-entrypoint-initdb.d` **only** when `mysql_data` is empty). It creates:
 
-`users`, `resumes`, `jobs`, `tailor_proposals`, `resume_evidence_items`, `job_requirement_profiles`
+`users`, `resumes`, `jobs`, `tailor_proposals`, `resume_evidence_items`, `job_requirement_profiles`,
+`schema_migrations`, `job_sources`, `job_catalog`, `job_source_records`, `job_ingest_runs`, `user_saved_catalog_jobs`
 
 The application user is `MYSQL_USER` (not `root`). Repeatable recovery if the volume already exists and tables are missing:
 
@@ -48,6 +52,131 @@ docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compos
 ```
 
 Do not apply `schema/*.sql` ALTERs to a fresh database. Do not change business DDL.
+
+## Job catalog and ATS collection
+
+User search reads the self-hosted `job_catalog` table. A separate `collector` container
+fills that table from public ATS boards (Greenhouse and Lever in this phase). The
+collector publishes no port and is only reachable on the Compose network.
+
+Full reference: [docs/job-catalog.md](../../docs/job-catalog.md).
+
+### 1. Back up first
+
+Never apply the migration to production without a fresh backup:
+
+```bash
+./infra/aws/backup.sh
+```
+
+### 2. Apply the additive migration
+
+`schema/job_catalog_phase1.sql` only creates new tables and is safe to re-run; it never
+drops, renames, or truncates anything, and it records itself in `schema_migrations`.
+MySQL runs `mysql-init` only on an empty volume, so an existing database needs this
+applied by hand:
+
+```bash
+docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml exec -T mysql \
+  mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" \
+  < schema/job_catalog_phase1.sql
+```
+
+Confirm it registered:
+
+```sql
+SELECT version, applied_at FROM schema_migrations ORDER BY applied_at;
+```
+
+### 3. Add a legal ATS source
+
+There is no public API for source management, on purpose: a user-supplied URL must
+never reach the fetcher. Insert rows directly, using the board's public token as
+`tenant_key` (never a full URL). Read the board's terms first.
+
+```sql
+INSERT INTO job_sources (provider_type, display_name, tenant_key, enabled, crawl_allowed, terms_url)
+VALUES ('GREENHOUSE', 'Example Corp', 'examplecorp', 0, 0, 'https://example.com/terms');
+```
+
+A source is fetched only when `enabled = 1` **and** `crawl_allowed = 1`. Set both only
+after you have confirmed the board is public, needs no login, and permits automated
+access:
+
+```sql
+UPDATE job_sources SET enabled = 1, crawl_allowed = 1
+ WHERE provider_type = 'GREENHOUSE' AND tenant_key = 'examplecorp';
+```
+
+`schema/job_catalog_phase1_sample_sources.sql` seeds two placeholder rows with both
+flags off, so applying it collects nothing.
+
+### 4. Do one controlled run before scheduling
+
+Run a single collection in a throwaway container, so nothing is scheduled yet:
+
+```bash
+docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml \
+  run --rm collector --aijob.collector.run-once=true
+```
+
+To rehearse one board only, pass its id: `--aijob.collector.source-id=1`.
+
+### 5. Inspect the result
+
+```sql
+SELECT id, source_id, status, fetched_count, inserted_count, updated_count,
+       unchanged_count, expired_count, failed_count, error_summary
+  FROM job_ingest_runs ORDER BY id DESC LIMIT 20;
+
+SELECT status, COUNT(*) FROM job_catalog GROUP BY status;
+```
+
+`error_summary` holds a short classified reason only — no response bodies, no keys.
+
+### 6. Enable the schedule
+
+Once a manual run looks right, set `JOB_COLLECTOR_ENABLED=true` in `infra/aws/.env.aws`
+and restart just the collector:
+
+```bash
+docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml \
+  up -d --no-deps collector
+```
+
+While disabled the container stays up and healthy but idle, so a `false` value is not a
+deployment failure.
+
+### 7. Switch search to the local catalog
+
+Set `JOB_SEARCH_PRIMARY_PROVIDER=LOCAL_CATALOG` and restart the backend:
+
+```bash
+docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml \
+  up -d --no-deps backend
+```
+
+In this mode the JSearch and Adzuna beans are not created at all, so user search cannot
+reach an external job API — not even on zero results or a database error.
+
+### 8. Rolling back without losing data
+
+Set `JOB_COLLECTOR_ENABLED=false` to stop collecting, and
+`JOB_SEARCH_PRIMARY_PROVIDER=JSEARCH` to put search back on the previous provider, then
+restart `backend` and `collector`. Leave the new tables in place: they hold the collected
+catalog and the `user_saved_catalog_jobs` mapping, and dropping them would break saved
+jobs. A rollback never needs a DDL change.
+
+### 9. Never destroy volumes
+
+Do **not** run `docker compose down -v`, and never delete `mysql_data` or
+`uploads_data`. Use `up -d --no-deps <service>` for restarts, or `down` without `-v`.
+
+### 10. Size expectations
+
+This instance is a t3.medium with 30 GB. Phase 1 targets **50k–200k** `ACTIVE`/`EXPIRED`
+postings. It is not sized for millions of jobs; see
+[docs/job-catalog.md](../../docs/job-catalog.md) for the scale-out triggers.
 
 ## Storage
 
@@ -111,7 +240,10 @@ Fill every empty secret on the server. Required names:
 - `AIJOB_JWT_SECRET` (at least 32 bytes)
 - `AIJOB_JWT_EXPIRATION`
 - `OPENAI_API_KEY`
-- `JSEARCH_API_KEY`
+- `JOB_SEARCH_PRIMARY_PROVIDER` — `LOCAL_CATALOG` serves search from the local catalog; `JSEARCH` is the rollback value
+- `JSEARCH_API_KEY` — may stay empty while `JOB_SEARCH_PRIMARY_PROVIDER=LOCAL_CATALOG`
+- `JOB_COLLECTOR_ENABLED` — keep `false` until you have read [docs/job-catalog.md](../../docs/job-catalog.md)
+- `JOB_COLLECTOR_CONTACT_EMAIL` — a real mailbox; it is sent to job boards in the `User-Agent`
 - `AIJOB_STORAGE_ROOT` (keep `/data/uploads`)
 - `AIJOB_CORS_ALLOWED_ORIGINS` — public site origin **including the scheme**, for example `https://203.0.113.10.sslip.io`. Comma-separate additional origins. Do not use `*`.
 - `SERVER_FORWARD_HEADERS_STRATEGY` — keep `framework` so Spring honors Caddy `X-Forwarded-Proto`

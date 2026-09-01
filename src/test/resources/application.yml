@@ -5,6 +5,12 @@ spring:
     password: test-only-h2-password
     driver-class-name: org.h2.Driver
 
+# This file shadows src/main/resources/application.yml, so production MyBatis
+# settings have to be repeated here or column mapping differs from production.
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
 jwt:
   secret: test-only-jwt-secret-key-must-be-32b!!
   expiration: 3600000

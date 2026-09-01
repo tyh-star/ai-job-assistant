@@ -1,0 +1,23 @@
+# Background ATS collector. Same Java sources as the API, but a deliberately smaller
+# runtime: no LibreOffice, no exported port, and a non-root user.
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /src
+COPY pom.xml .
+COPY src ./src
+RUN mvn -q -DskipTests package \
+    && find target -maxdepth 1 -name 'aijob-*.jar' ! -name '*sources*' ! -name '*javadoc*' -exec cp {} /tmp/app.jar \;
+
+FROM eclipse-temurin:21-jre-jammy
+RUN groupadd --system --gid 10001 collector \
+    && useradd --system --uid 10001 --gid collector --home-dir /app --shell /usr/sbin/nologin collector \
+    && mkdir -p /app /var/run/aijob \
+    && chown -R collector:collector /app /var/run/aijob
+WORKDIR /app
+COPY --from=build --chown=collector:collector /tmp/app.jar /app/app.jar
+USER collector
+# `none` keeps Tomcat from starting: the collector has no HTTP surface at all.
+ENV SPRING_PROFILES_ACTIVE=collector \
+    SPRING_MAIN_WEB_APPLICATION_TYPE=none \
+    JOB_COLLECTOR_HEARTBEAT_FILE=/var/run/aijob/collector-heartbeat \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60.0"
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -1,0 +1,23 @@
+﻿{
+    "comparedAtUtc":  "2026-09-01T13:47:59.8169151Z",
+    "before":  "docs\\job-catalog-phase1-verify\\uploads-baseline.json",
+    "after":  "docs\\job-catalog-phase1-verify\\uploads-after.json",
+    "addedCount":  3,
+    "deletedCount":  1,
+    "changedCount":  0,
+    "lockedCount":  0,
+    "added":  [
+                  "tailored/2/155/72f06b33-8b03-4eb6-99de-b58e93601274.pdf",
+                  "tailored/2/155/72f06b33-8b03-4eb6-99de-b58e93601274.docx",
+                  "resumes/2/2ec26389-729f-444a-99e5-10791c695c9a.docx"
+              ],
+    "deleted":  [
+                    "resumes/2/8cee1ac4-9e3b-44f0-8c8a-1ed1f44124ee.docx"
+                ],
+    "changed":  [
+
+                ],
+    "locked":  [
+
+               ]
+}

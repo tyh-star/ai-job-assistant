@@ -128,6 +128,7 @@
     "filterGreenhouse": "Imported from Greenhouse",
     "filterAdzuna": "Saved from search",
     "filterJsearch": "JSearch",
+    "filterJobCatalog": "Indexed jobs",
     "selectAllFiltered": "Select all filtered",
     "deleteSelected": "Delete selected",
     "deleteSelectedConfirm": "Delete {{count}} selected jobs?",
@@ -175,6 +176,59 @@
     "importReason": {
       "DESCRIPTION_MISSING": "Complete job description is missing",
       "UNKNOWN_JOB": "This job is not in the current search"
+    }
+  },
+  "jobCatalog": {
+    "title": "Global public jobs",
+    "subtitle": "Indexed jobs collected from public company career pages. This is what we have collected so far, not every job in the world.",
+    "keywords": "Keywords",
+    "location": "Location",
+    "country": "Country",
+    "anyCountry": "Any country",
+    "remoteType": "Work setup",
+    "anyRemoteType": "Any setup",
+    "employmentType": "Employment type",
+    "anyEmploymentType": "Any type",
+    "postedWithin": "Posted within",
+    "postedAny": "Any time",
+    "postedDays": "{{count}} days",
+    "sort": "Sort by",
+    "sortRelevance": "Relevance",
+    "sortPostedAt": "Newest first",
+    "search": "Search",
+    "searching": "Searching…",
+    "loading": "Loading indexed jobs…",
+    "empty": "No indexed jobs match these filters. Try fewer filters or different keywords.",
+    "error": "Could not search indexed jobs. This searches our own database, so please try again in a moment.",
+    "resultCount": "{{count}} indexed jobs",
+    "source": "Source",
+    "postedAt": "Posted",
+    "indexedAt": "First indexed",
+    "openOriginal": "Open original job",
+    "save": "Save job",
+    "saving": "Saving…",
+    "savedBadge": "Saved",
+    "saveFailed": "Could not save this job. Please try again.",
+    "expiredBadge": "No longer listed",
+    "analyzeMatch": "Analyze job match",
+    "generateSuggestions": "Generate targeted suggestions",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageLabel": "Page {{page}} of {{total}}",
+    "remote": {
+      "REMOTE": "Remote",
+      "HYBRID": "Hybrid",
+      "ONSITE": "On-site",
+      "UNSPECIFIED": "Not stated"
+    },
+    "employment": {
+      "FULL_TIME": "Full time",
+      "PART_TIME": "Part time",
+      "CONTRACT": "Contract",
+      "INTERNSHIP": "Internship",
+      "TEMPORARY": "Temporary",
+      "OTHER": "Other",
+      "UNSPECIFIED": "Not stated"
     }
   },
   "tailor": {
@@ -481,7 +535,8 @@
       "MANUAL": "Manual",
       "GREENHOUSE": "Imported from Greenhouse",
       "ADZUNA": "Adzuna",
-      "JSEARCH": "JSearch"
+      "JSEARCH": "JSearch",
+      "JOB_CATALOG": "Indexed jobs"
     },
     "job": {
       "SAVED": "Saved"

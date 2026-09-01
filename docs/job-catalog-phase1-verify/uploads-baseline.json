@@ -1,0 +1,550 @@
+﻿{
+    "capturedAtUtc":  "2026-08-31T01:38:02.8971931Z",
+    "uploadsRoot":  "C:\\ai job\\ai job\\uploads",
+    "fileCount":  77,
+    "hashedCount":  77,
+    "lockedCount":  0,
+    "totalBytes":  2605869,
+    "note":  "V3-1.1 first valid SHA baseline. V3-1 had file-count evidence only.",
+    "files":  [
+                  {
+                      "relativePath":  "resumes/2/8cee1ac4-9e3b-44f0-8c8a-1ed1f44124ee.docx",
+                      "size":  4370,
+                      "lastModifiedUtc":  "2026-08-26T20:10:28.2868228Z",
+                      "sha256":  "f8f01c490640020b7747b104c0b3ac494e9bce97b51cc57ef3645b5fb15ab8b6",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "resumes/2/b9b078f9-8dac-4b0f-9939-ea3da152c9c6.pdf",
+                      "size":  124944,
+                      "lastModifiedUtc":  "2026-08-17T23:29:51.8928350Z",
+                      "sha256":  "0657b6295c80298085c3d2da40fbd12d20ccda7ac7b035789ff9d9ee9edaf964",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/0070ad66-514c-48b7-b2f1-0334a0a81ac7.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T21:25:05.0397581Z",
+                      "sha256":  "d8df701ba30c6c5d149aee135669a8eb13fd4f09cf98e184c26963d686086567",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/012397d6-39ca-41de-97d9-7f0515938114.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T21:26:34.5084048Z",
+                      "sha256":  "ebbbf5b0fad91fdd4a4fca3f026ba49922d4ac6eb9b8ff112178f91d66b26039",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/0155c265-76f9-46af-a72f-538111c495f1.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T14:08:00.4658677Z",
+                      "sha256":  "b9397bc0275a2ab2539b82dbc1920393411e9ac1da8ef498f89f7dbb9479b36f",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/02776863-af21-4c91-a149-a7185cbae4b6.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T16:43:22.2535536Z",
+                      "sha256":  "aece0d87f220cb0e4d0950bc3674e6f9258464459c5d7836e2e2fb19deff00d0",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/04527c9c-f629-4dfd-8a36-f2448df0d8c0.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T13:07:03.1210012Z",
+                      "sha256":  "a3625b80ff9cb77b0921e51840e1b66b267b005f18ba8be1244930856fddbbbf",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/14ea0c98-ab03-4b05-9368-cb8bb583e028.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T14:07:40.5711375Z",
+                      "sha256":  "0e2dd23bf4c3861fbf4f6a36be35fa9e98c2165e251ade5cfb848875443dd289",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/1bf1bc43-7bc7-4807-8f99-b24ab1469683.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T15:15:18.2492082Z",
+                      "sha256":  "5c62044f92e3d20e8dfbce2c9c37f2256b0d93b11bdd529c1510b5f439775b21",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/25aab6ed-48ec-4889-b80f-9e0bed22c9a0.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T13:16:39.6027373Z",
+                      "sha256":  "81da1057869eb42ad32fb8496cb7ab5092579a3e2209c4d0129ce73141375361",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/2c5ebaec-f0e2-4ed3-ac85-b8825fcd44b7.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T14:29:28.4487965Z",
+                      "sha256":  "f65055df6035a0b7ef7ab23f17b0d62fda549fd8bb0ba591afcab7c3ef662c66",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/2fba7e62-3266-4a1d-88c3-06b505552004.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T22:13:15.7987577Z",
+                      "sha256":  "fb2136c3a9d3f541a2155ac8941674c70348b296a51a3a2db7fdca22cbae3c63",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/35b24262-687d-497e-aec9-38ca24715cea.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T12:22:01.9901290Z",
+                      "sha256":  "5e194576274c0c67a0f0f25b425067bb9c6595da1bbe41a72abeed577986f1c7",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/3d488a45-0ca7-4487-9b15-273a224fd078.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T02:34:59.9675257Z",
+                      "sha256":  "ed9017d0656da919d0e78f328266bed1f499a1ff8d57f01ca4f6c524a574cf1f",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/3e30704e-e1f8-4131-bb09-945f1bf78777.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T13:17:31.2109759Z",
+                      "sha256":  "0315a2151a7bf9e7d03174d4963e15a70e40c44f8eaa04c0811ab27e3950f7df",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/3ff87cde-b233-41b7-8e04-414a8eeaa2fe.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T02:15:32.7669067Z",
+                      "sha256":  "6aa2250a64ebd09d8a9a32c1787641a5f14c8c0302d871ad8d407b87117096d6",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/41d9ff50-32fd-4ba6-89e1-e1be2cbce581.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T16:24:15.2368278Z",
+                      "sha256":  "043d82fa15b7345ed6ca2713e8feefaea8fae07e63824b9cbe16ab4a8795001b",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/5775dce4-04b8-404d-99e8-91596703cd98.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T01:05:56.7118684Z",
+                      "sha256":  "cc0213fb9e3bf06ecfd099a9d4a6862eee57f828b47a64dbc2d00753e4ba7d80",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/60886a4c-6278-4d5a-aabd-846a48b41978.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T23:28:40.2545910Z",
+                      "sha256":  "01266c08876651242a2d9c43cab005d586d5c69f2a94504a1c064348ff8ff9d7",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/67d82d09-8f96-47de-bd85-aa07cdd67c2c.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T16:19:12.5184142Z",
+                      "sha256":  "2a31acd771f5cf0d94de302d2896d77622979746c6c86933d8fe655804a3ec7d",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/75a56c00-a146-4c1a-a95f-6790f23133c0.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T22:11:57.0528373Z",
+                      "sha256":  "f13e6484c961cbcfbb413d1e26daf57ee5f8b42f49392b396b712f855d4cde94",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/796c44c9-c09c-41a6-aea3-84146274edcc.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T23:57:50.9037041Z",
+                      "sha256":  "7e4baa0363b3f89501d67be747f3c4c8134fe04e8bcae7a4274db2918a0c0bd6",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/7ae56c1f-4c29-4922-aeef-902c4a0622b2.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T16:22:29.6902841Z",
+                      "sha256":  "3c9d448fd3ad6b8cf080eeda04fc28013a59186df8089002cbb95389d03ee071",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/8740f87b-434f-4e89-a439-c0d745cc9e04.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T02:15:01.2016630Z",
+                      "sha256":  "b882b8dd9648302c2aab91fb7edbf886e0c9df7f007b7153cd442c8d3c72d959",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/8b1cc21b-22c5-46c4-9ae9-b81df11bd1e7.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T21:52:58.1171649Z",
+                      "sha256":  "513547c4a8f2326cc3e9c589b804a19bd307e46fec2e503885a52e0daddf38d7",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/8ce37d16-5392-4830-83f3-08e196e9ab5b.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T15:06:52.1193085Z",
+                      "sha256":  "398f65bf1382823b1fa65b24b53e8caa06419ace9472a84353e478817aac6f86",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/8d4c49ed-762e-44e7-96ac-62351ee75c22.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T13:14:46.0067142Z",
+                      "sha256":  "c66112ba4eddfea0942a0a77922e93c10b3a8514bcbcaca942c43fdc26998323",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/90de712e-6aac-4dac-bf54-0555a647462f.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T14:23:17.5154036Z",
+                      "sha256":  "c4d7a7584e04b13e6ea76343ae08c8669cc0fb018ea98fcd49d0091d02588d69",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/944603a1-5bab-4326-a7b9-ddbe2e62bc9e.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T13:15:54.4213238Z",
+                      "sha256":  "a4edbc08590952075743f0e8ce523c4c75c782a1ec48ce12412a0b81da3d8b83",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/9d3ece3e-6909-4a6d-ad66-63b8982cd62a.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T23:29:22.8587798Z",
+                      "sha256":  "9f04a4b1952b0cb344a9be2c5a7ae6253229cecebf2820130e8c4e77b28ed128",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/a41d2fb4-80a5-40e1-a4d3-8fee4de0b62e.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-17T02:25:38.8616158Z",
+                      "sha256":  "0e31de9ccc4b11a5fb22268d91ed733ee9b178b614560c0c46999e692ec8505d",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/a7f0cfc3-876f-4e47-b67e-91d8a7e54641.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T13:38:00.3957449Z",
+                      "sha256":  "981dcec38f3f7cb3466880bf9f4e10917efed16134d2f51e2dad11169552a226",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/a82c6b64-f7c4-40c9-82ad-c22376b2effc.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T14:56:29.7671047Z",
+                      "sha256":  "6c1aaf82ef77c9b6d8988ffb5615cc9f98ba565d17f8104a668513f72da16dbe",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/afc3d01a-5866-4cf1-b522-212c8dc2a39b.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T15:20:55.2264917Z",
+                      "sha256":  "c292365a7e94d187fea83084518d55e15e5edccff19604a1aa1deffad30a3f6e",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/b7ddd6f3-ed8a-4154-8fc8-5aca598e7aa8.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T22:16:42.0667249Z",
+                      "sha256":  "73a8aca3c5bdde03c93e46e3d9e23eee8a171c6f5da61ead4384c1a61032680a",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/ecbad573-9a03-4698-8ea7-dc240b611af4.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-15T23:28:00.4919773Z",
+                      "sha256":  "012af518eba5c03da0f71766f2f5b73c8ea0348affd0dedca433508a765cfeac",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/f80c94d3-a840-4e45-8bec-294ed14bc569.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T21:25:22.9071200Z",
+                      "sha256":  "189ff4637352a308055c8f1a7b417950297d6b5cc3598ddc3dee7b12353c3de6",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/0/0/fb574dd4-d978-4a76-a71b-a42f758f9e1d.docx",
+                      "size":  14340,
+                      "lastModifiedUtc":  "2026-08-16T00:57:49.8021233Z",
+                      "sha256":  "5d12621c6fe0a28ca9741d1c73532778f4c7af1c76ad7e08e1928f2a912c2085",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/1/5ebcb655-552d-41db-b733-0671d111279b.docx",
+                      "size":  14391,
+                      "lastModifiedUtc":  "2026-08-15T22:15:22.1239759Z",
+                      "sha256":  "43e838b9264368c07776a5210b09c922f22dec96170c030eda2a9400adf311b8",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/1/66d7bd9d-54ef-4cef-93d2-0c517977cb30.docx",
+                      "size":  14366,
+                      "lastModifiedUtc":  "2026-08-15T21:29:15.0929989Z",
+                      "sha256":  "6d05248a9afd08f6009e3a76acf7ec141a11534f8405d02b13eee062f55328f9",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/2f31a90e-b972-45d5-8054-007551ac7035.docx",
+                      "size":  4419,
+                      "lastModifiedUtc":  "2026-08-20T02:25:57.5916742Z",
+                      "sha256":  "94508ca599b0839f43eeffd5f0cb1f5bee9d46d02e6ebc0edd5eb15c8455bfd6",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/2f31a90e-b972-45d5-8054-007551ac7035.pdf",
+                      "size":  104276,
+                      "lastModifiedUtc":  "2026-08-20T02:26:03.7678942Z",
+                      "sha256":  "9ef43ed732c9412eec222d6d170418411a8ec94b87ae58720cdd20d4be37db4b",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/45ed53a1-26e7-447e-bc8c-0fc0e2648ba4.docx",
+                      "size":  4407,
+                      "lastModifiedUtc":  "2026-08-19T13:39:14.0470206Z",
+                      "sha256":  "f1ff3f52516cd917c2d38c041856de11851d15e9ba0cff9af54901a0480cd7c8",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/45ed53a1-26e7-447e-bc8c-0fc0e2648ba4.pdf",
+                      "size":  104616,
+                      "lastModifiedUtc":  "2026-08-19T13:39:20.1723206Z",
+                      "sha256":  "096ff2ef509ab76e78121adec51ac9242e870f98171154da27298cbc725bfe9f",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/49a92bbf-44ab-4a77-a3e9-2543daa9c05d.docx",
+                      "size":  4361,
+                      "lastModifiedUtc":  "2026-08-18T00:08:35.5161208Z",
+                      "sha256":  "6fabd71638570f71eea210006de1b87f3f4557cc229b62877af5ce5d9c94609c",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/49a92bbf-44ab-4a77-a3e9-2543daa9c05d.pdf",
+                      "size":  104455,
+                      "lastModifiedUtc":  "2026-08-18T00:08:37.7309028Z",
+                      "sha256":  "5384dbcc18f272215d4c08fb08e6f1d6fb35abfc612fb007d580b94ecad161c5",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/772a6683-aa64-4f6c-bfc1-f1582ebd43a6.docx",
+                      "size":  4391,
+                      "lastModifiedUtc":  "2026-08-18T12:31:53.9084300Z",
+                      "sha256":  "ac74c79856e2cb12794b98026a8634c7da5b270184c748dd2a1b131fc7d78b1c",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/772a6683-aa64-4f6c-bfc1-f1582ebd43a6.pdf",
+                      "size":  104427,
+                      "lastModifiedUtc":  "2026-08-18T12:31:59.6621867Z",
+                      "sha256":  "2dcc56d12a66eda8a4755955887779a636f5db390bdbcc1c2ea0bd6d5004cd46",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/816f3c79-d9b0-4688-bb6e-b7c2f44971fd.docx",
+                      "size":  4408,
+                      "lastModifiedUtc":  "2026-08-18T13:19:56.3607155Z",
+                      "sha256":  "bdff2cddc7b193f4fb087d788f4de36cd9a7904a185ec5bbb8a9b1f560d5ee76",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/816f3c79-d9b0-4688-bb6e-b7c2f44971fd.pdf",
+                      "size":  104662,
+                      "lastModifiedUtc":  "2026-08-18T13:20:01.9966588Z",
+                      "sha256":  "9cba59439b3189be9c53e68686d2eefd1bcb7bfd3b5cb05fbae6212e0823279e",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/f2e5d1fb-f7c6-4d91-86b7-37898ae0468c.docx",
+                      "size":  4408,
+                      "lastModifiedUtc":  "2026-08-18T00:43:50.9795802Z",
+                      "sha256":  "6f0e76c737136e9b231265d857aca146a5ba8fe5e39df187c8c8c96c0b24bc60",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/153/f2e5d1fb-f7c6-4d91-86b7-37898ae0468c.pdf",
+                      "size":  104496,
+                      "lastModifiedUtc":  "2026-08-18T00:43:56.6179203Z",
+                      "sha256":  "2fdf4045e76086b5227fedcc8a2b91beee560d1d5e951cc9f6f81caf7883d005",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/155/0d393894-7a57-41fb-b4eb-d10e7dffd732.docx",
+                      "size":  4402,
+                      "lastModifiedUtc":  "2026-08-25T00:29:13.5638788Z",
+                      "sha256":  "0c778f53ac9b5c3f911f6e389aa3ded2b3e3e6eb44e4baabd6fe757a0c17d4b8",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/155/0d393894-7a57-41fb-b4eb-d10e7dffd732.pdf",
+                      "size":  104613,
+                      "lastModifiedUtc":  "2026-08-25T00:29:19.8905670Z",
+                      "sha256":  "bd015319291ec655d31228e3142db314432742bd35537908903c19cfc1ecf754",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/155/12b3a25f-f40d-4924-925c-3d5ea1eb8510.docx",
+                      "size":  4401,
+                      "lastModifiedUtc":  "2026-08-25T13:27:40.0487097Z",
+                      "sha256":  "c50f4b1c2d88160cd42f8255325d7a773a95bd4f1b63103eb67bf8b4b48643db",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/155/12b3a25f-f40d-4924-925c-3d5ea1eb8510.pdf",
+                      "size":  104405,
+                      "lastModifiedUtc":  "2026-08-25T13:27:46.0995950Z",
+                      "sha256":  "6daf247bbf0b6d50b7ee4de6c6a14156c658a1d8d8b1f022cca319e74e9e8c5c",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/0ca8742d-ed83-4288-b4df-9e7f5b464954.docx",
+                      "size":  4415,
+                      "lastModifiedUtc":  "2026-08-17T12:42:21.3681012Z",
+                      "sha256":  "a39a40064a39cb05ef105d511ef0af13a100768966e906de868f1f6d3b9f5835",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/0ca8742d-ed83-4288-b4df-9e7f5b464954.pdf",
+                      "size":  105520,
+                      "lastModifiedUtc":  "2026-08-17T12:42:27.0372462Z",
+                      "sha256":  "c5c47ff92815d5a04e085bdd734c8e484a08836bdb276418d7a46fc8b3a4c57c",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/0e73dbb3-c085-4d4f-b034-d2dda2255faf.docx",
+                      "size":  4416,
+                      "lastModifiedUtc":  "2026-08-17T12:44:58.7305943Z",
+                      "sha256":  "5ecfa6683ccb4c03ce99896c70ac1ac1574925f1e3791ed86296266794ae11f9",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/0e73dbb3-c085-4d4f-b034-d2dda2255faf.pdf",
+                      "size":  105520,
+                      "lastModifiedUtc":  "2026-08-17T12:45:00.7874974Z",
+                      "sha256":  "03bc7b6d618d6af456c9d268907a31536d82ccf46b773c8681a43043f5f05230",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/126f1173-ed8c-4a28-b4c4-01d34df27e72.docx",
+                      "size":  4386,
+                      "lastModifiedUtc":  "2026-08-17T23:30:33.6795676Z",
+                      "sha256":  "58945d792ffe7b7e9fb2cc71db1dd41fcf9a7f8ab64e62006a88a47112282bcb",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/126f1173-ed8c-4a28-b4c4-01d34df27e72.pdf",
+                      "size":  104437,
+                      "lastModifiedUtc":  "2026-08-17T23:30:39.3333699Z",
+                      "sha256":  "983640fa7fbd815c3876a17c9d5fe6bdb316291ac2798fe78bb8f8496b47e261",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/26614319-0ab0-45f3-be22-1b7aa8f2a815.docx",
+                      "size":  4416,
+                      "lastModifiedUtc":  "2026-08-17T12:44:38.0612470Z",
+                      "sha256":  "90793313f397a06c2af0e6ad9896d49fcd1ceecdc8d1abd77cd3abc534de9adf",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/26614319-0ab0-45f3-be22-1b7aa8f2a815.pdf",
+                      "size":  105520,
+                      "lastModifiedUtc":  "2026-08-17T12:44:40.0616936Z",
+                      "sha256":  "547aaaa02e0aa9bd0bd9e8bad5699ac13561b3f0c0c6a7f06e2f9c077d59730b",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/4fb5911c-9f4f-4079-9e16-ec2fb171b95e.docx",
+                      "size":  14367,
+                      "lastModifiedUtc":  "2026-08-16T12:48:39.8928015Z",
+                      "sha256":  "f68a94f250abaac7f733b3358551a1d960ca18a44e9ad01d308d990d4956e7a7",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/4fb5911c-9f4f-4079-9e16-ec2fb171b95e.pdf",
+                      "size":  128595,
+                      "lastModifiedUtc":  "2026-08-16T12:48:41.9989370Z",
+                      "sha256":  "4268e47a1b576cc11b65742bae9e8f7faa7a19238c1946e52360728def8be013",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/5e143944-d085-4a0f-ba4c-d6f10d20c8de.docx",
+                      "size":  4387,
+                      "lastModifiedUtc":  "2026-08-17T23:37:26.7159808Z",
+                      "sha256":  "cb6c626d35ddd1c0cb2f5748cefb812afe00ed80519ab4490b0df41a2161f5f4",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/5e143944-d085-4a0f-ba4c-d6f10d20c8de.pdf",
+                      "size":  104399,
+                      "lastModifiedUtc":  "2026-08-17T23:37:28.8352904Z",
+                      "sha256":  "6e2d1aa8773bdf1e8491c5e2a07340a5783efd977002416a68f1a2688999bdb6",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/6302f340-7e00-4502-9832-f6bd7c5a2e9e.docx",
+                      "size":  14352,
+                      "lastModifiedUtc":  "2026-08-16T12:44:39.2351388Z",
+                      "sha256":  "925a82c9f66ee4863e7d3731ebcfc92d46c20405225e23aae349fd52358bea62",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/6302f340-7e00-4502-9832-f6bd7c5a2e9e.pdf",
+                      "size":  128549,
+                      "lastModifiedUtc":  "2026-08-16T12:44:45.8407934Z",
+                      "sha256":  "f3f4e4adeb80879378172f7b6cab80fdff93c57bbfbdcc2e321c555873c28ef3",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/6dba7129-2b15-4d8b-b326-4055242536fb.docx",
+                      "size":  14352,
+                      "lastModifiedUtc":  "2026-08-16T12:42:44.6357974Z",
+                      "sha256":  "6ac299948bb10f2e28f9a50b76206a655d3b93d55ee670f728c29e484142a5e4",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/91ad4170-09c0-47f0-bf63-ea53f9feabcb.docx",
+                      "size":  4416,
+                      "lastModifiedUtc":  "2026-08-17T12:43:55.5466271Z",
+                      "sha256":  "9c4fcefbc4e6a1cbf266ff48f690773ce31d1f76eecea544240a2fe3d64c56a8",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/91ad4170-09c0-47f0-bf63-ea53f9feabcb.pdf",
+                      "size":  105520,
+                      "lastModifiedUtc":  "2026-08-17T12:43:57.5120717Z",
+                      "sha256":  "b3dc357c5ce0cdacce57627af078d19b0b1a8a1a16933f4162977043d9db1503",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/b1361839-4ca7-4156-8e46-ad4b04653ab1.docx",
+                      "size":  14377,
+                      "lastModifiedUtc":  "2026-08-16T12:35:23.0100227Z",
+                      "sha256":  "825940085ee2db764a6ae8a581885c07506af7c485b946ec99888693e975c246",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/bc0c587b-cbc3-436a-807f-9cd5dcfb6b83.docx",
+                      "size":  14352,
+                      "lastModifiedUtc":  "2026-08-15T23:11:31.1477023Z",
+                      "sha256":  "13b000ed1134d364d42e469f0c929117014f131138ba972d23ddf52a10746e54",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/c61c8462-cdb7-47d1-b4a5-e8a6adab9dd7.docx",
+                      "size":  4201,
+                      "lastModifiedUtc":  "2026-08-16T21:36:19.4041491Z",
+                      "sha256":  "546be80f91c729c3f9d5afa8efef702e6c01461c43cc31614e44197d51f57077",
+                      "status":  "OK"
+                  },
+                  {
+                      "relativePath":  "tailored/2/2/c61c8462-cdb7-47d1-b4a5-e8a6adab9dd7.pdf",
+                      "size":  69914,
+                      "lastModifiedUtc":  "2026-08-16T21:36:24.8868808Z",
+                      "sha256":  "76308e5a9ff25d08e188b9df670ae37939668edc347f360efdd5db56909c9574",
+                      "status":  "OK"
+                  }
+              ]
+}

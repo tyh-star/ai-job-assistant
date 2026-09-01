@@ -154,6 +154,80 @@ export interface JobResponse {
   updatedAt: string
 }
 
+export type CatalogJobStatus = 'ACTIVE' | 'EXPIRED' | 'REMOVED'
+
+export type CatalogRemoteType = 'REMOTE' | 'HYBRID' | 'ONSITE' | 'UNSPECIFIED'
+
+export type CatalogEmploymentType =
+  | 'FULL_TIME'
+  | 'PART_TIME'
+  | 'CONTRACT'
+  | 'INTERNSHIP'
+  | 'TEMPORARY'
+  | 'OTHER'
+  | 'UNSPECIFIED'
+
+export interface JobCatalogSearchParams {
+  q?: string
+  location?: string
+  country?: string
+  remoteType?: string
+  employmentType?: string
+  postedWithinDays?: number
+  page?: number
+  size?: number
+  sort?: string
+}
+
+/** A row in the shared catalog. Never carries a raw provider payload. */
+export interface JobCatalogSummary {
+  id: number
+  title: string
+  companyName: string
+  locationText: string | null
+  countryCode: string | null
+  remoteType: CatalogRemoteType
+  employmentType: CatalogEmploymentType
+  salaryMin: number | null
+  salaryMax: number | null
+  currency: string | null
+  applyUrl: string | null
+  canonicalUrl: string | null
+  source: string | null
+  postedAt: string | null
+  firstSeenAt: string | null
+  lastSeenAt: string | null
+  status: CatalogJobStatus
+  descriptionSnippet: string | null
+  saved: boolean
+  personalJobId: number | null
+}
+
+export interface JobCatalogSearchResponse {
+  page: number
+  size: number
+  totalCount: number
+  totalPages: number
+  hasMore: boolean
+  results: JobCatalogSummary[]
+}
+
+export interface JobCatalogDetail extends Omit<JobCatalogSummary, 'descriptionSnippet'> {
+  descriptionText: string | null
+  /** Server-sanitized HTML. */
+  descriptionHtml: string | null
+  city: string | null
+  region: string | null
+}
+
+/** `jobId` is an id in the user's own jobs, usable by Match and Tailor as-is. */
+export interface SaveCatalogJobResponse {
+  jobId: number
+  catalogJobId: number
+  alreadySaved: boolean
+  job: JobResponse
+}
+
 export interface JobForm {
   company: string
   title: string
