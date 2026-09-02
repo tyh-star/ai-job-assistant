@@ -1,6 +1,8 @@
 package aijob.collector.jsonl;
 
+import aijob.collector.CollectorOwner;
 import aijob.collector.IngestOutcome;
+import aijob.collector.JobCollectorProperties;
 import aijob.collector.JobIngestTransactions;
 import aijob.collector.NormalizedJob;
 import aijob.entity.JobCatalogEntry;
@@ -96,7 +98,11 @@ public class JobExportImporter {
     private final JobIngestRunMapper jobIngestRunMapper;
     private final JobIngestTransactions transactions;
     private final ObjectMapper objectMapper;
+    private final SourceAllowlist allowlist;
+    private final JobCollectorProperties properties;
     private final Clock clock;
+    /** This process, for the source lease. Unique per process, not per host. */
+    private final String owner = CollectorOwner.forThisProcess();
 
     public JobExportImporter(JobSourceMapper jobSourceMapper,
                              JobSourceRecordMapper jobSourceRecordMapper,
@@ -104,6 +110,8 @@ public class JobExportImporter {
                              JobIngestRunMapper jobIngestRunMapper,
                              JobIngestTransactions transactions,
                              ObjectMapper objectMapper,
+                             SourceAllowlist allowlist,
+                             JobCollectorProperties properties,
                              @Qualifier("jobSearchClock") Clock clock) {
         this.jobSourceMapper = jobSourceMapper;
         this.jobSourceRecordMapper = jobSourceRecordMapper;
@@ -111,6 +119,8 @@ public class JobExportImporter {
         this.jobIngestRunMapper = jobIngestRunMapper;
         this.transactions = transactions;
         this.objectMapper = objectMapper;
+        this.allowlist = allowlist;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -122,6 +132,9 @@ public class JobExportImporter {
     public JobExportImportSummary importBatch(Path jsonlPath, Path manifestPath) {
         JobExportManifest manifest = readManifest(manifestPath);
         AtsProviderType provider = validateManifest(manifest, manifestPath);
+        // Independent of whatever produced this file: a batch for a board this deployment
+        // is not allowed to collect from is refused here, not only in the pipeline script.
+        allowlist.requireAllowed(manifest.provider(), manifest.board());
         List<JobExportRecord> records = readRecords(jsonlPath, manifest);
 
         // The board may already have postings from an earlier import. Look the source up
@@ -135,6 +148,33 @@ public class JobExportImporter {
         // Everything below this line writes. Everything above it can still refuse.
         LocalDateTime seenAt = now();
         JobSource source = known != null ? known : createSource(provider, manifest);
+
+        // The same per-source lease the crawler takes. Until this call existed the lease
+        // covered JobIngestServiceImpl alone, so two imports of one board -- or an import
+        // racing a crawl of it -- wrote through each other with nothing in the way. A
+        // lock on the host cannot stand in for this: the two writers may be in different
+        // containers, and the row they contend for is in the database.
+        if (!acquireLease(source, seenAt)) {
+            throw new JobExportLockedException(
+                    "Source " + source.getId() + " (" + manifest.provider() + "/"
+                            + manifest.board() + ") is leased by another process; refusing"
+                            + " to import into a board something else is already writing");
+        }
+        try {
+            return importUnderLease(source, provider, manifest, records, seenAt);
+        } finally {
+            releaseLease(source);
+        }
+    }
+
+    /**
+     * The write half, running with this process holding the source's lease.
+     */
+    private JobExportImportSummary importUnderLease(JobSource source,
+                                                    AtsProviderType provider,
+                                                    JobExportManifest manifest,
+                                                    List<JobExportRecord> records,
+                                                    LocalDateTime seenAt) {
         JobIngestRun run = startRun(source, seenAt);
 
         int inserted = 0;
@@ -495,6 +535,27 @@ public class JobExportImporter {
     // ---------------------------------------------------------------------------
     // source and run bookkeeping
     // ---------------------------------------------------------------------------
+
+    /**
+     * Claims the source for this process, reusing the crawler's own lease so the two
+     * cannot both be writing a board at once. A lease older than the configured timeout is
+     * treated as abandoned and taken over, so a killed container cannot block a board.
+     */
+    private boolean acquireLease(JobSource source, LocalDateTime now) {
+        LocalDateTime staleBefore = now.minusMinutes(properties.getLockTimeoutMinutes());
+        return jobSourceMapper.tryLock(source.getId(), owner, now, staleBefore) == 1;
+    }
+
+    private void releaseLease(JobSource source) {
+        try {
+            // Owner-scoped: if our lease already expired and another process took over,
+            // this frees nothing rather than releasing someone else's claim.
+            jobSourceMapper.releaseLock(source.getId(), owner);
+        } catch (RuntimeException ex) {
+            log.warn("Could not release the import lease for source {} ({})",
+                    source.getId(), ex.getClass().getSimpleName());
+        }
+    }
 
     /**
      * Finds, or creates, the {@code job_sources} row for this provider+board pair.

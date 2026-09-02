@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "Allowlist for fixture runs. Separate file, separate board identity.",
+    "",
+    "The fixture mode used to run against config/sources-allowlist.json, which meant its",
+    "synthetic postings were written into the SAME source row as real collection from",
+    "greenhouse/vercel. Three invented jobs then sat in the catalog beside 50 real ones,",
+    "indistinguishable without reading the payload, and any count of that source was a",
+    "mix of the two.",
+    "",
+    "`fixture-demo` is not a Greenhouse board and never will be. Nothing is fetched from",
+    "it: in fixture mode the exporter's only transport is a loopback server replaying a",
+    "local file, so the board id is a label, not an address. It gets its own job_sources",
+    "row, so real and synthetic postings are separable by source_id alone."
+  ],
+  "version": 1,
+  "sources": [
+    {
+      "provider": "greenhouse",
+      "board": "fixture-demo",
+      "company": "Fixture Demo Corp",
+      "enabled": true,
+      "evidence": {
+        "why": "Not a real board. Synthetic postings replayed from cmd/jdexport/testdata, used to exercise the pipeline end to end without touching a job site.",
+        "network": "None. Fixture mode serves from a loopback httptest server and the rewriting getter refuses any URL that does not point at it.",
+        "verified_on": "2026-09-02"
+      }
+    }
+  ]
+}

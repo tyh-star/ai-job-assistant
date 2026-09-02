@@ -1,0 +1,57 @@
+# The pipeline as one Linux image: the Go exporter and the Java importer together, so a
+# run is two processes in one container rather than a script reaching for a Docker socket.
+#
+# Ubuntu is the deployment target. This is the artifact that goes there.
+#
+# The Go binary is built separately (its source is a different repository, and a Docker
+# build has one context) and staged into .pipeline-build/ by build-pipeline-image.sh.
+# That script also writes the two SHA files, which the runtime reads back: there is no
+# git checkout in this image, so a version claim has to come from what the build stamped.
+
+FROM maven:3.9.9-eclipse-temurin-21 AS java-build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline -DskipTests || true
+COPY src ./src
+RUN mvn -B -q -DskipTests package \
+    && find target -maxdepth 1 -name 'aijob-*.jar' ! -name '*sources*' ! -name '*javadoc*' \
+       -exec cp {} /tmp/app.jar \;
+
+FROM eclipse-temurin:21-jre-jammy
+
+# jq parses the allowlist and the manifests; flock provides the mutual exclusion. Both
+# are in util-linux/jq rather than reimplemented in the script.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends jq util-linux \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system --gid 10001 aijob \
+    && useradd --system --uid 10001 --gid aijob --home-dir /opt/aijob --shell /usr/sbin/nologin aijob \
+    && mkdir -p /opt/aijob /var/lib/aijob/batches /var/lib/aijob/lock \
+    && chown -R aijob:aijob /opt/aijob /var/lib/aijob
+
+WORKDIR /opt/aijob
+
+COPY --from=java-build --chown=aijob:aijob /tmp/app.jar /opt/aijob/app.jar
+# Staged by build-pipeline-image.sh from the pinned FreeHire checkout.
+COPY --chown=aijob:aijob .pipeline-build/jdexport      /opt/aijob/jdexport
+COPY --chown=aijob:aijob .pipeline-build/EXPORTER_SHA  /opt/aijob/EXPORTER_SHA
+COPY --chown=aijob:aijob .pipeline-build/IMPORTER_SHA  /opt/aijob/IMPORTER_SHA
+COPY --chown=aijob:aijob .pipeline-build/testdata/     /opt/aijob/testdata/
+COPY --chown=aijob:aijob config/                       /opt/aijob/config/
+COPY --chown=aijob:aijob infra/pipeline/run-pipeline.sh /opt/aijob/run-pipeline.sh
+RUN chmod +x /opt/aijob/jdexport /opt/aijob/run-pipeline.sh
+
+USER aijob
+
+# No HTTP surface: the importer runs as a one-shot command under the collector profile,
+# and `none` keeps Tomcat from starting at all.
+ENV SPRING_PROFILES_ACTIVE=collector \
+    SPRING_MAIN_WEB_APPLICATION_TYPE=none \
+    JOB_COLLECTOR_ENABLED=false \
+    AIJOB_COLLECTOR_ALLOWLIST_FILE=/opt/aijob/config/sources-allowlist.json \
+    AIJOB_BATCH_ROOT=/var/lib/aijob/batches \
+    AIJOB_LOCK_DIR=/var/lib/aijob/lock \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60.0"
+
+ENTRYPOINT ["/opt/aijob/run-pipeline.sh"]

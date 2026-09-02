@@ -55,7 +55,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "jwt.secret=test-only-jwt-secret-key-must-be-32b!!",
                 "openai.api-key=test-openai-key-not-real",
-                "aijob.storage.root=target/aijob-test-uploads"
+                "aijob.storage.root=target/aijob-test-uploads",
+                "aijob.collector.allowlist-file=src/test/resources/config/test-sources-allowlist.json"
         }
 )
 @Sql(scripts = "classpath:schema/job-catalog-h2.sql")
@@ -463,6 +464,57 @@ class JobExportImportH2IntegrationTest {
         Long sourceId = jobSourceMapper.findByProviderAndTenant("GREENHOUSE", "vercel").getId();
         assertEquals(id, jobSourceRecordMapper.findBySourceAndExternalId(sourceId, id)
                 .getExternalJobId());
+    }
+
+    // ---------------------------------------------------------------------------
+    // the source allowlist, enforced here and not only in the pipeline script
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void aBatchForABoardNotOnTheAllowlistIsRefused() throws IOException {
+        // The batch is perfectly well-formed. What makes it unacceptable is that nobody
+        // wrote down why this deployment may collect from that board -- and the check
+        // lives here, not only in the script, so a hand-run CLI cannot bypass it.
+        Batch batch = customBatch("greenhouse", "unlisted", RUN, List.of(
+                posting("REQ-1", "Backend Engineer", "Unlisted Corp", "London",
+                        "https://job-boards.greenhouse.io/unlisted/jobs/1")));
+
+        JobExportRejectedException ex = assertThrows(JobExportRejectedException.class,
+                () -> importer.importBatch(batch.jsonl(), batch.manifest()));
+
+        assertTrue(ex.getMessage().contains("not in"));
+        assertTrue(ex.getMessage().contains("greenhouse/unlisted"));
+        assertNothingWasWritten();
+    }
+
+    @Test
+    void aBatchForADisabledAllowlistEntryIsRefused() throws IOException {
+        // Listed, with its reasoning kept, but switched off. Turning a board off has to
+        // actually stop imports, or the flag is decoration.
+        Batch batch = customBatch("greenhouse", "retired", RUN, List.of(
+                posting("REQ-1", "Backend Engineer", "Retired Corp", "London",
+                        "https://job-boards.greenhouse.io/retired/jobs/1")));
+
+        JobExportRejectedException ex = assertThrows(JobExportRejectedException.class,
+                () -> importer.importBatch(batch.jsonl(), batch.manifest()));
+
+        assertTrue(ex.getMessage().contains("disabled"));
+        assertNothingWasWritten();
+    }
+
+    @Test
+    void anAllowlistEntryWithNoStatedEvidenceIsRefused() throws IOException {
+        // The point of the file is the reasoning, not the list of names. An entry someone
+        // added without saying why is one nobody checked.
+        Batch batch = customBatch("greenhouse", "no-evidence", RUN, List.of(
+                posting("REQ-1", "Backend Engineer", "No Evidence Corp", "London",
+                        "https://job-boards.greenhouse.io/no-evidence/jobs/1")));
+
+        JobExportRejectedException ex = assertThrows(JobExportRejectedException.class,
+                () -> importer.importBatch(batch.jsonl(), batch.manifest()));
+
+        assertTrue(ex.getMessage().contains("evidence"));
+        assertNothingWasWritten();
     }
 
     @Test

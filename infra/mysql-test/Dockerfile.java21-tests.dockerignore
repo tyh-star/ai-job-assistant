@@ -32,3 +32,7 @@ frontend/dist
 **/.DS_Store
 regression-test-output.docx
 db-backups
+
+# Collected job postings from local pipeline runs. Never belongs in an image layer:
+# real third-party content, and a copy that outlives the directory it came from.
+.pipeline-batches

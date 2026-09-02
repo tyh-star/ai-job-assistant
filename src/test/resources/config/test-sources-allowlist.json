@@ -1,0 +1,57 @@
+{
+  "_comment": [
+    "Allowlist for the import tests. Separate from config/sources-allowlist.json so the",
+    "real one stays a statement about boards this deployment actually collects from, and",
+    "does not grow synthetic entries that would then be indistinguishable from real ones.",
+    "",
+    "Every board here is invented. Nothing is ever fetched from them: the tests generate",
+    "their batches on disk.",
+    "",
+    "'unlisted' is deliberately absent, and 'retired' is present but disabled -- the tests",
+    "use both to check that the boundary refuses them."
+  ],
+  "version": 1,
+  "sources": [
+    {
+      "provider": "greenhouse",
+      "board": "vercel",
+      "company": "Vercel",
+      "enabled": true,
+      "evidence": { "why": "test fixture" }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "acme",
+      "company": "Acme",
+      "enabled": true,
+      "evidence": { "why": "test fixture" }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "globex",
+      "company": "Globex",
+      "enabled": true,
+      "evidence": { "why": "test fixture" }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "isolation",
+      "company": "Isolation Test Corp",
+      "enabled": true,
+      "evidence": { "why": "test fixture: the startup-isolation check imports one batch" }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "retired",
+      "company": "Retired Corp",
+      "enabled": false,
+      "evidence": { "why": "test fixture: listed but switched off" }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "no-evidence",
+      "company": "No Evidence Corp",
+      "enabled": true
+    }
+  ]
+}

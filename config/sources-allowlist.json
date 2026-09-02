@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "The boards this deployment collects from. Version-controlled on purpose: adding a",
+    "company is a reviewable change, not a command-line argument someone typed once.",
+    "",
+    "The pipeline exports only what is listed here, and the import boundary checks the",
+    "same file independently -- so a batch for an unlisted board is refused even if it",
+    "reaches the importer by another route.",
+    "",
+    "Every entry must carry `evidence`: why collecting this board is acceptable. A row",
+    "without it is a row nobody checked.",
+    "",
+    "`enabled: false` keeps an entry in the file, and its reasoning with it, without",
+    "collecting from it."
+  ],
+  "version": 1,
+  "sources": [
+    {
+      "provider": "greenhouse",
+      "board": "vercel",
+      "company": "Vercel",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/vercel/jobs?content=true",
+        "why": "Greenhouse's public Job Board API: documented, unauthenticated, and intended for programmatic reading of a board the employer chose to publish.",
+        "robots": "Checked at export time, not asserted here: the exporter fetches the API host's robots.txt before its first board request and refuses to continue if the path is disallowed. The result is recorded in each run's manifest.",
+        "verified_on": "2026-09-01",
+        "notes": "The only board collected so far. One company on one ATS -- nothing about this generalises to other employers, other Greenhouse boards, or other platforms.",
+        "completeness": "The API returns the WHOLE board in one response: a live run on 2026-09-02 read 87 postings from a single request. What is incomplete in the catalog is the export cap (-max 50), not a missing pagination feature -- there is nothing to page through. Raising the cap would collect all 87; whether to do that, and whether a complete read should then license expiring what it did not see, are separate decisions and are NOT implemented. Every import remains a SAMPLE_IMPORT."
+      }
+    }
+  ]
+}

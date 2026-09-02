@@ -2,6 +2,7 @@ package aijob.collector;
 
 import aijob.collector.jsonl.JobExportImportSummary;
 import aijob.collector.jsonl.JobExportImporter;
+import aijob.collector.jsonl.JobExportLockedException;
 import aijob.collector.jsonl.JobExportRejectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +34,8 @@ import java.util.List;
  * possibly a stale JSONL from an earlier run, right next to each other.
  *
  * <p>Exit status: 0 on success, 2 when the batch was refused (nothing was written),
- * 1 when the import itself failed.
+ * 3 when another process holds the board's lease and the import was skipped, 1 when the
+ * import itself failed.
  */
 @Component
 @Profile("collector")
@@ -93,6 +95,11 @@ public class JobExportImportRunner implements ApplicationRunner {
                         + " did not carry were left untouched, not closed.");
             }
             status = summary.failed() == 0 ? 0 : 1;
+        } catch (JobExportLockedException ex) {
+            // Not a failure of this batch: another process holds the board. Its own exit
+            // code, so a caller can retry later instead of investigating a bad file.
+            log.warn("Import skipped: {}", ex.getMessage());
+            status = 3;
         } catch (JobExportRejectedException ex) {
             log.error("Batch refused before any write: {}", ex.getMessage());
             status = 2;

@@ -79,3 +79,11 @@ infra/aws/releases/
 # infra/mysql-test/new-credentials.ps1. Never commit these.
 infra/mysql-test/.env.mysql-test
 infra/mysql-test/*.secret
+
+# Pipeline batch directories: exported JSONL and manifests from local runs.
+# Collected job data, kept beside the project for inspection, never committed.
+.pipeline-batches/
+
+# Staged build artifacts for the Linux pipeline image (Go binary + version stamps).
+# Rebuilt by infra/pipeline/build-pipeline-image.sh; never committed.
+.pipeline-build/

@@ -64,6 +64,7 @@ import static org.mockito.Mockito.verify;
                 "spring.datasource.password=test-only-h2-password",
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "aijob.storage.root=target/aijob-test-uploads",
+                "aijob.collector.allowlist-file=src/test/resources/config/test-sources-allowlist.json",
                 // Deliberately ON, to prove the tick is held off by the command mode and
                 // not merely by collection being switched off.
                 "aijob.collector.enabled=true",

@@ -6,11 +6,14 @@ import java.util.UUID;
 /**
  * Identifies one collector process when it claims a source.
  *
+ * <p>Used by both writers to a source: the crawler in {@code JobIngestServiceImpl} and
+ * the JSONL importer. They share a lease, so they must share the notion of who holds it.
+ *
  * <p>The value has to be unique per <em>process</em>, not per host: the scheduled
  * collector container and an operator's one-off {@code run --rm collector} run on the
  * same machine, and a lease is only ever released by the process that took it.
  */
-final class CollectorOwner {
+public final class CollectorOwner {
 
     /** {@code job_sources.locked_by} is VARCHAR(64). */
     private static final int MAX_LENGTH = 64;
@@ -20,7 +23,7 @@ final class CollectorOwner {
     private CollectorOwner() {
     }
 
-    static String forThisProcess() {
+    public static String forThisProcess() {
         return THIS_PROCESS;
     }
 

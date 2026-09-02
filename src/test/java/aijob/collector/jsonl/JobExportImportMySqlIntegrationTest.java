@@ -90,7 +90,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 "spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver",
                 "jwt.secret=test-only-jwt-secret-key-must-be-32b!!",
                 "openai.api-key=test-openai-key-not-real",
-                "aijob.storage.root=target/aijob-test-uploads"
+                "aijob.storage.root=target/aijob-test-uploads",
+                "aijob.collector.allowlist-file=src/test/resources/config/test-sources-allowlist.json"
         }
 )
 @EnabledIfEnvironmentVariable(named = "AIJOB_MYSQL_TEST_URL", matches = ".+",
