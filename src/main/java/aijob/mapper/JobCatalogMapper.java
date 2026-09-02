@@ -75,20 +75,32 @@ public interface JobCatalogMapper {
     @Select("SELECT " + COLUMNS + " FROM job_catalog WHERE id = #{id}")
     JobCatalogEntry findById(@Param("id") Long id);
 
-    /** De-duplication priority 1: the same normalized apply URL. */
-    @Select("""
-            SELECT
-            """ + COLUMNS + """
-            FROM job_catalog
-            WHERE apply_url_norm = #{applyUrlNorm}
-            ORDER BY id
-            LIMIT 1
+    /**
+     * Replaces the links a catalog row displays. Kept separate from {@link
+     * #update(JobCatalogEntry)} because the links are not owned by whichever board was
+     * collected last: they are re-derived from the preferred source record, so a second
+     * board merging into this row cannot overwrite the first board's apply link.
+     */
+    @Update("""
+            UPDATE job_catalog
+            SET canonical_url = #{canonicalUrl},
+                apply_url = #{applyUrl},
+                canonical_url_norm = #{canonicalUrlNorm},
+                apply_url_norm = #{applyUrlNorm}
+            WHERE id = #{id}
             """)
-    JobCatalogEntry findByApplyUrlNorm(@Param("applyUrlNorm") String applyUrlNorm);
+    int updateEffectiveLinks(@Param("id") Long id,
+                             @Param("canonicalUrl") String canonicalUrl,
+                             @Param("applyUrl") String applyUrl,
+                             @Param("canonicalUrlNorm") String canonicalUrlNorm,
+                             @Param("applyUrlNorm") String applyUrlNorm);
 
     /**
-     * De-duplication priority 2: the same normalized canonical URL, matched against
-     * either URL column because one board's canonical link is another's apply link.
+     * The only cross-source de-duplication lookup: a URL that provably names one
+     * opening, matched against either URL column because one board's canonical link is
+     * another's apply link. Callers pass
+     * {@code CatalogFingerprint.identityUrl(...)}, which is null for a careers landing
+     * page, so a generic URL can never become a merge key.
      */
     @Select("""
             SELECT
@@ -100,15 +112,37 @@ public interface JobCatalogMapper {
             """)
     JobCatalogEntry findByAnyUrlNorm(@Param("urlNorm") String urlNorm);
 
+    /**
+     * Lists other postings that share a company+title+location fingerprint.
+     *
+     * <p>This is a review aid, not a de-duplication lookup, and nothing in ingestion
+     * calls it. One company routinely runs several distinct openings with the same
+     * title in the same city under different requisition numbers, so a shared
+     * fingerprint means "worth a human look", never "merge these".
+     */
     @Select("""
             SELECT
             """ + COLUMNS + """
             FROM job_catalog
             WHERE fingerprint = #{fingerprint}
+              AND id <> #{excludeId}
             ORDER BY id
-            LIMIT 1
+            LIMIT #{limit}
             """)
-    JobCatalogEntry findByFingerprint(@Param("fingerprint") String fingerprint);
+    List<JobCatalogEntry> findSuspectedDuplicates(@Param("fingerprint") String fingerprint,
+                                                  @Param("excludeId") Long excludeId,
+                                                  @Param("limit") int limit);
+
+    /** Sample of the newest live postings, for the operator's duplicate review. */
+    @Select("""
+            SELECT
+            """ + COLUMNS + """
+            FROM job_catalog
+            WHERE status = 'ACTIVE'
+            ORDER BY id DESC
+            LIMIT #{limit}
+            """)
+    List<JobCatalogEntry> findRecentActive(@Param("limit") int limit);
 
     /**
      * Soft-expires a still-ACTIVE posting. Rows are never physically deleted, so a

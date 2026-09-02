@@ -289,3 +289,67 @@ describe('JobsPage catalog search', () => {
     expect(screen.queryByText(/all jobs worldwide/i)).not.toBeInTheDocument()
   })
 })
+
+/**
+ * A job saved from the catalog is an ordinary personal job with a new `source` value.
+ * It is listed here because it is also the compatibility surface for a rollback: the
+ * previous release renders an unrecognised source through the same i18n default, so
+ * these rows survive going back to it.
+ */
+describe('personal jobs saved from the catalog', () => {
+  const savedFromCatalog = {
+    id: 101,
+    company: 'Acme',
+    title: 'Java Developer',
+    location: 'Toronto, ON',
+    jobUrl: 'https://boards.greenhouse.io/acme/jobs/501',
+    description: 'Build APIs with Java.',
+    source: 'JOB_CATALOG',
+    status: 'SAVED',
+  }
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    await i18n.changeLanguage('zh-CN')
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([]))
+    vi.mocked(listJobs).mockResolvedValue({ data: [savedFromCatalog] } as never)
+  })
+
+  afterEach(async () => {
+    cleanup()
+    await i18n.changeLanguage('zh-CN')
+  })
+
+  it('lists a catalog-sourced job among the user’s own jobs', async () => {
+    await renderAndSettle()
+
+    const row = (await screen.findByText('Java Developer')).closest('tr')
+    expect(row).not.toBeNull()
+    expect(within(row as HTMLElement).getByText('Acme')).toBeInTheDocument()
+    // Its own snapshot, editable and deletable like any other personal job.
+    expect(within(row as HTMLElement).getByRole('button', { name: '编辑职位' })).toBeInTheDocument()
+  })
+
+  it('renders an unknown source label instead of failing', async () => {
+    vi.mocked(listJobs).mockResolvedValue({
+      data: [{ ...savedFromCatalog, source: 'SOME_FUTURE_SOURCE' }],
+    } as never)
+    await renderAndSettle()
+
+    // The i18n lookup falls back to the raw value. This is what makes a rollback to a
+    // release that has never heard of JOB_CATALOG safe rather than a crash.
+    const row = (await screen.findByText('Java Developer')).closest('tr')
+    expect(within(row as HTMLElement).getByText('SOME_FUTURE_SOURCE')).toBeInTheDocument()
+  })
+
+  it('can filter the personal list down to catalog-sourced jobs', async () => {
+    await renderAndSettle()
+
+    await userEvent.selectOptions(
+      screen.getByLabelText('来源'),
+      'JOB_CATALOG',
+    )
+
+    expect(await screen.findByText('Java Developer')).toBeInTheDocument()
+  })
+})

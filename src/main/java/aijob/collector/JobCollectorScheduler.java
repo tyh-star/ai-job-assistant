@@ -27,16 +27,19 @@ public class JobCollectorScheduler {
     private final JobIngestService jobIngestService;
     private final JobSourceMapper jobSourceMapper;
     private final JobCollectorProperties properties;
+    private final CollectorCommandMode commandMode;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     public JobCollectorScheduler(JobIngestService jobIngestService,
                                  JobSourceMapper jobSourceMapper,
-                                 JobCollectorProperties properties) {
+                                 JobCollectorProperties properties,
+                                 CollectorCommandMode commandMode) {
         this.jobIngestService = jobIngestService;
         this.jobSourceMapper = jobSourceMapper;
         this.properties = properties;
-        log.info("Collector container started (collection enabled={}, interval={}m)",
-                properties.isEnabled(), properties.getIntervalMinutes());
+        this.commandMode = commandMode;
+        log.info("Collector container started (collection enabled={}, one-shot command={})",
+                properties.isEnabled(), commandMode.isOneShotCommand());
     }
 
     @Scheduled(
@@ -44,10 +47,21 @@ public class JobCollectorScheduler {
             fixedDelayString = "${aijob.collector.interval-minutes:120}",
             timeUnit = TimeUnit.MINUTES)
     public void collect() {
+        // A one-shot command owns this process. The tick would otherwise fire underneath a
+        // long import — same process, so the per-source lease cannot separate them — and
+        // "import a sample" would quietly become "import a sample AND crawl the board".
+        if (commandMode.isOneShotCommand()) {
+            return;
+        }
         if (!properties.isEnabled()) {
             return;
         }
-        // A long board read must never overlap with the next tick.
+        // Stops this container's next tick from overlapping its own slow run. It is a
+        // process-local flag and nothing more: a second process -- an operator's
+        // `run --rm collector`, or a replacement container during a deploy -- has its
+        // own AtomicBoolean and would happily start collecting at the same time. The
+        // guard that actually spans processes is the per-source lease taken in
+        // JobIngestServiceImpl.collectSource against the shared database.
         if (!running.compareAndSet(false, true)) {
             log.info("Previous collection is still running; skipping this tick");
             return;

@@ -65,3 +65,7 @@ aijob:
     raw-payload-retention-days: ${JOB_COLLECTOR_RAW_PAYLOAD_RETENTION_DAYS:30}
     run-history-retention-days: ${JOB_COLLECTOR_RUN_HISTORY_RETENTION_DAYS:30}
     heartbeat-file: ${JOB_COLLECTOR_HEARTBEAT_FILE:/tmp/aijob-collector-heartbeat}
+    # How long one process may hold a source's collection lease before another
+    # process may take it over. Longer than any realistic run, but finite so a killed
+    # container cannot block a board forever.
+    lock-timeout-minutes: ${JOB_COLLECTOR_LOCK_TIMEOUT_MINUTES:60}

@@ -40,6 +40,24 @@ public interface JobSourceMapper {
     List<JobSource> findAll();
 
     /**
+     * Looks a source up by the pair that identifies it. This is the same pair as
+     * {@code uk_job_sources_provider_tenant}, so at most one row can match — and it is
+     * the first half of a posting's identity: a posting is
+     * {@code provider + board + external_id}, resolved as this row's id plus
+     * {@code job_source_records.external_job_id}.
+     */
+    @Select("""
+            SELECT
+            """ + COLUMNS + """
+            FROM job_sources
+            WHERE provider_type = #{providerType}
+              AND tenant_key = #{tenantKey}
+            LIMIT 1
+            """)
+    JobSource findByProviderAndTenant(@Param("providerType") String providerType,
+                                      @Param("tenantKey") String tenantKey);
+
+    /**
      * Only sources the operator explicitly enabled AND marked crawl-allowed are ever
      * returned, so a misconfigured row can never start a collection.
      */
@@ -73,4 +91,43 @@ public interface JobSourceMapper {
             WHERE id = #{id}
             """)
     int markFailure(@Param("id") Long id, @Param("nextRunAt") LocalDateTime nextRunAt);
+
+    /**
+     * Claims a source for one collector process. The scheduled collector and a manual
+     * single-shot run are separate containers, so an in-process flag cannot keep them
+     * off the same board; this conditional UPDATE is atomic in the database they share,
+     * and exactly one caller gets the row.
+     *
+     * <p>A lease older than {@code staleBefore} is taken over, so a container that was
+     * killed mid-run cannot block its boards forever.
+     *
+     * @return 1 when the lease was acquired, 0 when another process holds it.
+     */
+    @Update("""
+            UPDATE job_sources
+            SET locked_by = #{owner},
+                locked_at = #{now}
+            WHERE id = #{id}
+              AND (locked_by IS NULL
+                   OR locked_at IS NULL
+                   OR locked_at < #{staleBefore}
+                   OR locked_by = #{owner})
+            """)
+    int tryLock(@Param("id") Long id,
+                @Param("owner") String owner,
+                @Param("now") LocalDateTime now,
+                @Param("staleBefore") LocalDateTime staleBefore);
+
+    /**
+     * Releases a lease this process still owns. Scoped to the owner so a process whose
+     * lease already expired cannot free the claim of whoever took over from it.
+     */
+    @Update("""
+            UPDATE job_sources
+            SET locked_by = NULL,
+                locked_at = NULL
+            WHERE id = #{id}
+              AND locked_by = #{owner}
+            """)
+    int releaseLock(@Param("id") Long id, @Param("owner") String owner);
 }

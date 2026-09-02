@@ -26,6 +26,10 @@ services:
       start_period: 30s
 
   backend:
+    # Explicitly tagged so a release can keep the previous image addressable. Set
+    # AIJOB_BACKEND_IMAGE to a recorded rollback tag and start with --no-build to go
+    # back to a known-good build instead of rebuilding over it.
+    image: ${AIJOB_BACKEND_IMAGE:-aijob-backend:current}
     build:
       context: ../..
       dockerfile: Dockerfile
@@ -68,6 +72,7 @@ services:
   # network. Collection itself stays off until JOB_COLLECTOR_ENABLED=true, and the
   # container still reports healthy while idle.
   collector:
+    image: ${AIJOB_COLLECTOR_IMAGE:-aijob-collector:current}
     build:
       context: ../..
       dockerfile: Dockerfile.collector
@@ -75,12 +80,18 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    # Database credentials only. The collector signs no token, calls no model and
+    # calls no job-search API, so the production JWT, OpenAI and JSearch secrets are
+    # deliberately NOT passed in here -- application-collector.yml supplies inert
+    # collector-only placeholders for the shared beans that demand a value.
+    # This shrinks what a compromised collector could leak; it is not full component
+    # isolation, because those beans are still constructed in the context.
     environment:
       AIJOB_DB_URL: ${AIJOB_DB_URL}
       AIJOB_DB_USERNAME: ${AIJOB_DB_USERNAME}
       AIJOB_DB_PASSWORD: ${AIJOB_DB_PASSWORD}
-      AIJOB_JWT_SECRET: ${AIJOB_JWT_SECRET}
       JOB_COLLECTOR_ENABLED: ${JOB_COLLECTOR_ENABLED:-false}
+      JOB_COLLECTOR_LOCK_TIMEOUT_MINUTES: ${JOB_COLLECTOR_LOCK_TIMEOUT_MINUTES:-60}
       JOB_COLLECTOR_INTERVAL_MINUTES: ${JOB_COLLECTOR_INTERVAL_MINUTES:-120}
       JOB_COLLECTOR_INITIAL_DELAY_MINUTES: ${JOB_COLLECTOR_INITIAL_DELAY_MINUTES:-1}
       JOB_COLLECTOR_MAX_CONCURRENCY: ${JOB_COLLECTOR_MAX_CONCURRENCY:-2}
@@ -119,6 +130,10 @@ services:
           memory: 512M
 
   web:
+    # The catalog search page lives in this image, so a rollback of the API without a
+    # rollback of the web image leaves users on a UI that no longer matches the
+    # backend. Keep the pair addressable.
+    image: ${AIJOB_WEB_IMAGE:-aijob-web:current}
     build:
       context: ../..
       dockerfile: frontend/Dockerfile

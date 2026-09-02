@@ -53,6 +53,14 @@ public class JobCollectorProperties {
     /** Touched after each successful database heartbeat; used by the container healthcheck. */
     private String heartbeatFile = "/tmp/aijob-collector-heartbeat";
 
+    /**
+     * How long one process may hold a source's collection lease before another process
+     * treats it as abandoned. Must comfortably exceed the longest realistic run, or a
+     * slow board would be collected twice at once; must stay finite, or a killed
+     * container would block its boards forever.
+     */
+    private int lockTimeoutMinutes = 60;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -191,5 +199,13 @@ public class JobCollectorProperties {
         this.heartbeatFile = heartbeatFile == null || heartbeatFile.isBlank()
                 ? "/tmp/aijob-collector-heartbeat"
                 : heartbeatFile.strip();
+    }
+
+    public int getLockTimeoutMinutes() {
+        return lockTimeoutMinutes;
+    }
+
+    public void setLockTimeoutMinutes(int lockTimeoutMinutes) {
+        this.lockTimeoutMinutes = lockTimeoutMinutes < 1 ? 1 : lockTimeoutMinutes;
     }
 }

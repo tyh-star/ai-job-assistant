@@ -51,6 +51,8 @@ CREATE TABLE job_sources (
     last_success_at TIMESTAMP NULL,
     next_run_at TIMESTAMP NULL,
     consecutive_failures INT NOT NULL DEFAULT 0,
+    locked_by VARCHAR(64) NULL,
+    locked_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_job_sources_provider_tenant UNIQUE (provider_type, tenant_key)

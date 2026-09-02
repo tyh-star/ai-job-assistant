@@ -1,22 +1,18 @@
 package aijob.collector;
 
-import aijob.entity.JobCatalogEntry;
 import aijob.entity.JobIngestRun;
 import aijob.entity.JobSource;
 import aijob.entity.JobSourceRecord;
 import aijob.enums.AtsProviderType;
-import aijob.enums.CatalogJobStatus;
 import aijob.enums.IngestRunStatus;
-import aijob.mapper.JobCatalogMapper;
 import aijob.mapper.JobIngestRunMapper;
 import aijob.mapper.JobSourceMapper;
 import aijob.mapper.JobSourceRecordMapper;
-import aijob.util.CatalogFingerprint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -38,32 +34,47 @@ public class JobIngestServiceImpl implements JobIngestService {
     private static final Logger log = LoggerFactory.getLogger(JobIngestServiceImpl.class);
     private static final int EXPIRY_SCAN_LIMIT = 500;
 
-    private enum Outcome { INSERTED, UPDATED, UNCHANGED }
-
     private final Map<AtsProviderType, JobBoardAdapter> adapters = new EnumMap<>(AtsProviderType.class);
     private final JobSourceMapper jobSourceMapper;
     private final JobSourceRecordMapper jobSourceRecordMapper;
-    private final JobCatalogMapper jobCatalogMapper;
     private final JobIngestRunMapper jobIngestRunMapper;
+    private final JobIngestTransactions transactions;
     private final JobCollectorProperties properties;
     private final Clock clock;
+    private final String owner;
 
+    // Explicit: a second, package-private constructor exists for tests that need to
+    // pin the owner id, so Spring cannot pick one by itself.
+    @Autowired
     public JobIngestServiceImpl(List<JobBoardAdapter> boardAdapters,
                                 JobSourceMapper jobSourceMapper,
                                 JobSourceRecordMapper jobSourceRecordMapper,
-                                JobCatalogMapper jobCatalogMapper,
                                 JobIngestRunMapper jobIngestRunMapper,
+                                JobIngestTransactions transactions,
                                 JobCollectorProperties properties,
                                 @Qualifier("jobSearchClock") Clock clock) {
+        this(boardAdapters, jobSourceMapper, jobSourceRecordMapper, jobIngestRunMapper,
+                transactions, properties, clock, CollectorOwner.forThisProcess());
+    }
+
+    JobIngestServiceImpl(List<JobBoardAdapter> boardAdapters,
+                         JobSourceMapper jobSourceMapper,
+                         JobSourceRecordMapper jobSourceRecordMapper,
+                         JobIngestRunMapper jobIngestRunMapper,
+                         JobIngestTransactions transactions,
+                         JobCollectorProperties properties,
+                         Clock clock,
+                         String owner) {
         for (JobBoardAdapter adapter : boardAdapters) {
             this.adapters.put(adapter.providerType(), adapter);
         }
         this.jobSourceMapper = jobSourceMapper;
         this.jobSourceRecordMapper = jobSourceRecordMapper;
-        this.jobCatalogMapper = jobCatalogMapper;
         this.jobIngestRunMapper = jobIngestRunMapper;
+        this.transactions = transactions;
         this.properties = properties;
         this.clock = clock;
+        this.owner = owner;
     }
 
     /**
@@ -129,16 +140,43 @@ public class JobIngestServiceImpl implements JobIngestService {
         return runs;
     }
 
+    /**
+     * Collects one board.
+     *
+     * <p>The board is read <em>before</em> any transaction is opened, and each posting
+     * is then written by {@link JobIngestTransactions} in its own short transaction. A
+     * slow board therefore holds no database transaction and no row locks.
+     */
     @Override
     public JobIngestRun collectSource(JobSource source) {
         LocalDateTime startedAt = now();
-        JobIngestRun run = startRun(source, startedAt);
 
         if (!source.collectable()) {
             // Defence in depth: findDue already filters, but a direct call must not
             // collect a source the operator has not opted in for.
-            return failRun(run, source, "SOURCE_NOT_COLLECTABLE", startedAt);
+            return failRun(startRun(source, startedAt), source, "SOURCE_NOT_COLLECTABLE", startedAt);
         }
+
+        // Cross-process lease. The scheduler's in-process guard cannot see a manual
+        // `run --rm collector --aijob.collector.run-once=true` in a second container,
+        // so the claim has to live in the database that both processes share.
+        if (!acquireLease(source, startedAt)) {
+            log.info("Source {} is already being collected elsewhere; skipping", source.getId());
+            return skippedRun(source, startedAt);
+        }
+
+        try {
+            return collectLockedSource(source, startedAt);
+        } finally {
+            // Released even when a posting blew up mid-run, so a crash inside the loop
+            // cannot leave a board permanently claimed.
+            releaseLease(source);
+        }
+    }
+
+    private JobIngestRun collectLockedSource(JobSource source, LocalDateTime startedAt) {
+        JobIngestRun run = startRun(source, startedAt);
+
         AtsProviderType providerType = parseProviderType(source.getProviderType());
         if (providerType == null) {
             return failRun(run, source, "UNSUPPORTED_PROVIDER_TYPE", startedAt);
@@ -150,6 +188,7 @@ public class JobIngestServiceImpl implements JobIngestService {
 
         List<NormalizedJob> fetched;
         try {
+            // Network I/O, deliberately outside every transaction.
             fetched = adapter.fetch(source);
         } catch (JobCollectionException ex) {
             return failRun(run, source, ex.reason(), startedAt);
@@ -164,7 +203,7 @@ public class JobIngestServiceImpl implements JobIngestService {
         int failed = 0;
         for (NormalizedJob job : fetched) {
             try {
-                Outcome outcome = upsert(source, job, run.getId(), startedAt);
+                IngestOutcome outcome = transactions.upsert(source, job, run.getId(), startedAt);
                 switch (outcome) {
                     case INSERTED -> inserted++;
                     case UPDATED -> updated++;
@@ -172,7 +211,8 @@ public class JobIngestServiceImpl implements JobIngestService {
                 }
             } catch (RuntimeException ex) {
                 failed++;
-                // Never log the payload: it is third-party content of unknown shape.
+                // The posting's whole write was rolled back, so nothing partial was
+                // left behind. Never log the payload: third-party content, unknown shape.
                 log.warn("Skipped a posting from source {} ({})",
                         source.getId(), ex.getClass().getSimpleName());
             }
@@ -201,155 +241,19 @@ public class JobIngestServiceImpl implements JobIngestService {
         return run;
     }
 
-    @Transactional
-    Outcome upsert(JobSource source, NormalizedJob job, Long runId, LocalDateTime seenAt) {
-        String contentHash = contentHash(job);
-        JobSourceRecord record =
-                jobSourceRecordMapper.findBySourceAndExternalId(source.getId(), job.externalJobId());
-
-        if (record != null && contentHash.equals(record.getPayloadHash())) {
-            jobSourceRecordMapper.touch(record.getId(), seenAt, runId);
-            if (record.getCatalogJobId() != null) {
-                JobCatalogEntry entry = jobCatalogMapper.findById(record.getCatalogJobId());
-                if (entry != null) {
-                    if (CatalogJobStatus.ACTIVE.name().equals(entry.getStatus())) {
-                        jobCatalogMapper.touchLastSeen(entry.getId(), seenAt);
-                    } else {
-                        // The posting came back; un-expire rather than duplicate it.
-                        jobCatalogMapper.restoreActive(entry.getId(), seenAt);
-                    }
-                }
-            }
-            return Outcome.UNCHANGED;
-        }
-
-        JobCatalogEntry target = null;
-        if (record != null && record.getCatalogJobId() != null) {
-            target = jobCatalogMapper.findById(record.getCatalogJobId());
-        }
-        if (target == null) {
-            target = resolveExistingCatalogEntry(job);
-        }
-
-        if (target == null) {
-            target = new JobCatalogEntry();
-            target.setFirstSeenAt(seenAt);
-            applyContent(target, job, seenAt);
-            jobCatalogMapper.insert(target);
-        } else {
-            applyContent(target, job, seenAt);
-            jobCatalogMapper.update(target);
-        }
-
-        if (record == null) {
-            JobSourceRecord fresh = new JobSourceRecord();
-            fresh.setSourceId(source.getId());
-            fresh.setExternalJobId(job.externalJobId());
-            fresh.setCatalogJobId(target.getId());
-            fresh.setSourceUrl(job.canonicalUrl());
-            fresh.setApplyUrl(job.applyUrl());
-            fresh.setPayloadHash(contentHash);
-            fresh.setRawPayload(job.rawPayload());
-            fresh.setFirstSeenAt(seenAt);
-            fresh.setLastSeenAt(seenAt);
-            fresh.setLastSuccessfulRunId(runId);
-            fresh.setActive(true);
-            jobSourceRecordMapper.insert(fresh);
-            return Outcome.INSERTED;
-        }
-
-        record.setCatalogJobId(target.getId());
-        record.setSourceUrl(job.canonicalUrl());
-        record.setApplyUrl(job.applyUrl());
-        record.setPayloadHash(contentHash);
-        record.setRawPayload(job.rawPayload());
-        record.setLastSeenAt(seenAt);
-        record.setLastSuccessfulRunId(runId);
-        record.setActive(true);
-        jobSourceRecordMapper.update(record);
-        return Outcome.UPDATED;
-    }
-
-    /**
-     * Cross-source de-duplication, in the order: normalized apply URL, then either
-     * normalized URL column, then a company+title+location fingerprint.
-     *
-     * <p>The fingerprint step is skipped when the posting has no location, because
-     * company+title alone routinely describes several genuinely different openings.
-     * When in doubt this returns null and a second row is kept.
-     */
-    JobCatalogEntry resolveExistingCatalogEntry(NormalizedJob job) {
-        String applyNorm = CatalogFingerprint.normalizeUrl(job.applyUrl());
-        if (applyNorm != null) {
-            JobCatalogEntry match = jobCatalogMapper.findByApplyUrlNorm(applyNorm);
-            if (match != null) {
-                return match;
-            }
-        }
-        String canonicalNorm = CatalogFingerprint.normalizeUrl(job.canonicalUrl());
-        if (canonicalNorm != null) {
-            JobCatalogEntry match = jobCatalogMapper.findByAnyUrlNorm(canonicalNorm);
-            if (match != null) {
-                return match;
-            }
-        }
-        if (job.location() != null && !job.location().isBlank()) {
-            return jobCatalogMapper.findByFingerprint(
-                    CatalogFingerprint.of(job.company(), job.title(), job.location()));
-        }
-        return null;
-    }
-
-    private void applyContent(JobCatalogEntry entry, NormalizedJob job, LocalDateTime seenAt) {
-        entry.setTitle(job.title());
-        entry.setCompanyName(job.company());
-        entry.setDescriptionText(job.descriptionText());
-        entry.setDescriptionHtml(job.descriptionHtml());
-        entry.setLocationText(job.location());
-        entry.setCity(LocationParser.city(job.location()));
-        entry.setRegion(LocationParser.region(job.location()));
-        entry.setCountryCode(job.country());
-        entry.setRemoteType(job.remoteType().name());
-        entry.setEmploymentType(job.employmentType().name());
-        if (job.salary() != null) {
-            entry.setSalaryMin(job.salary().min());
-            entry.setSalaryMax(job.salary().max());
-            entry.setCurrency(job.salary().currency());
-        }
-        entry.setCanonicalUrl(job.canonicalUrl());
-        entry.setApplyUrl(job.applyUrl());
-        entry.setCanonicalUrlNorm(CatalogFingerprint.normalizeUrl(job.canonicalUrl()));
-        entry.setApplyUrlNorm(CatalogFingerprint.normalizeUrl(job.applyUrl()));
-        entry.setPostedAt(job.postedAt());
-        if (entry.getFirstSeenAt() == null) {
-            entry.setFirstSeenAt(seenAt);
-        }
-        entry.setLastSeenAt(seenAt);
-        entry.setStatus(CatalogJobStatus.ACTIVE.name());
-        entry.setFingerprint(CatalogFingerprint.of(job.company(), job.title(), job.location()));
-    }
-
     /**
      * Soft-expires postings this source stopped returning. Only ever called after a
      * complete, successful run, and only for records unseen for longer than the grace
-     * period, so a board that briefly omits a job does not lose it.
+     * period, so a board that briefly omits a job does not lose it. Each record is
+     * retired in its own transaction by {@link JobIngestTransactions#expireRecord}.
      */
-    @Transactional
     int expireMissing(JobSource source, LocalDateTime runStartedAt) {
         LocalDateTime cutoff = runStartedAt.minusHours(properties.getExpiryGraceHours());
         List<JobSourceRecord> stale =
                 jobSourceRecordMapper.findStale(source.getId(), cutoff, EXPIRY_SCAN_LIMIT);
         int expired = 0;
         for (JobSourceRecord record : stale) {
-            jobSourceRecordMapper.deactivate(record.getId());
-            Long catalogJobId = record.getCatalogJobId();
-            if (catalogJobId == null) {
-                continue;
-            }
-            // Another board may still be publishing the same posting.
-            if (jobSourceRecordMapper.countActiveForCatalogJob(catalogJobId) == 0) {
-                expired += jobCatalogMapper.markExpired(catalogJobId);
-            }
+            expired += transactions.expireRecord(record.getId(), record.getCatalogJobId());
         }
         return expired;
     }
@@ -367,12 +271,47 @@ public class JobIngestServiceImpl implements JobIngestService {
         }
     }
 
+    /**
+     * Claims the source for this process. A lease older than
+     * {@code lock-timeout-minutes} is treated as abandoned and taken over, so a killed
+     * container cannot block a board forever.
+     */
+    private boolean acquireLease(JobSource source, LocalDateTime now) {
+        LocalDateTime staleBefore = now.minusMinutes(properties.getLockTimeoutMinutes());
+        return jobSourceMapper.tryLock(source.getId(), owner, now, staleBefore) == 1;
+    }
+
+    private void releaseLease(JobSource source) {
+        try {
+            // Owner-scoped: if our lease already expired and another process took over,
+            // this releases nothing rather than freeing someone else's claim.
+            jobSourceMapper.releaseLock(source.getId(), owner);
+        } catch (RuntimeException ex) {
+            log.warn("Could not release the collection lease for source {} ({})",
+                    source.getId(), ex.getClass().getSimpleName());
+        }
+    }
+
     private JobIngestRun startRun(JobSource source, LocalDateTime startedAt) {
         JobIngestRun run = new JobIngestRun();
         run.setSourceId(source.getId());
         run.setStartedAt(startedAt);
         run.setStatus(IngestRunStatus.RUNNING.name());
         jobIngestRunMapper.insert(run);
+        return run;
+    }
+
+    /**
+     * A contended source is not a failure: nothing was wrong with the board, another
+     * process is simply already reading it. Recording it as SKIPPED keeps it out of the
+     * failure counters, so it never triggers the back-off.
+     */
+    private JobIngestRun skippedRun(JobSource source, LocalDateTime startedAt) {
+        JobIngestRun run = startRun(source, startedAt);
+        run.setFinishedAt(now());
+        run.setStatus(IngestRunStatus.SKIPPED.name());
+        run.setErrorSummary("SOURCE_LOCKED");
+        jobIngestRunMapper.finish(run);
         return run;
     }
 
@@ -416,26 +355,6 @@ public class JobIngestServiceImpl implements JobIngestService {
         } catch (IllegalArgumentException ex) {
             return null;
         }
-    }
-
-    /**
-     * Hashes normalized content, not the raw payload: boards bump timestamps and
-     * tracking fields on every fetch, and hashing those would report every posting as
-     * changed on every run.
-     */
-    static String contentHash(NormalizedJob job) {
-        String canonical = String.join("\u001f",
-                CatalogFingerprint.normalizeText(job.title()),
-                CatalogFingerprint.normalizeText(job.company()),
-                CatalogFingerprint.normalizeText(job.location()),
-                CatalogFingerprint.normalizeText(job.country()),
-                job.remoteType().name(),
-                job.employmentType().name(),
-                String.valueOf(CatalogFingerprint.normalizeUrl(job.canonicalUrl())),
-                String.valueOf(CatalogFingerprint.normalizeUrl(job.applyUrl())),
-                String.valueOf(job.salary()),
-                CatalogFingerprint.normalizeText(job.descriptionText()));
-        return CatalogFingerprint.sha256(canonical);
     }
 
     private LocalDateTime now() {

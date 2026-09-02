@@ -16,9 +16,26 @@ fi
 mkdir -p "${BACKUP_DIR}"
 DUMP="${BACKUP_DIR}/aijob-${STAMP}.sql.gz"
 
+# The password goes through a 0600 option file rather than argv, so it never appears
+# in the container's process list. It is never echoed and never written to the repo.
 docker compose -p "${PROJECT}" --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" exec -T mysql \
-  sh -c 'mysqldump --single-transaction --quick -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' \
-  | gzip > "${DUMP}"
+  sh -c '
+    set -eu
+    umask 077
+    cnf="$(mktemp)"
+    trap "rm -f \"$cnf\"" EXIT INT TERM
+    printf "[client]\nuser=%s\npassword=%s\n" "$MYSQL_USER" "$MYSQL_PASSWORD" > "$cnf"
+    mysqldump --defaults-extra-file="$cnf" --single-transaction --quick "$MYSQL_DATABASE"
+  ' | gzip > "${DUMP}"
+
+# `set -o pipefail` catches a failed mysqldump, but a dump that "succeeded" while
+# writing almost nothing is the more dangerous case: it looks like a backup and
+# restores an empty database. A real dump always ends with mysqldump's own trailer.
+if ! gzip -dc "${DUMP}" | tail -5 | grep -q "Dump completed"; then
+  echo "Backup looks truncated: ${DUMP} has no mysqldump completion marker." >&2
+  echo "Keeping the file for inspection. Do NOT treat this as a usable backup." >&2
+  exit 1
+fi
 
 VOLUME="${PROJECT}_uploads_data"
 if docker volume inspect "${VOLUME}" >/dev/null 2>&1; then

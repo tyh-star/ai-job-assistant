@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -27,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -72,6 +74,13 @@ class JobIngestH2IntegrationTest {
     @Autowired
     private JobIngestRunMapper jobIngestRunMapper;
 
+    /**
+     * Injected rather than constructed by hand on purpose: the transactional boundaries
+     * live in this bean's proxy, and a hand-built instance would silently have none.
+     */
+    @Autowired
+    private JobIngestTransactions transactions;
+
     private JobCollectorProperties properties;
     private StubAdapter greenhouse;
     private MutableClock clock;
@@ -83,14 +92,19 @@ class JobIngestH2IntegrationTest {
         properties.setExpiryGraceHours(72);
         greenhouse = new StubAdapter(AtsProviderType.GREENHOUSE);
         clock = new MutableClock(DAY_1);
-        service = new JobIngestServiceImpl(
+        service = newService("collector-a");
+    }
+
+    private JobIngestServiceImpl newService(String owner) {
+        return new JobIngestServiceImpl(
                 List.of(greenhouse),
                 jobSourceMapper,
                 jobSourceRecordMapper,
-                jobCatalogMapper,
                 jobIngestRunMapper,
+                transactions,
                 properties,
-                clock);
+                clock,
+                owner);
     }
 
     @Test
@@ -150,7 +164,7 @@ class JobIngestH2IntegrationTest {
     }
 
     @Test
-    void identicalPostingsWithoutAUrlMatchAreMergedOnFingerprint() {
+    void identicalPostingsWithoutAUrlMatchAreKeptApartRatherThanMergedOnFingerprint() {
         JobSource acme = source("GREENHOUSE", "acme");
         JobSource mirror = source("GREENHOUSE", "acme-mirror");
 
@@ -162,7 +176,85 @@ class JobIngestH2IntegrationTest {
                 "https://boards.greenhouse.io/acme-mirror/jobs/77"));
         service.collectSource(mirror);
 
+        // Company, title and location agree, and nothing else does. That is not proof
+        // of one opening, so both survive; a human decides via the duplicate report.
+        assertEquals(2, countCatalog());
+    }
+
+    @Test
+    void oneCompanyCanRunTwoOpeningsWithTheSameTitleInTheSameCity() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(
+                job("REQ-4001", "Java Developer", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/4001"),
+                job("REQ-4002", "Java Developer", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/4002"));
+
+        service.collectSource(acme);
+
+        // Two requisition numbers are two jobs, whatever the title says.
+        assertEquals(2, countCatalog());
+        assertEquals(2, countSourceRecords());
+        List<String> applyUrls = jdbcTemplate.queryForList(
+                "SELECT apply_url FROM job_catalog ORDER BY id", String.class);
+        assertEquals(List.of("https://boards.greenhouse.io/acme/jobs/4001",
+                "https://boards.greenhouse.io/acme/jobs/4002"), applyUrls);
+    }
+
+    @Test
+    void postingsThatDifferOnlyInTheirJobIdParameterAreNotMerged() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(
+                job("REQ-1", "Java Developer", "Acme", "Toronto, ON",
+                        "https://acme.example.com/careers?gh_jid=1001"),
+                job("REQ-2", "Java Developer", "Acme", "Toronto, ON",
+                        "https://acme.example.com/careers?gh_jid=1002"));
+
+        service.collectSource(acme);
+
+        // The identifier lives in the query string here. Stripping the query would
+        // reduce this whole board to one row.
+        assertEquals(2, countCatalog());
+    }
+
+    @Test
+    void aSharedCareersPageIsNeverUsedAsAMergeKey() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(
+                job("REQ-1", "Java Developer", "Acme", "Toronto, ON",
+                        "https://acme.example.com/careers"),
+                job("REQ-2", "Data Engineer", "Acme", "Vancouver, BC",
+                        "https://acme.example.com/careers"),
+                job("REQ-3", "Product Manager", "Acme", "Montreal, QC",
+                        "https://acme.example.com/careers"));
+
+        service.collectSource(acme);
+
+        // Same generic landing page for every posting; merging on it would collapse
+        // the board into a single row.
+        assertEquals(3, countCatalog());
+        List<String> norms = jdbcTemplate.queryForList(
+                "SELECT apply_url_norm FROM job_catalog", String.class);
+        assertTrue(norms.stream().allMatch(Objects::isNull),
+                "a careers landing page must not be stored as a de-duplication key");
+    }
+
+    @Test
+    void trackingParametersStillDoNotSplitOnePosting() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        JobSource campaign = source("GREENHOUSE", "acme-campaign");
+
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1?gh_jid=1&utm_source=newsletter"));
+        service.collectSource(acme);
+
+        greenhouse.jobs = List.of(job("cm-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1?utm_campaign=spring&gh_jid=1"));
+        service.collectSource(campaign);
+
+        // Campaign parameters are dropped, gh_jid is kept, so this really is one job.
         assertEquals(1, countCatalog());
+        assertEquals(2, countSourceRecords());
     }
 
     @Test
@@ -358,6 +450,272 @@ class JobIngestH2IntegrationTest {
         assertNotEquals(initial.getLastSeenAt(), updated.getLastSeenAt());
     }
 
+    // ---------------------------------------------------------------------------
+    // Atomicity
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void aFailedSourceRecordWriteRollsBackTheCatalogRowItWouldHavePointedAt() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        // job_source_records.external_job_id is VARCHAR(190); this one is not storable,
+        // so the record insert fails AFTER the catalog row has already been written.
+        String overlongExternalId = "R".repeat(300);
+        greenhouse.jobs = List.of(
+                job(overlongExternalId, "Java Developer", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/1"));
+
+        JobIngestRun run = service.collectSource(acme);
+
+        assertEquals(1, run.getFailedCount());
+        assertEquals(0, run.getInsertedCount());
+        // The whole unit of work was undone: no orphan catalog row, no half-written
+        // record. Before the transactional boundary was real, this left a catalog row
+        // that nothing referenced and that the next run would duplicate.
+        assertEquals(0, countCatalog(), "a rolled-back posting must leave no catalog row");
+        assertEquals(0, countSourceRecords());
+    }
+
+    @Test
+    void oneUnusablePostingDoesNotRollBackTheGoodOnesAroundIt() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(
+                job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/1"),
+                job("R".repeat(300), "Broken Posting", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/2"),
+                job("gh-3", "Data Engineer", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/3"));
+
+        JobIngestRun run = service.collectSource(acme);
+
+        assertEquals(2, run.getInsertedCount());
+        assertEquals(1, run.getFailedCount());
+        assertEquals(2, countCatalog());
+    }
+
+    @Test
+    void aRunWithAnUnusablePostingExpiresNothing() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+        service.collectSource(acme);
+        Long catalogId = onlyCatalogId();
+
+        clock.advance(DAY_1.plusHours(96));
+        greenhouse.jobs = List.of(
+                job("R".repeat(300), "Broken Posting", "Acme", "Toronto, ON",
+                        "https://boards.greenhouse.io/acme/jobs/2"));
+        JobIngestRun run = service.collectSource(jobSourceMapper.findById(acme.getId()));
+
+        // gh-1 is missing from this response, but the response was not trustworthy.
+        assertEquals(1, run.getFailedCount());
+        assertEquals(0, run.getExpiredCount());
+        assertEquals(CatalogJobStatus.ACTIVE.name(), jobCatalogMapper.findById(catalogId).getStatus());
+    }
+
+    @Test
+    void theBoardIsReadOutsideAnyDatabaseTransaction() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+
+        service.collectSource(acme);
+
+        // A board that hangs must not be holding a transaction and its row locks open.
+        assertEquals(Boolean.FALSE, greenhouse.transactionActiveDuringFetch,
+                "network I/O ran inside a database transaction");
+    }
+
+    // ---------------------------------------------------------------------------
+    // Which source owns the catalog's links
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void aSecondBoardMergingIntoAPostingDoesNotOverwriteTheFirstBoardsLinks() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        JobSource mirror = source("GREENHOUSE", "acme-mirror");
+
+        greenhouse.jobs = List.of(jobWithLinks("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+        service.collectSource(acme);
+
+        // Same opening, reached through a mirror that also links the canonical page.
+        greenhouse.jobs = List.of(jobWithLinks("mr-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "https://mirror.example.com/apply/9"));
+        service.collectSource(mirror);
+
+        assertEquals(1, countCatalog());
+        JobCatalogEntry entry = jobCatalogMapper.findById(onlyCatalogId());
+        // Last writer does not win: the earliest active record still supplies the link.
+        assertEquals("https://boards.greenhouse.io/acme/jobs/1", entry.getApplyUrl());
+        // Nothing is lost -- the mirror's own link is on its source record.
+        assertEquals("https://mirror.example.com/apply/9",
+                jobSourceRecordMapper.findBySourceAndExternalId(mirror.getId(), "mr-1").getApplyUrl());
+    }
+
+    @Test
+    void theSameSourceMayRefreshItsOwnApplyLink() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(jobWithLinks("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+        service.collectSource(acme);
+
+        clock.advanceHours(4);
+        greenhouse.jobs = List.of(jobWithLinks("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "https://boards.greenhouse.io/acme/jobs/1/apply"));
+        service.collectSource(jobSourceMapper.findById(acme.getId()));
+
+        // A board is the authority on its own posting's links.
+        assertEquals("https://boards.greenhouse.io/acme/jobs/1/apply",
+                jobCatalogMapper.findById(onlyCatalogId()).getApplyUrl());
+    }
+
+    @Test
+    void aRetiredSourceStopsSupplyingTheApplyLinkWhileAnotherBoardStillHasThePosting() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        JobSource mirror = source("GREENHOUSE", "acme-mirror");
+
+        greenhouse.jobs = List.of(jobWithLinks("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+        service.collectSource(acme);
+        greenhouse.jobs = List.of(jobWithLinks("mr-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "https://mirror.example.com/apply/9"));
+        service.collectSource(mirror);
+        Long catalogId = onlyCatalogId();
+
+        // The first board drops the posting; the mirror keeps publishing it.
+        clock.advance(DAY_1.plusHours(96));
+        greenhouse.jobs = List.of();
+        service.collectSource(jobSourceMapper.findById(acme.getId()));
+
+        JobCatalogEntry entry = jobCatalogMapper.findById(catalogId);
+        assertEquals(CatalogJobStatus.ACTIVE.name(), entry.getStatus());
+        // The dead link is gone; the surviving board's link took over in the same
+        // transaction that retired the old record.
+        assertEquals("https://mirror.example.com/apply/9", entry.getApplyUrl());
+    }
+
+    @Test
+    void anExpiredPostingKeepsItsLastKnownLink() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+        service.collectSource(acme);
+        Long catalogId = onlyCatalogId();
+
+        clock.advance(DAY_1.plusHours(96));
+        greenhouse.jobs = List.of();
+        service.collectSource(jobSourceMapper.findById(acme.getId()));
+
+        JobCatalogEntry entry = jobCatalogMapper.findById(catalogId);
+        assertEquals(CatalogJobStatus.EXPIRED.name(), entry.getStatus());
+        assertEquals("https://boards.greenhouse.io/acme/jobs/1", entry.getApplyUrl());
+    }
+
+    @Test
+    void aLinkThatCouldExecuteIsNotStored() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(jobWithLinks("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1",
+                "javascript:alert(document.cookie)"));
+
+        service.collectSource(acme);
+
+        // The posting is still catalogued; only the unusable link is dropped.
+        assertEquals(1, countCatalog());
+        assertNull(jobSourceRecordMapper.findBySourceAndExternalId(acme.getId(), "gh-1").getApplyUrl());
+        assertNull(jobCatalogMapper.findById(onlyCatalogId()).getApplyUrl());
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cross-process lease
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void aSecondCollectorProcessDoesNotCollectASourceTheFirstOneHolds() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+
+        // Someone else -- a manual `run --rm collector` -- claimed it first.
+        assertEquals(1, jobSourceMapper.tryLock(
+                acme.getId(), "collector-b", DAY_1, DAY_1.minusMinutes(60)));
+
+        JobIngestRun run = service.collectSource(acme);
+
+        assertEquals(IngestRunStatus.SKIPPED.name(), run.getStatus());
+        assertEquals("SOURCE_LOCKED", run.getErrorSummary());
+        assertEquals(0, greenhouse.fetchCount, "the board must not be read twice at once");
+        assertEquals(0, countCatalog());
+        // A contended source is not a failing source, so it must not back off.
+        assertEquals(0, jobSourceMapper.findById(acme.getId()).getConsecutiveFailures());
+    }
+
+    @Test
+    void theLeaseIsReleasedAfterASuccessfulRun() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+
+        service.collectSource(acme);
+
+        assertNull(lockedBy(acme.getId()));
+        // And another process can now take it.
+        assertEquals(1, jobSourceMapper.tryLock(
+                acme.getId(), "collector-b", DAY_1, DAY_1.minusMinutes(60)));
+    }
+
+    @Test
+    void theLeaseIsReleasedAfterAFailedRun() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.failure = new JobCollectionException("SOURCE_UNAVAILABLE_503");
+
+        JobIngestRun run = service.collectSource(acme);
+
+        assertEquals(IngestRunStatus.FAILED.name(), run.getStatus());
+        assertNull(lockedBy(acme.getId()), "a failed run must not keep a board claimed");
+    }
+
+    @Test
+    void anAbandonedLeaseIsTakenOverAfterTheTimeout() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        greenhouse.jobs = List.of(job("gh-1", "Java Developer", "Acme", "Toronto, ON",
+                "https://boards.greenhouse.io/acme/jobs/1"));
+        properties.setLockTimeoutMinutes(60);
+
+        // A container that was killed mid-run left this behind.
+        jobSourceMapper.tryLock(acme.getId(), "collector-gone", DAY_1.minusHours(5),
+                DAY_1.minusHours(6));
+
+        clock.advance(DAY_1);
+        JobIngestRun run = service.collectSource(acme);
+
+        assertEquals(IngestRunStatus.SUCCESS.name(), run.getStatus());
+        assertEquals(1, countCatalog());
+        assertNull(lockedBy(acme.getId()));
+    }
+
+    @Test
+    void releasingALeaseSomeoneElseNowHoldsChangesNothing() {
+        JobSource acme = source("GREENHOUSE", "acme");
+        jobSourceMapper.tryLock(acme.getId(), "collector-b", DAY_1, DAY_1.minusMinutes(60));
+
+        assertEquals(0, jobSourceMapper.releaseLock(acme.getId(), "collector-a"));
+
+        assertEquals("collector-b", lockedBy(acme.getId()));
+    }
+
+    private String lockedBy(Long sourceId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT locked_by FROM job_sources WHERE id = ?", String.class, sourceId);
+    }
+
     private JobSource source(String providerType, String tenantKey) {
         return source(providerType, tenantKey, true, true);
     }
@@ -372,6 +730,16 @@ class JobIngestH2IntegrationTest {
         source.setCollectionIntervalMinutes(120);
         jobSourceMapper.insert(source);
         return source;
+    }
+
+    private static NormalizedJob jobWithLinks(String externalId, String title, String company,
+                                              String location, String canonicalUrl, String applyUrl) {
+        NormalizedJob base = job(externalId, title, company, location, canonicalUrl);
+        return new NormalizedJob(
+                base.provider(), base.tenant(), base.externalJobId(), base.title(), base.company(),
+                base.descriptionText(), base.descriptionHtml(), base.location(), base.country(),
+                base.remoteType(), base.employmentType(), base.salary(),
+                canonicalUrl, applyUrl, base.postedAt(), base.rawPayload());
     }
 
     private static NormalizedJob job(String externalId, String title, String company,
@@ -415,6 +783,8 @@ class JobIngestH2IntegrationTest {
         private List<NormalizedJob> jobs = new ArrayList<>();
         private RuntimeException failure;
         private int fetchCount;
+        /** Stands in for "was the network call holding a transaction open?". */
+        private Boolean transactionActiveDuringFetch;
 
         private StubAdapter(AtsProviderType providerType) {
             this.providerType = providerType;
@@ -428,6 +798,8 @@ class JobIngestH2IntegrationTest {
         @Override
         public List<NormalizedJob> fetch(JobSource source) {
             fetchCount++;
+            transactionActiveDuringFetch =
+                    TransactionSynchronizationManager.isActualTransactionActive();
             if (failure != null) {
                 RuntimeException toThrow = failure;
                 failure = null;

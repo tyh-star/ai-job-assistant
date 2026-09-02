@@ -106,6 +106,50 @@ public interface JobSourceRecordMapper {
     long countActiveForCatalogJob(@Param("catalogJobId") Long catalogJobId);
 
     /**
+     * The record this source already has pointing at a given catalog row.
+     *
+     * <p>Used to catch a board that hands two requisitions the same URL across separate
+     * imports: the second one is new to the source, so cross-source de-duplication would
+     * resolve it onto the first one's catalog row and quietly collapse them. Asking which
+     * external id already owns that row on THIS source is what makes the collision
+     * visible.
+     */
+    @Select("""
+            SELECT
+            """ + COLUMNS + """
+            FROM job_source_records
+            WHERE source_id = #{sourceId}
+              AND catalog_job_id = #{catalogJobId}
+            ORDER BY id
+            LIMIT 1
+            """)
+    JobSourceRecord findBySourceAndCatalogJob(@Param("sourceId") Long sourceId,
+                                              @Param("catalogJobId") Long catalogJobId);
+
+    /**
+     * The record whose links the catalog row should display.
+     *
+     * <p>Two boards can publish one opening, and each keeps its own links here. The
+     * catalog shows exactly one of them, chosen by a fixed rule rather than by whoever
+     * was collected most recently: an active record wins over a retired one, so a dead
+     * apply link is replaced as soon as another board still has the posting; among
+     * active records the earliest-seen (lowest id) wins, so the choice does not flip
+     * back and forth as boards are collected in different orders.
+     *
+     * <p>When every record has been retired the earliest one is still returned, so an
+     * EXPIRED posting keeps its last known link instead of showing none.
+     */
+    @Select("""
+            SELECT
+            """ + COLUMNS + """
+            FROM job_source_records
+            WHERE catalog_job_id = #{catalogJobId}
+            ORDER BY active DESC, id
+            LIMIT 1
+            """)
+    JobSourceRecord findPreferredForCatalogJob(@Param("catalogJobId") Long catalogJobId);
+
+    /**
      * Drops stored provider payloads for postings that went away long ago. Keeps the
      * record (and its source attribution) but stops retaining a full copy of a page
      * that is no longer published.

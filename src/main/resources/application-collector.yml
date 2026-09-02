@@ -1,13 +1,31 @@
-# Collector container overrides. The collector shares the API's Spring context but
-# never serves HTTP, never calls OpenAI and never calls a job-search API, so the
-# credentials those features need are replaced with obvious placeholders instead of
-# being copied into a second container.
+# Collector container overrides.
+#
+# The collector shares the API's Spring context, so beans that the API needs are still
+# constructed here even though the collector never uses them. Rather than copying the
+# production JWT signing key, OpenAI key and job-search key into a second container to
+# satisfy those constructors, this profile supplies inert placeholders.
+#
+# Be precise about what that buys: it removes the production secrets from the
+# collector's environment, so a compromised collector cannot mint tokens or spend the
+# model budget. It is NOT full component isolation -- JwtUtil, the OpenAI client and
+# the PDF export service are still beans in this context; they are simply never
+# invoked, because there is no servlet stack and no scheduled task reaches them.
+#
+# These values are placeholders by construction, not secrets: they cannot authenticate
+# against anything.
 spring:
   main:
     web-application-type: none
 
+jwt:
+  # Long enough for the HMAC key spec that JwtUtil builds at construction time. The
+  # collector neither issues nor verifies a token, and no API container ever sees this
+  # value, so it cannot be used to forge one against the real service.
+  secret: collector-never-issues-or-verifies-a-jwt-placeholder
+  expiration: 1
+
 openai:
-  api-key: unused-by-collector
+  api-key: collector-never-calls-openai
 
 # Job search is a user-facing API concern; the collector only writes to job_catalog,
 # so no outbound job-search provider is ever constructed here.

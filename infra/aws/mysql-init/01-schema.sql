@@ -137,6 +137,8 @@ CREATE TABLE IF NOT EXISTS job_sources (
     last_success_at DATETIME NULL,
     next_run_at DATETIME NULL,
     consecutive_failures INT NOT NULL DEFAULT 0,
+    locked_by VARCHAR(64) NULL,
+    locked_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -188,7 +190,11 @@ CREATE TABLE IF NOT EXISTS job_catalog (
 CREATE TABLE IF NOT EXISTS job_source_records (
     id BIGINT NOT NULL AUTO_INCREMENT,
     source_id BIGINT NOT NULL,
-    external_job_id VARCHAR(190) NOT NULL,
+    -- utf8mb4_0900_bin, not the table default: an ATS requisition id is an opaque
+    -- token, so "REQ-A", "req-a" and "REQ-A " are three ids. The table collation folds
+    -- all three (case-insensitive AND PAD SPACE), and utf8mb4_bin still folds the last
+    -- two -- measured on 8.4.11, both are PAD SPACE. Only 0900_bin is binary AND NO PAD.
+    external_job_id VARCHAR(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
     catalog_job_id BIGINT NULL,
     source_url VARCHAR(1000) NULL,
     apply_url VARCHAR(1000) NULL,

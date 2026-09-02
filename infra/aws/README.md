@@ -27,9 +27,13 @@ This package deploys an **empty** database and empty uploads volume. Do not copy
 | `infra/aws/.env.aws.example` | Names only; copy to `.env.aws` on the server |
 | `infra/aws/mysql-init/01-schema.sql` | Empty-DB `CREATE TABLE` matching current production tables |
 | `infra/aws/ec2-bootstrap.sh` | Docker + read-only deploy key |
-| `infra/aws/deploy.sh` | Build and start |
+| `infra/aws/release.sh` | Ordered release: verify SHA, back up, build, migrate, verify, start, smoke |
+| `infra/aws/rollback.sh` | Start the previously recorded web + backend images, without rebuilding |
+| `infra/aws/db-apply.sh` | Runs one .sql file in the mysql container via a 0600 option file |
+| `infra/aws/deploy.sh` | Plain restart when the schema is already in place |
 | `infra/aws/backup.sh` | App-user mysqldump + uploads volume tar |
-| `schema/job_catalog_phase1.sql` | Additive migration for the job catalog tables |
+| `schema/job_catalog_phase1.sql` | Additive migration + structure gate for the job catalog tables |
+| `schema/job_catalog_phase1_verify.sql` | Read-only structure check; non-zero exit when incomplete |
 | `docs/job-catalog.md` | Catalog and collector operations guide |
 
 Published ports: **80/tcp, 443/tcp, 443/udp**. Do not map 8080 or 3306.
@@ -46,10 +50,15 @@ First boot uses `infra/aws/mysql-init/01-schema.sql` (MySQL runs `/docker-entryp
 The application user is `MYSQL_USER` (not `root`). Repeatable recovery if the volume already exists and tables are missing:
 
 ```bash
-docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml exec -T mysql \
-  mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" \
-  < infra/aws/mysql-init/01-schema.sql
+./infra/aws/db-apply.sh infra/aws/mysql-init/01-schema.sql
 ```
+
+Always use `db-apply.sh` rather than typing a `mysql` command yourself. Two things go wrong otherwise:
+
+- `--env-file` feeds **Compose's** variable interpolation. It exports nothing into your shell, so a host-side `-u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}"` expands to empty strings and the connection fails to authenticate. The credentials only exist inside the mysql container.
+- Even run inside the container, `-p"$MYSQL_PASSWORD"` puts the password in that container's process list. `db-apply.sh` passes it through a 0600 option file instead.
+
+The password is never echoed, never written into the repo or an image, and no shell tracing is enabled. This is MySQL's own recommended mechanism; it is not absolute — a root shell inside the mysql container could read the option file while the command runs — but the password never reaches argv, a log, or version control.
 
 Do not apply `schema/*.sql` ALTERs to a fresh database. Do not change business DDL.
 
@@ -61,34 +70,67 @@ collector publishes no port and is only reachable on the Compose network.
 
 Full reference: [docs/job-catalog.md](../../docs/job-catalog.md).
 
-### 1. Back up first
+### 1. Release, in order
 
-Never apply the migration to production without a fresh backup:
-
-```bash
-./infra/aws/backup.sh
-```
-
-### 2. Apply the additive migration
-
-`schema/job_catalog_phase1.sql` only creates new tables and is safe to re-run; it never
-drops, renames, or truncates anything, and it records itself in `schema_migrations`.
-MySQL runs `mysql-init` only on an empty volume, so an existing database needs this
-applied by hand:
+One command does the whole sequence, and the order is not cosmetic. `collector` and the
+catalog routes read tables that do **not** exist on an already-populated volume until
+the migration is applied by hand — MySQL runs `mysql-init` only on an *empty* volume.
+Start them first and the collector's heartbeat fails, its healthcheck fails, and the
+deploy times out with a misleading message.
 
 ```bash
-docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml exec -T mysql \
-  mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${MYSQL_DATABASE}" \
-  < schema/job_catalog_phase1.sql
+./infra/aws/release.sh <commit-sha>
 ```
 
-Confirm it registered:
+It performs, and stops at the first failure:
 
-```sql
-SELECT version, applied_at FROM schema_migrations ORDER BY applied_at;
+1. **verify the release commit** — refuses unless `HEAD` is exactly the SHA you passed and the tree is clean
+2. **back up** database and uploads (`backup.sh`)
+3. **validate** the Compose configuration
+4. **record** the currently running images, tagging each by ID as `aijob-<service>:rollback-<stamp>` so a rebuild cannot orphan them, into `infra/aws/releases/<stamp>.env`
+5. **build** backend, web and collector — without starting anything
+6. **start MySQL only**
+7. **migrate** (`schema/job_catalog_phase1.sql`) and then **verify the structure** (`schema/job_catalog_phase1_verify.sql`)
+8. **start backend, then web**
+9. **start collector**
+10. **health checks and read-only smoke**
+
+The `web` image is rebuilt and restarted too. It has to be: the catalog search page
+lives there, and shipping a new backend against an old `web` leaves the UI and the API
+out of step.
+
+`deploy.sh` remains for a plain restart when the schema is already in place; it now
+verifies the structure first and refuses with a pointer to `release.sh` rather than
+starting containers that cannot come up healthy.
+
+#### Migration safety
+
+`schema/job_catalog_phase1.sql` is additive and re-runnable: it creates tables only when
+missing, adds the FULLTEXT index and the collector lease columns only when missing, and
+never drops, renames, or truncates anything.
+
+It is **not atomic** — MySQL commits DDL implicitly, so the statements do not roll back
+as a unit, and nothing here should be described as transactional. What it guarantees
+instead is that it ends with a structure gate (expected tables, columns, indexes and
+foreign keys) and writes its `schema_migrations` row **only if that gate passes**. A
+partial run therefore leaves a partial schema and no completion marker; running it
+again finishes the job.
+
+That gate exists because `CREATE TABLE IF NOT EXISTS` is a no-op against a table that
+already exists with the *wrong* shape — for example one left by an interrupted earlier
+attempt. Without it the script would record success over a half-built schema.
+
+Re-check the structure at any time, read-only:
+
+```bash
+./infra/aws/db-apply.sh schema/job_catalog_phase1_verify.sql
 ```
 
-### 3. Add a legal ATS source
+Recovery from a failed migration: read the counts it printed, fix or drop **only** the
+incomplete new tables — never `jobs`, `users`, `resumes` or anything else that existed
+before — and run the release again.
+
+### 2. Add a legal ATS source
 
 There is no public API for source management, on purpose: a user-supplied URL must
 never reach the fetcher. Insert rows directly, using the board's public token as
@@ -111,7 +153,21 @@ UPDATE job_sources SET enabled = 1, crawl_allowed = 1
 `schema/job_catalog_phase1_sample_sources.sql` seeds two placeholder rows with both
 flags off, so applying it collects nothing.
 
-### 4. Do one controlled run before scheduling
+There is also an operator CLI in the collector container, which never leaves a process
+running afterwards:
+
+```bash
+docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compose.ec2.yml \
+  run --rm collector --aijob.sources.list=true
+```
+
+`--aijob.sources.add=true` (with `--aijob.sources.provider`, `--aijob.sources.tenant`,
+`--aijob.sources.display-name`, `--aijob.sources.terms-url`) creates a source with both
+flags off. `--aijob.sources.duplicates=true` lists postings that share a
+company+title+location fingerprint — candidates for a human to review, never merged
+automatically. Exit status: 0 on success, 2 on bad arguments, 1 on a write failure.
+
+### 3. Do one controlled run before scheduling
 
 Run a single collection in a throwaway container, so nothing is scheduled yet:
 
@@ -122,7 +178,7 @@ docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compos
 
 To rehearse one board only, pass its id: `--aijob.collector.source-id=1`.
 
-### 5. Inspect the result
+### 4. Inspect the result
 
 ```sql
 SELECT id, source_id, status, fetched_count, inserted_count, updated_count,
@@ -134,7 +190,7 @@ SELECT status, COUNT(*) FROM job_catalog GROUP BY status;
 
 `error_summary` holds a short classified reason only — no response bodies, no keys.
 
-### 6. Enable the schedule
+### 5. Enable the schedule
 
 Once a manual run looks right, set `JOB_COLLECTOR_ENABLED=true` in `infra/aws/.env.aws`
 and restart just the collector:
@@ -147,7 +203,7 @@ docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compos
 While disabled the container stays up and healthy but idle, so a `false` value is not a
 deployment failure.
 
-### 7. Switch search to the local catalog
+### 6. Switch search to the local catalog
 
 Set `JOB_SEARCH_PRIMARY_PROVIDER=LOCAL_CATALOG` and restart the backend:
 
@@ -159,20 +215,58 @@ docker compose -p aijob --env-file infra/aws/.env.aws -f infra/aws/docker-compos
 In this mode the JSearch and Adzuna beans are not created at all, so user search cannot
 reach an external job API — not even on zero results or a database error.
 
-### 8. Rolling back without losing data
+This affects the legacy `/api/v1/jobs/search` route. The catalog search page users see
+calls `/api/v1/job-catalog/*` and is served either way, so do not reach for this
+variable when you mean to roll back — see step 7.
 
-Set `JOB_COLLECTOR_ENABLED=false` to stop collecting, and
-`JOB_SEARCH_PRIMARY_PROVIDER=JSEARCH` to put search back on the previous provider, then
-restart `backend` and `collector`. Leave the new tables in place: they hold the collected
-catalog and the `user_saved_catalog_jobs` mapping, and dropping them would break saved
-jobs. A rollback never needs a DDL change.
+### 7. Rolling back without losing data
 
-### 9. Never destroy volumes
+**Flipping `JOB_SEARCH_PRIMARY_PROVIDER` back to `JSEARCH` is not a rollback.** That
+variable only decides which provider answers the legacy `/api/v1/jobs/search` route.
+The search page users actually see is the catalog panel, it lives in the `web` image,
+and it calls `/api/v1/job-catalog/*`, which is served regardless of that setting. Flip
+the variable alone and everyone stays on the new page, reading a catalog that may be
+empty, with no way to reach JSearch.
+
+A rollback restores the previous **web and backend images together**:
+
+```bash
+./infra/aws/rollback.sh infra/aws/releases/<stamp>.env
+```
+
+It stops the collector, checks that every recorded image tag still exists locally,
+prints how many personal jobs were saved from the catalog and asks you to confirm, then
+starts the recorded `backend` and `web` with `--no-build` — so Compose cannot rebuild
+current source over the image you are trying to return to.
+
+What is kept, deliberately:
+
+- `job_catalog`, `job_source_records`, `job_ingest_runs`, `job_sources`
+- `user_saved_catalog_jobs`, the mapping from a catalog posting to the personal `jobs`
+  row a user saved. Dropping it would orphan real user data.
+
+No DDL change is needed: the new tables are additive and an older backend ignores them.
+
+One compatibility point that was checked rather than assumed: personal jobs saved from
+the catalog carry `source = 'JOB_CATALOG'`, a value the previous release never wrote. In
+that release `source` is a plain string on both the entity and the API DTO, and the
+frontend renders an unrecognised source through an i18n lookup with the raw value as its
+default. So those rows display as the literal text `JOB_CATALOG` — cosmetically odd,
+not an error. `rollback.sh` counts them and pauses so you can confirm this against the
+exact version you are going back to.
+
+Then keep collection off:
+
+```
+JOB_COLLECTOR_ENABLED=false
+```
+
+### 8. Never destroy volumes
 
 Do **not** run `docker compose down -v`, and never delete `mysql_data` or
 `uploads_data`. Use `up -d --no-deps <service>` for restarts, or `down` without `-v`.
 
-### 10. Size expectations
+### 9. Size expectations
 
 This instance is a t3.medium with 30 GB. Phase 1 targets **50k–200k** `ACTIVE`/`EXPIRED`
 postings. It is not sized for millions of jobs; see
@@ -237,13 +331,21 @@ Fill every empty secret on the server. Required names:
 - `PUBLIC_HOST` — `<Elastic-IP>.sslip.io`
 - `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`
 - `AIJOB_DB_URL`, `AIJOB_DB_USERNAME`, `AIJOB_DB_PASSWORD` (app user, not root)
-- `AIJOB_JWT_SECRET` (at least 32 bytes)
+- `AIJOB_JWT_SECRET` (at least 32 bytes) — backend only; the collector is not given it
 - `AIJOB_JWT_EXPIRATION`
-- `OPENAI_API_KEY`
-- `JOB_SEARCH_PRIMARY_PROVIDER` — `LOCAL_CATALOG` serves search from the local catalog; `JSEARCH` is the rollback value
+- `OPENAI_API_KEY` — backend only
+- `JOB_SEARCH_PRIMARY_PROVIDER` — `LOCAL_CATALOG` serves the legacy `/jobs/search` route from the local catalog. This is **not** a rollback switch; see step 7.
 - `JSEARCH_API_KEY` — may stay empty while `JOB_SEARCH_PRIMARY_PROVIDER=LOCAL_CATALOG`
 - `JOB_COLLECTOR_ENABLED` — keep `false` until you have read [docs/job-catalog.md](../../docs/job-catalog.md)
 - `JOB_COLLECTOR_CONTACT_EMAIL` — a real mailbox; it is sent to job boards in the `User-Agent`
+- `JOB_COLLECTOR_LOCK_TIMEOUT_MINUTES` — how long one collector process may hold a source's lease (default 60)
+
+The `collector` service receives **database credentials only**. It signs no token, calls
+no model and calls no job-search API, so `AIJOB_JWT_SECRET`, `OPENAI_API_KEY` and
+`JSEARCH_API_KEY` are deliberately not in its environment; `application-collector.yml`
+supplies inert placeholders for the shared beans that demand a value. That shrinks what
+a compromised collector could leak — it is not full component isolation, because those
+beans still exist in the context, merely unreachable.
 - `AIJOB_STORAGE_ROOT` (keep `/data/uploads`)
 - `AIJOB_CORS_ALLOWED_ORIGINS` — public site origin **including the scheme**, for example `https://203.0.113.10.sslip.io`. Comma-separate additional origins. Do not use `*`.
 - `SERVER_FORWARD_HEADERS_STRATEGY` — keep `framework` so Spring honors Caddy `X-Forwarded-Proto`
@@ -251,9 +353,12 @@ Fill every empty secret on the server. Required names:
 Keep `AIJOB_TAILOR_ENGINE=V3` so Quick Optimize (BASIC) and Enhanced are both available.
 
 ```bash
-chmod +x infra/aws/deploy.sh infra/aws/backup.sh
-./infra/aws/deploy.sh
+chmod +x infra/aws/*.sh
+./infra/aws/release.sh "$(git rev-parse HEAD)"
 ```
+
+On a first, empty deployment `deploy.sh` is equivalent, because `mysql-init` builds the
+full schema on an empty volume. Use `release.sh` on any instance that already has data.
 
 Wait until `web` is up, then open `https://<PUBLIC_HOST>/`. Caddy requests a Let's Encrypt certificate via HTTP-01 on port 80.
 

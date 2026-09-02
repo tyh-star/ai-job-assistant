@@ -2,13 +2,12 @@ package aijob.collector;
 
 import aijob.entity.JobIngestRun;
 import aijob.entity.JobSource;
+import aijob.enums.IngestRunStatus;
 import aijob.mapper.JobSourceMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +19,11 @@ import java.util.List;
  * {@code --aijob.collector.source-id=N} collects exactly one source.
  *
  * <p>Useful for a first controlled run on a new board before enabling the schedule.
+ *
+ * <p>Exit status is meaningful, so a deploy script can branch on it: 0 when every run
+ * finished, non-zero when a board failed or the requested source does not exist. A
+ * source that was skipped because another collector process held its lease is not a
+ * failure.
  */
 @Component
 @Profile("collector")
@@ -32,14 +36,14 @@ public class JobCollectorRunner implements ApplicationRunner {
 
     private final JobIngestService jobIngestService;
     private final JobSourceMapper jobSourceMapper;
-    private final ConfigurableApplicationContext context;
+    private final CollectorProcessExit processExit;
 
     public JobCollectorRunner(JobIngestService jobIngestService,
                               JobSourceMapper jobSourceMapper,
-                              ConfigurableApplicationContext context) {
+                              CollectorProcessExit processExit) {
         this.jobIngestService = jobIngestService;
         this.jobSourceMapper = jobSourceMapper;
-        this.context = context;
+        this.processExit = processExit;
     }
 
     @Override
@@ -49,37 +53,36 @@ public class JobCollectorRunner implements ApplicationRunner {
             JobSource source = jobSourceMapper.findById(sourceId);
             if (source == null) {
                 log.error("No job source with id {}", sourceId);
-            } else {
-                report(List.of(jobIngestService.collectSource(source)));
+                processExit.exit(2);
+                return;
             }
-            shutDown();
+            processExit.exit(report(List.of(jobIngestService.collectSource(source))));
             return;
         }
         if (!flag(args, RUN_ONCE_ARG)) {
+            // Not a one-shot invocation: this is the scheduled collector starting up.
             return;
         }
-        report(jobIngestService.collectDueSources());
+        int status = report(jobIngestService.collectDueSources());
         jobIngestService.housekeeping();
-        shutDown();
+        processExit.exit(status);
     }
 
-    /**
-     * The scheduler keeps non-daemon threads alive, so a single-shot run has to close
-     * the context explicitly or the container would never exit.
-     */
-    private void shutDown() {
-        SpringApplication.exit(context, () -> 0);
-    }
-
-    private static void report(List<JobIngestRun> runs) {
+    /** @return 0 when nothing failed, 1 when at least one source run failed. */
+    private static int report(List<JobIngestRun> runs) {
+        int failures = 0;
         for (JobIngestRun run : runs) {
+            if (IngestRunStatus.FAILED.name().equals(run.getStatus())) {
+                failures++;
+            }
             log.info("Run {} source={} status={} fetched={} inserted={} updated={} "
                             + "unchanged={} expired={} failed={} error={}",
                     run.getId(), run.getSourceId(), run.getStatus(), run.getFetchedCount(),
                     run.getInsertedCount(), run.getUpdatedCount(), run.getUnchangedCount(),
                     run.getExpiredCount(), run.getFailedCount(), run.getErrorSummary());
         }
-        log.info("Single-shot collection finished: {} run(s)", runs.size());
+        log.info("Single-shot collection finished: {} run(s), {} failed", runs.size(), failures);
+        return failures == 0 ? 0 : 1;
     }
 
     private static boolean flag(ApplicationArguments args, String name) {
