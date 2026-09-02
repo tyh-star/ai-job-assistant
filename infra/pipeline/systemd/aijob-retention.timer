@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily prune of AI Job pipeline batch directories
+
+[Timer]
+Unit=aijob-retention.service
+OnCalendar=daily
+# After the small hours, and away from the collection ticks.
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

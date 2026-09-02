@@ -39,8 +39,13 @@ COPY --chown=aijob:aijob .pipeline-build/EXPORTER_SHA  /opt/aijob/EXPORTER_SHA
 COPY --chown=aijob:aijob .pipeline-build/IMPORTER_SHA  /opt/aijob/IMPORTER_SHA
 COPY --chown=aijob:aijob .pipeline-build/testdata/     /opt/aijob/testdata/
 COPY --chown=aijob:aijob config/                       /opt/aijob/config/
-COPY --chown=aijob:aijob infra/pipeline/run-pipeline.sh /opt/aijob/run-pipeline.sh
-RUN chmod +x /opt/aijob/jdexport /opt/aijob/run-pipeline.sh
+COPY --chown=aijob:aijob infra/pipeline/run-pipeline.sh    /opt/aijob/run-pipeline.sh
+COPY --chown=aijob:aijob infra/pipeline/pipeline-state.sh  /opt/aijob/pipeline-state.sh
+COPY --chown=aijob:aijob infra/pipeline/pipeline-status.sh /opt/aijob/pipeline-status.sh
+COPY --chown=aijob:aijob infra/pipeline/retention.sh       /opt/aijob/retention.sh
+COPY --chown=aijob:aijob infra/pipeline/systemd/README.md  /opt/aijob/README.md
+RUN chmod +x /opt/aijob/jdexport /opt/aijob/run-pipeline.sh \
+             /opt/aijob/pipeline-status.sh /opt/aijob/retention.sh
 
 USER aijob
 

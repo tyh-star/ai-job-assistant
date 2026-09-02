@@ -1,0 +1,55 @@
+[Unit]
+Description=AI Job collection pipeline (export -> verify -> import, one shot)
+Documentation=file:/opt/aijob/README.md
+# The pipeline needs the container runtime; it does not need the network to be "online"
+# in systemd's sense, because a failure to reach a board is a normal outcome it records
+# rather than a reason not to start.
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+
+# Not root. This account needs the docker group (or a rootless socket) and write access
+# to the state directory, and nothing else.
+User=aijob
+Group=aijob
+SupplementaryGroups=docker
+
+EnvironmentFile=/etc/aijob/pipeline.env
+
+# One shot, one container, removed when it exits. --network and the env file come from
+# EnvironmentFile so the unit does not have to be edited to change them.
+ExecStart=/usr/bin/docker run --rm \
+  --name aijob-pipeline-run \
+  --network ${AIJOB_DOCKER_NETWORK} \
+  --env-file /etc/aijob/pipeline-db.env \
+  -e AIJOB_MAX_PER_BOARD=${AIJOB_MAX_PER_BOARD} \
+  -e AIJOB_BOARD_INTERVAL_SECONDS=${AIJOB_BOARD_INTERVAL_SECONDS} \
+  -e AIJOB_EXPECTED_EXPORTER_SHA=${AIJOB_EXPECTED_EXPORTER_SHA} \
+  -v ${AIJOB_STATE_VOLUME}:/var/lib/aijob \
+  ${AIJOB_PIPELINE_IMAGE} --live
+
+# A held lock is not a failure. Exit 3 means another run (or a manual one) was already
+# working, and the right response is to wait for the next timer tick -- not to mark the
+# unit failed and put a red line in the status output for something working as designed.
+SuccessExitStatus=3
+
+# Anything else keeps its own exit code, so `systemctl status` and `journalctl` show a
+# real failure as a real failure.
+
+TimeoutStartSec=1800
+# The container is stopped by name if systemd has to kill the unit, or the run would
+# outlive the job that started it.
+ExecStopPost=-/usr/bin/docker rm -f aijob-pipeline-run
+
+# Filesystem hardening. The pipeline writes only to its Docker volume, through the
+# daemon, so the unit itself needs nothing writable on the host.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/aijob
+
+[Install]
+WantedBy=multi-user.target

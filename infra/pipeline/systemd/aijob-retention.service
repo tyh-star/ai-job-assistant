@@ -1,0 +1,31 @@
+[Unit]
+Description=Prune old AI Job pipeline batch directories
+Documentation=file:/opt/aijob/README.md
+
+[Service]
+Type=oneshot
+User=aijob
+Group=aijob
+SupplementaryGroups=docker
+EnvironmentFile=/etc/aijob/pipeline.env
+
+# --apply, deliberately: the interactive default is a dry run, and a scheduled prune that
+# only ever printed what it would do would let the disk fill while looking healthy. The
+# windows it enforces are the ones in pipeline.env.
+ExecStart=/usr/bin/docker run --rm \
+  --name aijob-retention-run \
+  -e AIJOB_KEEP_SUCCESS_DAYS=${AIJOB_KEEP_SUCCESS_DAYS} \
+  -e AIJOB_KEEP_FAILED_DAYS=${AIJOB_KEEP_FAILED_DAYS} \
+  -e AIJOB_KEEP_SUMMARY_DAYS=${AIJOB_KEEP_SUMMARY_DAYS} \
+  -v ${AIJOB_STATE_VOLUME}:/var/lib/aijob \
+  --entrypoint /opt/aijob/retention.sh \
+  ${AIJOB_PIPELINE_IMAGE} --apply
+
+TimeoutStartSec=600
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

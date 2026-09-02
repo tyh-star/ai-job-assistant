@@ -1,0 +1,22 @@
+[Unit]
+Description=Run the AI Job collection pipeline every 6 hours
+Documentation=file:/opt/aijob/README.md
+
+[Timer]
+Unit=aijob-pipeline.service
+
+# Every 6 hours from boot, and every 6 hours after each run.
+OnBootSec=15min
+OnUnitActiveSec=6h
+
+# Up to 20 minutes of jitter. Four fixed times a day means every host running this hits
+# the same boards at the same moments; spreading the start is politeness that costs
+# nothing.
+RandomizedDelaySec=20min
+
+# If the machine was off when a tick was due, run once on the next boot rather than
+# silently skipping a window.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -74,7 +74,20 @@ run_pipeline() {
     "$IMAGE" "$@" 2>&1
 }
 
+# Each case starts from a clean back-off state.
+#
+# Without this the cases interfere: case C makes the export fail, which correctly records
+# a failure and puts the board into a six-hour back-off, and every later case would then
+# be SKIPPED rather than exercising what it names. That is the scheduler working, but it
+# is not what these cases are testing -- so the state is cleared between them, explicitly,
+# rather than left to the order they happen to run in.
+reset_state() {
+  docker run --rm -v aijob-verify-state:/var/lib/aijob --entrypoint sh "$IMAGE" \
+    -c 'rm -rf /var/lib/aijob/state' >/dev/null 2>&1
+}
+
 echo
+reset_state
 echo "=== A. fixture export and import ==="
 OUT_A="$(run_pipeline)"; CODE_A=$?
 check 'A: exit 0' 0 "$CODE_A"
@@ -92,6 +105,7 @@ check 'A: every exported record accounted for' "${EXPORTED_A:-x}" \
   "$(( ${INS_A:-0} + ${UNCH_A:-0} ))"
 
 echo
+reset_state
 echo "=== B. the same batch again ==="
 OUT_B="$(run_pipeline)"; CODE_B=$?
 check 'B: exit 0' 0 "$CODE_B"
@@ -103,6 +117,7 @@ check 'B: all of them read back as unchanged' "${EXPORTED_B:-x}" "${UNCH_B:-y}" 
   "a replay of the identical batch must update the catalog, not grow it"
 
 echo
+reset_state
 echo "=== C. export fails, a usable JSONL sits beside it ==="
 # The exporter is pointed at a fixture that does not exist, so it fails -- while a batch
 # from run A is still on the volume. Nothing from that older run may be consumed.
@@ -116,6 +131,7 @@ check 'C: import was not attempted' yes "$(contains "$OUT_C" 'import=not attempt
 check 'C: did not fall back to an older batch' no "$(contains "$OUT_C" 'import: ok')"
 
 echo
+reset_state
 echo "=== D. a board that is not on the allowlist ==="
 # The allowlist the SCRIPT reads lists the board; the one the IMPORTER reads does not.
 # That is the case worth testing: the boundary refuses it on its own, without relying on
@@ -129,6 +145,7 @@ check 'D: refused by the allowlist' yes "$(contains "$OUT_D" 'is not in')"
 check 'D: nothing imported' no "$(contains "$OUT_D" 'import: ok')"
 
 echo
+reset_state
 echo "=== E. two runs at once ==="
 # One container holds the lock on the shared volume while a second tries to start. The
 # lock is flock on a file the kernel owns, so the second cannot take it -- and the shared
@@ -145,12 +162,14 @@ check 'E: skipped because of the lock' yes "$(contains "$OUT_E" 'another run hol
 docker stop aijob-lock-holder >/dev/null 2>&1
 
 echo
+reset_state
 echo "=== F. once the lock is free ==="
 OUT_F="$(run_pipeline --skip-import)"; CODE_F=$?
 check 'F: proceeds (exit 0)' 0 "$CODE_F"
 check 'F: exported' yes "$(contains "$OUT_F" 'export ok: run=')"
 
 echo
+reset_state
 echo "=== G. no HTTP server, no scheduled collection, no expiry ==="
 ALL="$OUT_A$OUT_B$OUT_F"
 check 'G: no Tomcat' no "$(contains "$ALL" 'Tomcat started')"

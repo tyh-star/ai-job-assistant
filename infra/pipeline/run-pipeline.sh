@@ -29,6 +29,14 @@ BATCH_ROOT="${AIJOB_BATCH_ROOT:-/var/lib/aijob/batches}"
 # directory) at LOCK_DIR when more than one container can start this.
 LOCK_DIR="${AIJOB_LOCK_DIR:-/var/lib/aijob/lock}"
 
+# Shared state root. Holds per-board back-off state as well as the lock; the same
+# sharing rule applies -- a directory private to one container makes both meaningless.
+STATE_ROOT="${AIJOB_STATE_ROOT:-/var/lib/aijob}"
+export AIJOB_STATE_ROOT="$STATE_ROOT"
+
+# Pacing between boards, so one run does not hit every source in the same second.
+BOARD_INTERVAL_SECONDS="${AIJOB_BOARD_INTERVAL_SECONDS:-30}"
+
 MAX_PER_BOARD="${AIJOB_MAX_PER_BOARD:-50}"
 EXPORT_TIMEOUT="${AIJOB_EXPORT_TIMEOUT:-120s}"
 EXPECTED_EXPORTER_SHA="${AIJOB_EXPECTED_EXPORTER_SHA:-}"
@@ -57,6 +65,15 @@ if [[ -z "$ALLOWLIST" ]]; then
 fi
 
 abort() { echo "PIPELINE ABORT: $*" >&2; exit 1; }
+
+# Per-board back-off state. Beside this script in the repo, at /opt/aijob in the image.
+STATE_LIB="$(dirname "$0")/pipeline-state.sh"
+[[ -f "$STATE_LIB" ]] || STATE_LIB=/opt/aijob/pipeline-state.sh
+[[ -f "$STATE_LIB" ]] || abort "cannot find pipeline-state.sh"
+# shellcheck source=infra/pipeline/pipeline-state.sh
+source "$STATE_LIB"
+
+MODE="$([[ $LIVE -eq 1 ]] && echo live || echo fixture)"
 
 for f in "$JDEXPORT" "$IMPORTER_JAR" "$ALLOWLIST"; do
   [[ -e "$f" ]] || abort "missing $f"
@@ -119,9 +136,27 @@ for entry in "${BOARDS[@]}"; do
 
   if [[ "$has_evidence" != "yes" ]]; then
     echo "  SKIP: no evidence recorded in the allowlist"
-    SUMMARY+=("$label|skipped|skipped|0|0|0|0|0|")
+    SUMMARY+=("$label|skipped|skipped|0|0|0|0|0|no evidence in the allowlist")
     continue
   fi
+
+  # Backed off, or paused after a refusal. A skip is NOT a failure: the run's exit code
+  # must not turn amber because a board is correctly waiting out its own back-off.
+  due_reason="$(state_is_due "$MODE" "$provider" "$board")"
+  due_code=$?
+  if [[ $due_code -ne 0 ]]; then
+    echo "  SKIP: $due_reason"
+    SUMMARY+=("$label|skipped|skipped|0|0|0|0|0|$due_reason")
+    continue
+  fi
+
+  # Pace the boards apart. Not between the first board and the start of the run -- only
+  # between one board and the next -- so a single-board run has no dead time.
+  if [[ "${BOARDS_ATTEMPTED:-0}" -gt 0 && "$BOARD_INTERVAL_SECONDS" -gt 0 ]]; then
+    echo "  waiting ${BOARD_INTERVAL_SECONDS}s before this board"
+    sleep "$BOARD_INTERVAL_SECONDS"
+  fi
+  BOARDS_ATTEMPTED=$(( ${BOARDS_ATTEMPTED:-0} + 1 ))
 
   # This run's own directory. Nothing from a previous run is reachable from here, so a
   # failed export cannot be quietly satisfied by a file left lying around.
@@ -146,9 +181,25 @@ for entry in "${BOARDS[@]}"; do
   # The exporter's own bounded retries have already run. A failure here is final for this
   # board in this run: no further attempts, and the manifest it wrote stays as the record.
   if [[ $export_code -ne 0 ]]; then
-    echo "  EXPORT FAILED (exit $export_code) -- not importing this board"
-    tail -n 3 "$board_dir/export.log" | sed 's/^/    /'
-    SUMMARY+=("$label|failed|not attempted|0|0|0|0|0|export exit $export_code")
+    # The exporter classifies its own failures (ROBOTS_DISALLOWED, BLOCKED_BOT_CHALLENGE,
+    # RATE_LIMITED_429, REFUSED_403, ...) and writes the classification into the manifest
+    # even on a run that produced no JSONL. That string, not the exit code, is what the
+    # back-off keys on: "exit 1" cannot tell a rate limit from a robots disallow, and the
+    # two deserve opposite responses.
+    export_reason=""
+    [[ -f "$manifest" ]] && export_reason="$(jq -r '.error // ""' "$manifest" 2>/dev/null || true)"
+    [[ -z "$export_reason" ]] && export_reason="export exit $export_code"
+
+    echo "  EXPORT FAILED -- not importing this board"
+    echo "    $export_reason"
+    state_record_failure "$MODE" "$provider" "$board" "$RUN_ID" "$export_reason"
+    next_at="$(jq -r '.next_allowed_at // 0' <<<"$(state_read "$MODE" "$provider" "$board")")"
+    if [[ "$next_at" == "0" ]]; then
+      echo "    board PAUSED -- clear it with pipeline-status.sh --resume $provider/$board"
+    else
+      echo "    next attempt no earlier than $(epoch_to_iso "$next_at")"
+    fi
+    SUMMARY+=("$label|failed|not attempted|0|0|0|0|0|$export_reason")
     FAILURES=$((FAILURES + 1))
     continue
   fi
@@ -222,6 +273,15 @@ for entry in "${BOARDS[@]}"; do
     [[ -z "$reason" ]] && reason="$(tail -n 2 "$import_log" | tr '\n' ' ')"
     echo "    $reason"
   fi
+  # A refusal is a batch problem, a lease skip is someone else's turn, and neither is a
+  # source that has stopped working -- so neither moves the back-off. Only an import that
+  # actually failed counts against the board.
+  case $import_code in
+    0) state_record_success "$MODE" "$provider" "$board" "$RUN_ID" ;;
+    3) : ;;  # leased elsewhere: not this board's fault, not a failure
+    *) state_record_failure "$MODE" "$provider" "$board" "$RUN_ID" "import: ${reason:-exit $import_code}" ;;
+  esac
+
   SUMMARY+=("$label|ok|$import_status|$fetched|$exported|$ins|$upd|$unch|${reason:-$export_run}")
 done
 
