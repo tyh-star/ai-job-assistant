@@ -170,8 +170,28 @@ for entry in "${BOARDS[@]}"; do
   if [[ "$LIVE" -eq 1 ]]; then
     export_args+=(-live)
   else
-    fixture="$FIXTURE_DIR/${provider}_board.json"
-    [[ -f "$fixture" ]] || fixture="$FIXTURE_DIR/greenhouse_board.json"
+    # The fixture has to match the PROVIDER, and its name is upstream's, not ours:
+    # greenhouse_board.json but lever_postings.json. Both spellings are tried.
+    #
+    # There is deliberately no fall-back to another provider's file. There used to be
+    # one -- anything unmatched became greenhouse_board.json -- which meant a lever
+    # fixture run fed Greenhouse-shaped JSON to the Lever adapter and reported whatever
+    # came out as a successful lever export. A missing fixture is now a failure that
+    # says so.
+    fixture=""
+    for candidate in "${provider}_board" "${provider}_postings"; do
+      if [[ -f "$FIXTURE_DIR/$candidate.json" ]]; then
+        fixture="$FIXTURE_DIR/$candidate.json"
+        break
+      fi
+    done
+    if [[ -z "$fixture" ]]; then
+      echo "  NO FIXTURE for $provider in $FIXTURE_DIR -- refusing to run it against another provider's data"
+      state_record_failure "$MODE" "$provider" "$board" "$RUN_ID" "no fixture for provider $provider"
+      SUMMARY+=("$label|failed|not attempted|0|0|0|0|0|no fixture for provider $provider")
+      FAILURES=$((FAILURES + 1))
+      continue
+    fi
     export_args+=(-fixture "$fixture")
   fi
 

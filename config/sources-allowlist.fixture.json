@@ -16,6 +16,17 @@
   "version": 1,
   "sources": [
     {
+      "provider": "lever",
+      "board": "fixture-lever-demo",
+      "company": "Fixture Lever Demo Corp",
+      "enabled": true,
+      "evidence": {
+        "why": "Not a real board. Exists so the Lever import path -- UUID identity, hostedUrl as the apply link, createdAt as a genuine publication date -- is exercised offline before any real Lever board is contacted.",
+        "network": "None. Fixture mode replays cmd/jdexport/testdata/lever_postings.json from a loopback server.",
+        "verified_on": "2026-09-02"
+      }
+    },
+    {
       "provider": "greenhouse",
       "board": "fixture-demo",
       "company": "Fixture Demo Corp",

@@ -118,17 +118,43 @@ check 'B: all of them read back as unchanged' "${EXPORTED_B:-x}" "${UNCH_B:-y}" 
 
 echo
 reset_state
-echo "=== C. export fails, a usable JSONL sits beside it ==="
-# The exporter is pointed at a fixture that does not exist, so it fails -- while a batch
-# from run A is still on the volume. Nothing from that older run may be consumed.
+echo "=== C. no fixture for the provider ==="
+# Caught before the exporter runs. This used to silently fall back to greenhouse's
+# fixture, so a lever run fed Greenhouse-shaped JSON to the Lever adapter and reported
+# whatever came out as a successful lever export. Now it refuses and says so.
+#
+# A batch from run A is still on the volume throughout, and must not be consumed.
 OUT_C="$(docker run --rm --network "$NETWORK" --env-file "$MOUNT_ENV" \
   -v aijob-verify-state:/var/lib/aijob \
   -e FIXTURE_DIR=/opt/aijob/nonexistent \
   "$IMAGE" 2>&1)"; CODE_C=$?
 check 'C: run reports failure (exit 1)' 1 "$CODE_C"
-check 'C: export failed' yes "$(contains "$OUT_C" 'EXPORT FAILED')"
+check 'C: refused for the missing fixture' yes "$(contains "$OUT_C" 'NO FIXTURE for')"
+check 'C: refused to use another provider fixture' yes \
+  "$(contains "$OUT_C" "refusing to run it against another provider's data")"
 check 'C: import was not attempted' yes "$(contains "$OUT_C" 'import=not attempted')"
 check 'C: did not fall back to an older batch' no "$(contains "$OUT_C" 'import: ok')"
+
+echo
+reset_state
+echo "=== C2. the exporter itself fails, with an older batch beside it ==="
+# The fixture EXISTS but is not valid JSON, so the exporter genuinely runs and fails --
+# the case C used to cover before the guard above started catching it earlier. Both
+# paths have to end the same way: no import, and no reaching for an older file.
+BAD_FIXTURE="$(mktemp -d)"
+printf 'this is not json' > "$BAD_FIXTURE/greenhouse_board.json"
+MOUNT_BAD="$BAD_FIXTURE"
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) MOUNT_BAD="$(cygpath -w "$BAD_FIXTURE")" ;; esac
+OUT_C2="$(docker run --rm --network "$NETWORK" --env-file "$MOUNT_ENV" \
+  -v aijob-verify-state:/var/lib/aijob \
+  -v "${MOUNT_BAD}:/bad:ro" \
+  -e FIXTURE_DIR=/bad \
+  "$IMAGE" 2>&1)"; CODE_C2=$?
+rm -rf "$BAD_FIXTURE"
+check 'C2: run reports failure (exit 1)' 1 "$CODE_C2"
+check 'C2: the exporter ran and failed' yes "$(contains "$OUT_C2" 'EXPORT FAILED')"
+check 'C2: import was not attempted' yes "$(contains "$OUT_C2" 'import=not attempted')"
+check 'C2: did not fall back to an older batch' no "$(contains "$OUT_C2" 'import: ok')"
 
 echo
 reset_state

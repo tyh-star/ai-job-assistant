@@ -1,0 +1,149 @@
+{
+  "_comment": [
+    "Pilot allowlist: the first expansion beyond one company, ten real boards.",
+    "",
+    "SEPARATE FROM config/sources-allowlist.json ON PURPOSE. That file is what a",
+    "production deployment collects from; this one is a local experiment against the",
+    "isolated test database. Merging them is a later, deliberate decision.",
+    "",
+    "WHAT WAS CHECKED, on 2026-09-02, for every entry below:",
+    "  * the board answers today -- upstream's sources/*.yml only records that someone",
+    "    once found it, which is not the same thing",
+    "  * robots.txt on the API host allows the path, fetched at probe time and again",
+    "    before every collection run, and recorded in each run's manifest",
+    "  * the posting count the board actually returned",
+    "",
+    "WHAT WAS NOT CHECKED, and is not claimed: no company's terms of service were read,",
+    "and no permission was sought from anyone. robots.txt allowing a path is a machine-",
+    "readable hint about crawling, not a licence to the content behind it. These are",
+    "public ATS APIs that employers publish so their openings can be read programmatically,",
+    "which is why this is defensible for a small local pilot -- it is NOT a basis for",
+    "redistribution, for scale, or for anything user-facing without a proper review.",
+    "",
+    "Counts below are what the board returned at probe time. They move.",
+    "",
+    "NOT INCLUDED, and why -- recorded so the next round does not re-probe them blindly:",
+    "  lever/kraken123  200 OK, robots allow, ZERO postings",
+    "  lever/mistral    200 OK, robots allow, ZERO postings",
+    "  lever/whoop      200 OK, robots allow, ZERO postings",
+    "  lever/anyscale   200 OK, robots allow, 1 posting -- live, dropped only to keep the",
+    "                   pilot at ten; a candidate for the next round",
+    "A zero-posting board cannot be told apart from a company with no open roles by an",
+    "empty array alone, so none of these is marked dead -- only unused."
+  ],
+  "version": 1,
+  "sources": [
+    {
+      "provider": "greenhouse",
+      "board": "vercel",
+      "company": "Vercel",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/vercel/jobs?content=true",
+        "why": "Greenhouse's public Job Board API: documented, unauthenticated, and intended for programmatic reading of a board the employer chose to publish.",
+        "probe": "2026-09-02: 200 OK, robots allow, 87 postings",
+        "notes": "The board this whole pipeline was built against."
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "duolingo",
+      "company": "Duolingo",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/duolingo/jobs?content=true",
+        "why": "Greenhouse public Job Board API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 87 postings"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "cloudflare",
+      "company": "Cloudflare",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs?content=true",
+        "why": "Greenhouse public Job Board API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 321 postings"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "elastic",
+      "company": "Elastic",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/elastic/jobs?content=true",
+        "why": "Greenhouse public Job Board API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 355 postings"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "mozilla",
+      "company": "Mozilla",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/mozilla/jobs?content=true",
+        "why": "Greenhouse public Job Board API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 90 postings"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "spotify",
+      "company": "Spotify",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/spotify?mode=json",
+        "why": "Lever's public postings API: unauthenticated, returns the board the employer publishes, and is what Lever's own hosted job page is built on.",
+        "probe": "2026-09-02: 200 OK, robots allow, 77 postings"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "palantir",
+      "company": "Palantir",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/palantir?mode=json",
+        "why": "Lever public postings API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 306 postings"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "contentsquare",
+      "company": "Contentsquare",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/contentsquare?mode=json",
+        "why": "Lever public postings API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 30 postings"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "wealthfront",
+      "company": "Wealthfront",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/wealthfront?mode=json",
+        "why": "Lever public postings API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 22 postings"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "alltrails",
+      "company": "AllTrails",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/alltrails?mode=json",
+        "why": "Lever public postings API, same terms as above.",
+        "probe": "2026-09-02: 200 OK, robots allow, 1 posting",
+        "notes": "Deliberately kept despite being tiny: a one-posting board exercises a size the other nine do not, and a pilot that only ever saw large boards would not have tried it."
+      }
+    }
+  ]
+}
