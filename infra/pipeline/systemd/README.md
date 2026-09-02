@@ -1,7 +1,7 @@
 # Scheduled runs on Ubuntu
 
-Four unit files: a pipeline service and its 6-hourly timer, a retention service and its
-daily timer.
+Four unit files: a pipeline service and its timer (00:00, 06:00, 12:00 and 18:00 UTC), a
+retention service and its daily timer.
 
 **Nothing here is installed or enabled by the repository.** The files were written and
 statically validated; no timer has ever fired. See *What is and is not verified* below —
@@ -110,17 +110,40 @@ docker run --rm -v aijob-pipeline-state:/var/lib/aijob \
   --resume greenhouse/vercel --mode live
 ```
 
-### The 429 limitation, stated plainly
+### 429 and Retry-After
 
-A `429` gets at least 6 hours, never less, whatever its position on the ladder.
+`next attempt = max(local back-off, the deadline the server named)`.
 
-What that is **not**: a guarantee of honouring the server's `Retry-After`. The exporter
-honours it *within* a run — its HTTP client waits and retries, capping its own wait at 30
-seconds — but the header value is consumed there and never reaches the manifest, so the
-pipeline cannot read it. The 6-hour floor is far longer than any wait the exporter itself
-would perform, so in practice it exceeds the request. **If a server asked for more than 6
-hours, we would not know.** Closing that gap means having the exporter record the header
-it saw; that is a change to the exporter and has not been made.
+Local policy may hold back **longer** than asked — a 429 always gets at least the 6-hour
+rung, even on a first failure, because a server that is rate-limiting wants a real gap.
+It never goes **earlier**: retrying before a `Retry-After` has elapsed is the one thing the
+header exists to forbid.
+
+The exporter reads `Retry-After` in both RFC 9110 forms (delta-seconds and an HTTP-date)
+and writes what it learned into the failed run's manifest:
+
+```json
+"rate_limit": {
+  "known": true, "raw": "120", "seconds": 120,
+  "observed_at": "2026-09-02T18:00:00Z",
+  "retry_not_before": "2026-09-02T18:02:00Z",
+  "affordable_in_run": false
+}
+```
+
+`retry_not_before` is an **absolute instant**, and that is deliberate: a remembered
+duration would quietly become "wait that long again from whenever we happen to come back",
+which is a weaker promise than the one the server was given. A restart between the 429 and
+the deadline cannot lose it.
+
+Thirty seconds is now a **budget** — how long one run will sit still — not a cap on what a
+server may ask for. It used to clamp a longer request down to 30s and retry, which is not
+honouring the header but ignoring it. A request beyond the budget ends the run with no
+further attempt, and the deadline travels out to the scheduler.
+
+`known: false` means the header was absent or unreadable. Then `retry_not_before` is empty
+and the wait is local policy — recorded as a guess rather than as compliance with an
+instruction that was never given.
 
 ## Retention
 
@@ -143,15 +166,17 @@ do would let the disk fill while looking healthy.
 
 ## What is and is not verified
 
-**Verified:** the unit files parse (`systemd-analyze verify`), the pipeline itself runs on
+**Verified:** the unit files parse (`systemd-analyze verify`), the calendar expression resolves to the four intended UTC instants (`systemd-analyze calendar`), the pipeline itself runs on
 Linux end to end, the back-off ladder, the pause behaviour, restart persistence, lock
 contention, and the retention boundaries — all with controllable time, so no test waited
 six hours for anything.
 
-**Not verified:** a timer actually waking the service. No timer has been installed or
-enabled, on this machine or anywhere else. `OnUnitActiveSec=6h`, `Persistent=true` and the
-`RandomizedDelaySec` jitter are unexercised configuration. The first real tick will be on
-the host you install this on, and it should be watched.
+**Not verified:** a timer actually waking the service, and catch-up after downtime. No
+timer has been installed or enabled, on this machine or anywhere else. The `OnCalendar`
+schedule, `Persistent=true` catch-up and the `RandomizedDelaySec` jitter are validated as
+EXPRESSIONS, not as behaviour: nothing has fired, and no machine has been switched off
+across a scheduled instant to see it catch up. The first real tick will be on the host you
+install this on, and it should be watched.
 
 **Not verified:** anything on AWS. Nothing here has been near the production database or
 an EC2 instance.

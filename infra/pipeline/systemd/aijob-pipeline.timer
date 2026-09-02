@@ -1,21 +1,30 @@
 [Unit]
-Description=Run the AI Job collection pipeline every 6 hours
+Description=Run the AI Job collection pipeline at 00:00, 06:00, 12:00 and 18:00 UTC
 Documentation=file:/opt/aijob/README.md
 
 [Timer]
 Unit=aijob-pipeline.service
 
-# Every 6 hours from boot, and every 6 hours after each run.
-OnBootSec=15min
-OnUnitActiveSec=6h
+# Four fixed times a day, in UTC.
+#
+# A calendar schedule, not OnBootSec + OnUnitActiveSec. Persistent= only means anything
+# for a calendar timer: it works by comparing the last trigger stamp against the schedule,
+# and a monotonic timer has no schedule to have missed. The earlier pairing therefore
+# claimed catch-up it could not do -- after downtime it would simply start counting six
+# hours again from boot, silently skipping however many windows had passed.
+#
+# The two are also not mixed: with both set, systemd takes whichever elapses first, and
+# the effective cadence stops being either one.
+OnCalendar=*-*-* 00,06,12,18:00:00 UTC
 
 # Up to 20 minutes of jitter. Four fixed times a day means every host running this hits
 # the same boards at the same moments; spreading the start is politeness that costs
-# nothing.
+# nothing. It applies on top of the calendar instant, so the window is 00:00-00:20 and so on.
 RandomizedDelaySec=20min
 
-# If the machine was off when a tick was due, run once on the next boot rather than
-# silently skipping a window.
+# If the machine was off across a scheduled instant, run once as soon as it is back
+# rather than waiting for the next one. This is the setting the calendar schedule above
+# makes real.
 Persistent=true
 
 [Install]

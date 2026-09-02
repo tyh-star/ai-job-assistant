@@ -105,6 +105,42 @@ check '2b: second 429 still gets the full 12h' $(( T0 + 6*3600 + 12*3600 )) \
   "$(jq -r .next_allowed_at <<<"$(state_read live greenhouse rate)")"
 
 echo
+echo "=== 2b. the server's Retry-After deadline is persisted and never shortened ==="
+# The exporter now reports the instant the server named. The rule is max(local back-off,
+# server deadline): holding back longer than asked is our choice, going earlier is not.
+export AIJOB_NOW=$T0
+
+# A deadline BEYOND the local ladder must win.
+FAR="$(date -u -d "@$(( T0 + 30*3600 ))" +%Y-%m-%dT%H:%M:%SZ)"
+state_record_failure live greenhouse ra-far run-f1 "RATE_LIMITED_429: the server asked" "$FAR"
+check '2b-i: a 30h deadline overrides the 6h rung' $(( T0 + 30*3600 )) \
+  "$(jq -r .next_allowed_at <<<"$(state_read live greenhouse ra-far)")"
+
+# A deadline INSIDE the local ladder must not shorten it.
+NEAR="$(date -u -d "@$(( T0 + 120 ))" +%Y-%m-%dT%H:%M:%SZ)"
+state_record_failure live greenhouse ra-near run-f2 "RATE_LIMITED_429: the server asked" "$NEAR"
+check '2b-ii: a 2min deadline does not shorten the 6h rung' $(( T0 + 6*3600 )) \
+  "$(jq -r .next_allowed_at <<<"$(state_read live greenhouse ra-near)")"
+
+# No deadline: local policy alone, and that is what the state says.
+state_record_failure live greenhouse ra-none run-f3 "RATE_LIMITED_429: no usable Retry-After" ""
+check '2b-iii: no deadline falls back to local policy' $(( T0 + 6*3600 )) \
+  "$(jq -r .next_allowed_at <<<"$(state_read live greenhouse ra-none)")"
+
+# A malformed instant must not silently become "now".
+state_record_failure live greenhouse ra-bad run-f4 "RATE_LIMITED_429" "not-a-timestamp"
+check '2b-iv: an unparseable deadline never shortens the wait' $(( T0 + 6*3600 )) \
+  "$(jq -r .next_allowed_at <<<"$(state_read live greenhouse ra-bad)")"
+
+# Restart: a fresh process, just short of the server's deadline, must still refuse.
+out="$(AIJOB_STATE_ROOT="$AIJOB_STATE_ROOT" AIJOB_NOW=$(( T0 + 30*3600 - 1 )) bash -c \
+  'source "'"$HERE"'/pipeline-state.sh"; state_is_due live greenhouse ra-far >/dev/null; echo $?')"
+check '2b-v: still not due one second early, in a new process' 1 "$out"
+out="$(AIJOB_STATE_ROOT="$AIJOB_STATE_ROOT" AIJOB_NOW=$(( T0 + 30*3600 )) bash -c \
+  'source "'"$HERE"'/pipeline-state.sh"; state_is_due live greenhouse ra-far >/dev/null; echo $?')"
+check '2b-vi: due once the deadline passes' 0 "$out"
+
+echo
 echo "=== 3. a refusal pauses the board instead of backing it off ==="
 for reason in "ROBOTS_DISALLOWED: robots.txt disallows this path" \
               "BLOCKED_BOT_CHALLENGE: the platform served a challenge" \

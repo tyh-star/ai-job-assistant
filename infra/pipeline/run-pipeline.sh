@@ -187,12 +187,19 @@ for entry in "${BOARDS[@]}"; do
     # back-off keys on: "exit 1" cannot tell a rate limit from a robots disallow, and the
     # two deserve opposite responses.
     export_reason=""
-    [[ -f "$manifest" ]] && export_reason="$(jq -r '.error // ""' "$manifest" 2>/dev/null || true)"
+    server_deadline=""
+    if [[ -f "$manifest" ]]; then
+      export_reason="$(jq -r '.error // ""' "$manifest" 2>/dev/null || true)"
+      # A 429 that named a Retry-After puts the server's own deadline here. It is
+      # absolute, so it survives a restart between now and then.
+      server_deadline="$(jq -r '.rate_limit.retry_not_before // ""' "$manifest" 2>/dev/null || true)"
+    fi
     [[ -z "$export_reason" ]] && export_reason="export exit $export_code"
 
     echo "  EXPORT FAILED -- not importing this board"
     echo "    $export_reason"
-    state_record_failure "$MODE" "$provider" "$board" "$RUN_ID" "$export_reason"
+    [[ -n "$server_deadline" ]] && echo "    the server asked not to be called before $server_deadline"
+    state_record_failure "$MODE" "$provider" "$board" "$RUN_ID" "$export_reason" "$server_deadline"
     next_at="$(jq -r '.next_allowed_at // 0' <<<"$(state_read "$MODE" "$provider" "$board")")"
     if [[ "$next_at" == "0" ]]; then
       echo "    board PAUSED -- clear it with pipeline-status.sh --resume $provider/$board"

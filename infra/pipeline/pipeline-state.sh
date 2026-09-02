@@ -137,15 +137,23 @@ state_record_success() {
       last_run_id:$r, last_success_at:$at}')"
 }
 
-# state_record_failure <mode> <provider> <board> <run_id> <reason>
+# state_record_failure <mode> <provider> <board> <run_id> <reason> [retry_not_before]
+#
+# retry_not_before is an RFC 3339 instant the SERVER named (from the manifest's
+# rate_limit.retry_not_before). Empty when it named none.
 #
 # Returns nothing; the caller reads the state back if it wants the new next_allowed_at.
 state_record_failure() {
   local mode="$1" provider="$2" board="$3" run_id="$4" reason="$5"
-  local s fails now delay next paused="false" paused_reason=""
+  local server_deadline="${6:-}"
+  local s fails now delay next paused="false" paused_reason="" server_epoch=0
   s="$(state_read "$mode" "$provider" "$board")"
   fails=$(( $(jq -r '.consecutive_failures // 0' <<<"$s") + 1 ))
   now="$(now_epoch)"
+
+  if [[ -n "$server_deadline" ]]; then
+    server_epoch="$(date -u -d "$server_deadline" +%s 2>/dev/null || echo 0)"
+  fi
 
   if is_pausing_failure "$reason"; then
     paused="true"
@@ -156,18 +164,23 @@ state_record_failure() {
     next=0
   else
     delay="$(backoff_seconds "$fails")"
-    # A 429 never comes back sooner than the ordinary ladder. The exporter already
-    # honoured Retry-After inside the run (capped at 30s by its own policy) and still
-    # failed, so the server wants a longer gap than any single run can wait out.
-    #
-    # Being precise about the limit: the pipeline cannot READ the Retry-After value --
-    # it is consumed inside the HTTP client and never surfaced in the manifest. The 6h
-    # floor is longer than any wait the exporter itself would have performed, but if a
-    # server asked for more than 6h we would not know. See the README.
+    # A 429 gets at least the first rung, even on the first failure: a server that is
+    # rate-limiting wants a real gap, not the minute a generic transient error would get.
     if [[ "$reason" == *RATE_LIMITED_429* ]] && (( delay < 6 * 3600 )); then
       delay=$(( 6 * 3600 ))
     fi
     next=$(( now + delay ))
+
+    # The server's own deadline wins when it is later. Local policy may hold back
+    # LONGER than asked -- that is our choice to make -- but never shorter: retrying
+    # before a Retry-After has elapsed is the thing the header exists to forbid.
+    #
+    # It is stored as an absolute instant, so a restart in between cannot lose it. A
+    # remembered duration would silently become "wait that long again from whenever we
+    # happen to come back", which is a different and weaker promise.
+    if (( server_epoch > next )); then
+      next="$server_epoch"
+    fi
   fi
 
   state_write "$mode" "$provider" "$board" "$(jq -n \
