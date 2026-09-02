@@ -1,0 +1,34 @@
+# Build context for Dockerfile.java21-tests only.
+#
+# BuildKit uses <dockerfile-path>.dockerignore in preference to the root .dockerignore,
+# which is what this file is for. Two differences from the root one, both deliberate:
+#
+#   * src/test is KEPT. The root file drops it because the production image ships a jar
+#     built with -DskipTests. This image exists to run those tests, and without them the
+#     build still succeeds while Maven reports "No tests to run" -- which reads like a
+#     passing suite.
+#   * infra/, schema/ and frontend/src are KEPT, because tests read them at runtime.
+#
+# Credentials are excluded at any depth, not just at the root: the pattern `.env.*` on
+# its own would not match infra/mysql-test/.env.mysql-test.
+.git
+.gitattributes
+.idea
+.vscode
+.deploy
+target
+uploads
+docs
+**/.env
+**/.env.*
+!.env.example
+!infra/aws/.env.aws.example
+infra/aws/.env.aws
+infra/mysql-test/.env.mysql-test
+infra/aws/releases
+frontend/node_modules
+frontend/dist
+**/*.iml
+**/.DS_Store
+regression-test-output.docx
+db-backups

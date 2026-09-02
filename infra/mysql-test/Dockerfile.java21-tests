@@ -1,0 +1,28 @@
+# A Java 21 image that can RUN the test suite, as opposed to Dockerfile.collector which
+# builds with -DskipTests and ships only the jar.
+#
+# This exists because the host has JDK 23 and the project targets 21. Compiling with
+# release=21 makes the bytecode compatible; it does not tell you the suite passes on a
+# Java 21 runtime, which is a different claim. This image lets that claim be tested
+# instead of assumed.
+FROM maven:3.9.9-eclipse-temurin-21
+
+WORKDIR /src
+
+# Warm the dependency cache first: this layer only changes when pom.xml does.
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline -DskipTests || true
+
+# The WHOLE context, not just src/. Several tests read repository files at runtime rather
+# than from the classpath -- the MySQL suite applies infra/aws/mysql-init/01-schema.sql
+# and schema/*.sql, the Compose config tests parse the yml files, and a V3 test reads
+# frontend/src/tailor/runTailorFlow.ts. Copying only src/ makes those fail on a missing
+# file, which looks exactly like a real regression and is not one.
+#
+# Dockerfile.java21-tests.dockerignore beside this file decides what is left out; it is
+# used in preference to the root .dockerignore, which excludes src/test.
+COPY . .
+
+# No CMD: the caller passes the Maven goals, so one image serves both the H2 suite and
+# the MySQL one.
+ENTRYPOINT ["mvn", "-B"]
