@@ -88,8 +88,15 @@ class PilotSearchInspectionTest {
                       JOIN job_sources s ON s.id = r.source_id
                      WHERE s.provider_type = ? AND s.tenant_key = ?
                     """, Long.class, board.get("provider_type"), board.get("tenant_key"));
-            log.info("PILOT   {}/{} company='{}' stored={} search_hits={}",
-                    board.get("provider_type"), board.get("tenant_key"), company, stored, hits.totalCount());
+            // stored comes from the source join -- the exact company. hits comes from
+            // full-text search, which will also match another employer's posting that
+            // mentions the name ("Elasticsearch" in a Cloudflare JD). They are different
+            // questions, so this asserts findability, NOT equality: treating a full-text
+            // company-name search as an exact company filter is precisely the mistake
+            // that would make these numbers look wrong.
+            log.info("PILOT   {}/{} company='{}' stored={} search_hits={}{}",
+                    board.get("provider_type"), board.get("tenant_key"), company, stored, hits.totalCount(),
+                    hits.totalCount() > stored ? "  (full-text also matched other employers' text)" : "");
             assertTrue(hits.totalCount() > 0,
                     "a company with " + stored + " stored postings must be findable by name: " + company);
         }
@@ -130,13 +137,15 @@ class PilotSearchInspectionTest {
                     row.get("with_country"), row.get("with_city"));
         }
 
+        // Counted over the WHOLE catalog, not just the pilot boards. The search service
+        // has no idea which rows came from a pilot, so filtering one side and not the
+        // other compares two different questions -- and the mismatch it produced (54
+        // against 56) looked like a filter bug when it was two synthetic fixture rows.
         List<Map<String, Object>> countries = jdbcTemplate.queryForList("""
-                SELECT c.country_code, COUNT(*) AS jobs
-                  FROM job_source_records r
-                  JOIN job_sources s ON s.id = r.source_id
-                  JOIN job_catalog  c ON c.id = r.catalog_job_id
-                 WHERE c.country_code IS NOT NULL AND s.tenant_key NOT LIKE 'fixture%'
-                 GROUP BY c.country_code ORDER BY jobs DESC
+                SELECT country_code, COUNT(*) AS jobs
+                  FROM job_catalog
+                 WHERE country_code IS NOT NULL AND status = 'ACTIVE'
+                 GROUP BY country_code ORDER BY jobs DESC
                 """);
         log.info("PILOT ---- country filter, through the search service ----");
         for (Map<String, Object> row : countries) {

@@ -78,7 +78,11 @@ class GreenhouseBoardAdapterTest {
 
         NormalizedJob remote = jobs.get(1);
         assertEquals(RemoteType.REMOTE, remote.remoteType());
-        assertNull(remote.country());
+        // "Remote - United States". This asserted null until the location rules learned
+        // to look past a work-arrangement prefix -- the old expectation was recording a
+        // parser limitation as if it were intended behaviour. The posting plainly names
+        // a country, and the remote arrangement does not make it stateless.
+        assertEquals("US", remote.country());
     }
 
     @Test

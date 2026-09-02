@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * The database half of ingestion, isolated so its transactions are real.
@@ -72,6 +73,7 @@ public class JobIngestTransactions {
                     // This source became active again, which can change which record
                     // supplies the catalog's links.
                     refreshEffectiveLinks(catalogJobId);
+                    repairDerivedLocation(entry, job);
                 }
             }
             return IngestOutcome.UNCHANGED;
@@ -230,6 +232,51 @@ public class JobIngestTransactions {
      * here, so a second board merging into an existing row cannot silently replace the
      * first board's apply link.
      */
+    /**
+     * Recomputes city, region and country for a posting whose CONTENT did not change.
+     *
+     * <p>Without this, a fix to {@link LocationParser} would only ever reach postings
+     * collected after it shipped. An unchanged posting skips {@code applyContent}
+     * entirely — correctly, since nothing the source published moved — so every row
+     * already in the catalog would keep the fields the old rules produced, and the only
+     * way to benefit would be to empty the table and collect everything again.
+     *
+     * <p>Deliberately narrow. It touches the three DERIVED fields and nothing else, does
+     * not alter the content hash (the source content really is unchanged), and does not
+     * report the posting as UPDATED — an update is something the employer did. It writes
+     * only when a value actually differs, so a run over already-correct rows issues no
+     * statements at all.
+     */
+    private void repairDerivedLocation(JobCatalogEntry entry, NormalizedJob job) {
+        String city = LocationParser.city(job.location());
+        String region = LocationParser.region(job.location());
+        String country = countryOf(job);
+
+        if (Objects.equals(city, entry.getCity())
+                && Objects.equals(region, entry.getRegion())
+                && Objects.equals(country, entry.getCountryCode())) {
+            return;
+        }
+        jobCatalogMapper.updateDerivedLocation(entry.getId(), city, region, country);
+    }
+
+    /**
+     * The country a posting is in: what the platform STATED, or failing that, what the
+     * location text unambiguously names.
+     *
+     * <p>Order matters and only in this direction. Lever publishes a structured country
+     * field and it wins outright — text inference must never overwrite a value the source
+     * actually asserted, because the inference is a rule of thumb and the field is a fact.
+     * Greenhouse publishes no country at all, which is why 250 postings had none: the
+     * parser existed but nothing called it.
+     */
+    private static String countryOf(NormalizedJob job) {
+        if (job.country() != null && !job.country().isBlank()) {
+            return job.country();
+        }
+        return LocationParser.countryCode(job.location());
+    }
+
     private void applyContent(JobCatalogEntry entry, NormalizedJob job, LocalDateTime seenAt) {
         entry.setTitle(job.title());
         entry.setCompanyName(job.company());
@@ -238,7 +285,7 @@ public class JobIngestTransactions {
         entry.setLocationText(job.location());
         entry.setCity(LocationParser.city(job.location()));
         entry.setRegion(LocationParser.region(job.location()));
-        entry.setCountryCode(job.country());
+        entry.setCountryCode(countryOf(job));
         entry.setRemoteType(job.remoteType().name());
         entry.setEmploymentType(job.employmentType().name());
         if (job.salary() != null) {

@@ -172,6 +172,27 @@ public interface JobCatalogMapper {
             """)
     int touchLastSeen(@Param("id") Long id, @Param("lastSeenAt") LocalDateTime lastSeenAt);
 
+    /**
+     * Rewrites only the derived location fields.
+     *
+     * <p>For a posting whose source content did not change but whose city/region/country
+     * were produced by older parsing rules. It deliberately does not touch
+     * { payload_hash}, { last_seen_at} or anything the employer published --
+     * this repairs what WE derived, and dressing it up as an update would misreport who
+     * changed what.
+     */
+    @Update("""
+            UPDATE job_catalog
+            SET city = #{city},
+                region = #{region},
+                country_code = #{countryCode}
+            WHERE id = #{id}
+            """)
+    int updateDerivedLocation(@Param("id") Long id,
+                              @Param("city") String city,
+                              @Param("region") String region,
+                              @Param("countryCode") String countryCode);
+
     @Select("""
             <script>
             SELECT
