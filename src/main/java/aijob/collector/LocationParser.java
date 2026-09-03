@@ -118,6 +118,20 @@ public final class LocationParser {
             "west virginia", "wisconsin", "wyoming");
 
     /**
+     * Canadian province and territory codes and names. Used ONLY to recognise a middle
+     * segment as a subdivision — never to infer a country, since a province code alone
+     * has the same ambiguity problem as a state code.
+     */
+    private static final Set<String> CA_PROVINCE_CODES = Set.of(
+            "ab", "bc", "mb", "nb", "nl", "ns", "nt", "nu", "on", "pe", "qc", "sk", "yt");
+
+    private static final Set<String> CA_PROVINCE_NAMES = Set.of(
+            "alberta", "british columbia", "manitoba", "new brunswick",
+            "newfoundland and labrador", "nova scotia", "northwest territories",
+            "nunavut", "ontario", "prince edward island", "quebec", "québec",
+            "saskatchewan", "yukon");
+
+    /**
      * US state postal codes. A trailing one of these means the posting is in the US.
      *
      * <p>"CA" is deliberately absent. It is both California and the ISO code for Canada,
@@ -254,6 +268,24 @@ public final class LocationParser {
         return truncate(city, 190);
     }
 
+    /**
+     * The administrative subdivision — a state or province — when the middle segment
+     * actually names one.
+     *
+     * <p>It used to return whatever sat in the middle, on the assumption that a
+     * three-segment location is "City, Region, Country". That assumption fails on the
+     * shape these boards most often use for a multi-site posting: "Hybrid - San
+     * Francisco, New York City, Austin" is three CITIES, and it was storing "New York
+     * City" as San Francisco's region. A field that quietly holds a different city than
+     * the one in {@code city} is worse than an empty one — it is wrong in a way that
+     * reads as data.
+     *
+     * <p>So the middle segment has to look like a subdivision to be accepted, and
+     * anything else leaves this NULL. Recognising states and provinces by name and code
+     * covers the boards in use without a gazetteer; postings elsewhere in the world keep
+     * a null region, which is honest — {@code location_text} still holds everything the
+     * employer wrote.
+     */
     public static String region(String locationText) {
         if (locationText == null || locationText.isBlank()) {
             return null;
@@ -264,7 +296,20 @@ public final class LocationParser {
             return null;
         }
         String region = stripWorkMode(parts[1]);
-        return region.isEmpty() ? null : truncate(region, 190);
+        if (region.isEmpty()) {
+            return null;
+        }
+        String key = region.toLowerCase(Locale.ROOT);
+        if (US_STATE_CODES.contains(key) || US_STATE_NAMES.contains(key)
+                || CA_PROVINCE_CODES.contains(key) || CA_PROVINCE_NAMES.contains(key)
+                || key.equals("ca") || key.equals("georgia")) {
+            // "ca" and "georgia" are excluded from the COUNTRY sets because the name
+            // alone cannot say which country. As a middle segment between a city and a
+            // country they are unambiguously a subdivision, which is a different
+            // question and a safe one.
+            return truncate(region, 190);
+        }
+        return null;
     }
 
     /**

@@ -150,6 +150,20 @@ for entry in "${BOARDS[@]}"; do
     continue
   fi
 
+  # And the HOST this board lives on. A 429 is the server's, not the board's: without
+  # this gate the next board on the same host would be asked thirty seconds later, which
+  # is stepping around the limit rather than respecting it.
+  #
+  # The host is whatever this board's last run actually contacted. Unknown on a first
+  # run, and then there is nothing to have been limited by yet.
+  board_host="$(jq -r '.last_host // ""' <<<"$(state_read "$MODE" "$provider" "$board")")"
+  host_reason="$(host_state_is_due "$MODE" "$board_host")"
+  if [[ $? -ne 0 ]]; then
+    echo "  SKIP: $host_reason"
+    SUMMARY+=("$label|skipped|skipped|0|0|0|0|0|$host_reason")
+    continue
+  fi
+
   # Pace the boards apart. Not between the first board and the start of the run -- only
   # between one board and the next -- so a single-board run has no dead time.
   if [[ "${BOARDS_ATTEMPTED:-0}" -gt 0 && "$BOARD_INTERVAL_SECONDS" -gt 0 ]]; then
@@ -220,6 +234,18 @@ for entry in "${BOARDS[@]}"; do
     echo "    $export_reason"
     [[ -n "$server_deadline" ]] && echo "    the server asked not to be called before $server_deadline"
     state_record_failure "$MODE" "$provider" "$board" "$RUN_ID" "$export_reason" "$server_deadline"
+
+    # A rate limit is the HOST's, so it holds back every board on that host, not just
+    # this one. Other failures stay board-scoped: a 404 on one board says nothing about
+    # its neighbours.
+    if [[ "$export_reason" == *RATE_LIMITED_429* ]]; then
+      limited_host="$(host_from_manifest "$manifest")"
+      [[ -z "$limited_host" ]] && limited_host="$board_host"
+      if [[ -n "$limited_host" ]]; then
+        host_state_record_limit "$MODE" "$limited_host" "$RUN_ID" "$export_reason" "$server_deadline"
+        echo "    holding back every board on $limited_host until $(epoch_to_iso "$(jq -r '.next_allowed_at' <<<"$(host_state_read "$MODE" "$limited_host")")")"
+      fi
+    fi
     next_at="$(jq -r '.next_allowed_at // 0' <<<"$(state_read "$MODE" "$provider" "$board")")"
     if [[ "$next_at" == "0" ]]; then
       echo "    board PAUSED -- clear it with pipeline-status.sh --resume $provider/$board"
@@ -258,6 +284,12 @@ for entry in "${BOARDS[@]}"; do
     FAILURES=$((FAILURES + 1))
     continue
   fi
+  # Remember which host this board actually talks to, so the host gate can be applied
+  # BEFORE the next run contacts it. Derived from the request the exporter made.
+  seen_host="$(host_from_manifest "$manifest")"
+  host_state_record_success "$MODE" "$seen_host"
+  state_record_host "$MODE" "$provider" "$board" "$seen_host"
+
   echo "  export ok: run=$export_run fetched=$fetched exported=$exported truncated=$truncated"
 
   if [[ "$SKIP_IMPORT" -eq 1 ]]; then

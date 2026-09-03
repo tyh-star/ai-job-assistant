@@ -35,6 +35,121 @@ state_file() {
   printf '%s/%s.json' "$(state_dir "$mode")" "$safe"
 }
 
+# ---------------------------------------------------------------------------
+# Per-HOST back-off
+# ---------------------------------------------------------------------------
+#
+# A rate limit belongs to the server, not to the board that happened to trigger it.
+# boards-api.greenhouse.io serves every Greenhouse board we collect, so backing off only
+# the board that got the 429 and moving to the next one thirty seconds later is not
+# respecting the limit -- it is stepping around it with a different path on the same host.
+#
+# The host is not hardcoded per provider. It is read from the URLs the exporter actually
+# requested, recorded in each run's manifest, so it stays correct if an adapter's endpoint
+# ever moves.
+
+host_state_file() {
+  local mode="$1" host="$2"
+  local safe
+  safe="$(printf 'host__%s' "$host" | tr -c 'A-Za-z0-9_.-' '_')"
+  printf '%s/%s.json' "$(state_dir "$mode")" "$safe"
+}
+
+host_state_read() {
+  local f
+  f="$(host_state_file "$1" "$2")"
+  if [[ -f "$f" ]] && jq -e . "$f" >/dev/null 2>&1; then
+    cat "$f"
+  else
+    printf '{"host":"%s","mode":"%s","consecutive_failures":0,"next_allowed_at":0,' "$2" "$1"
+    printf '"last_reason":"","last_run_id":""}\n'
+  fi
+}
+
+# host_state_is_due <mode> <host> -- 0 due, 1 not due. Prints a reason.
+host_state_is_due() {
+  local mode="$1" host="$2" s next now
+  [[ -z "$host" ]] && { echo "due"; return 0; }
+  s="$(host_state_read "$mode" "$host")"
+  next="$(jq -r '.next_allowed_at // 0' <<<"$s")"
+  now="$(now_epoch)"
+  if (( now < next )); then
+    echo "host $host is rate-limited until $(epoch_to_iso "$next")"
+    return 1
+  fi
+  echo "due"
+  return 0
+}
+
+# host_state_record_limit <mode> <host> <run_id> <reason> [server_deadline_iso]
+#
+# Same rule as a board's: max(local back-off, what the server asked for). Never earlier
+# than the server said, and the local ladder can only push it further out.
+host_state_record_limit() {
+  local mode="$1" host="$2" run_id="$3" reason="$4" server_deadline="${5:-}"
+  [[ -z "$host" ]] && return 0
+  local s fails now delay next server_epoch=0
+  s="$(host_state_read "$mode" "$host")"
+  fails=$(( $(jq -r '.consecutive_failures // 0' <<<"$s") + 1 ))
+  now="$(now_epoch)"
+  delay="$(backoff_seconds "$fails")"
+  next=$(( now + delay ))
+  if [[ -n "$server_deadline" ]]; then
+    server_epoch="$(date -u -d "$server_deadline" +%s 2>/dev/null || echo 0)"
+    (( server_epoch > next )) && next="$server_epoch"
+  fi
+  local f tmp
+  f="$(host_state_file "$mode" "$host")"
+  mkdir -p "$(dirname "$f")"
+  tmp="${f}.partial.$$"
+  jq -n --arg h "$host" --arg m "$mode" --arg r "$run_id" --arg reason "$reason" \
+        --argjson fails "$fails" --argjson next "$next" \
+    '{host:$h, mode:$m, consecutive_failures:$fails, next_allowed_at:$next,
+      last_reason:$reason, last_run_id:$r}' > "$tmp" && mv -f "$tmp" "$f"
+}
+
+# A success on a host clears its limit: the server is answering again.
+host_state_record_success() {
+  local mode="$1" host="$2" f tmp
+  [[ -z "$host" ]] && return 0
+  f="$(host_state_file "$mode" "$host")"
+  [[ -f "$f" ]] || return 0
+  # Only rewrite when there is something to clear, so an ordinary run does no writes.
+  if [[ "$(jq -r '.next_allowed_at // 0' "$f")" == "0" ]]; then
+    return 0
+  fi
+  mkdir -p "$(dirname "$f")"
+  tmp="${f}.partial.$$"
+  jq '.consecutive_failures = 0 | .next_allowed_at = 0 | .last_reason = ""' "$f" > "$tmp" \
+    && mv -f "$tmp" "$f"
+}
+
+# state_record_host <mode> <provider> <board> <host>
+#
+# Remembers which host a board talks to, so the host gate can be consulted BEFORE the
+# next run contacts it. Written after a successful export, from the URL the exporter
+# actually requested rather than from a provider-to-host table that could go stale.
+state_record_host() {
+  local mode="$1" provider="$2" board="$3" host="$4" s f tmp
+  [[ -z "$host" ]] && return 0
+  s="$(state_read "$mode" "$provider" "$board")"
+  [[ "$(jq -r '.last_host // ""' <<<"$s")" == "$host" ]] && return 0
+  f="$(state_file "$mode" "$provider" "$board")"
+  mkdir -p "$(dirname "$f")"
+  tmp="${f}.partial.$$"
+  jq --arg h "$host" '.last_host = $h' <<<"$s" > "$tmp" && mv -f "$tmp" "$f"
+}
+
+# The API host a manifest's requests actually went to. The board endpoint, not the
+# robots.txt preflight -- they are the same host today, and reading the last request
+# rather than the first keeps it right if that ever stops being true.
+host_from_manifest() {
+  local manifest="$1"
+  [[ -f "$manifest" ]] || return 0
+  jq -r '.requests // [] | map(select(test("robots\\.txt") | not)) | last // ""' "$manifest" 2>/dev/null \
+    | sed -E 's|^[a-z]+://([^/]+).*|\1|'
+}
+
 # now_epoch -- "now" as a unix timestamp.
 #
 # AIJOB_NOW lets a test move time without waiting six hours for a back-off to expire.

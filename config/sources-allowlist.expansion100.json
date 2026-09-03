@@ -1,0 +1,1334 @@
+{
+  "_comment": [
+    "EXPANSION allowlist -- a staged local experiment, not a production source list.",
+    "config/sources-allowlist.json (production) and sources-allowlist.pilot.json are",
+    "untouched by this file.",
+    "",
+    "BASIS FOR COLLECTION, per platform, read on 2026-09-02 and unchanged since:",
+    "",
+    "  Greenhouse (docs.greenhouse.io/job-board.html): \"Job Board data is publicly",
+    "  available, so authentication is not required for any GET endpoints.\" Documents no",
+    "  rate limit, no caching policy, no attribution requirement and no redistribution",
+    "  terms. Silence leaves the question open; it does not answer it in our favour.",
+    "",
+    "  Lever (github.com/lever/postings-api): GET is public and unauthenticated. \"All job",
+    "  postings in the published state are publicly viewable. These jobs may be scraped by",
+    "  third parties.\" An acknowledgement of what happens, not a grant of rights.",
+    "",
+    "That basis is PER PLATFORM and therefore identical for every board below. What is",
+    "per-board is only whether the board is live, which the collection run itself records",
+    "in each manifest -- probing every board separately first would double the traffic to",
+    "the same hosts to learn what one run already tells us.",
+    "",
+    "PUBLIC DISPLAY / REDISTRIBUTION: NOT ESTABLISHED for any board here, and neither",
+    "vendor could grant it -- the postings are the EMPLOYERS' content. This is a private",
+    "local pilot against an isolated test database. Nothing here is cleared to go in front",
+    "of users, and nothing in this file should be read as saying otherwise.",
+    "",
+    "NOT CHECKED: no individual employer's terms were read; no permission was sought.",
+    "robots.txt is re-fetched before every board request and refusal aborts that board."
+  ],
+  "version": 1,
+  "sources": [
+    {
+      "provider": "greenhouse",
+      "board": "vercel",
+      "company": "Vercel",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/vercel/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "duolingo",
+      "company": "Duolingo",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/duolingo/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "cloudflare",
+      "company": "Cloudflare",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/cloudflare/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "elastic",
+      "company": "Elastic",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/elastic/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "mozilla",
+      "company": "Mozilla",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/mozilla/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "spotify",
+      "company": "Spotify",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/spotify?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "palantir",
+      "company": "Palantir",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/palantir?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "contentsquare",
+      "company": "Contentsquare",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/contentsquare?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "wealthfront",
+      "company": "Wealthfront",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/wealthfront?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "alltrails",
+      "company": "AllTrails",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/alltrails?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "anthropic",
+      "company": "Anthropic",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "figma",
+      "company": "Figma",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/figma/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "databricks",
+      "company": "Databricks",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/databricks/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "dropbox",
+      "company": "Dropbox",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/dropbox/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "reddit",
+      "company": "Reddit",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/reddit/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "twilio",
+      "company": "Twilio",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/twilio/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "gitlab",
+      "company": "GitLab",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/gitlab/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "mongodb",
+      "company": "MongoDB",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/mongodb/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "datadog",
+      "company": "Datadog",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/datadog/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "wikimedia",
+      "company": "Wikimedia Foundation",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/wikimedia/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "qonto",
+      "company": "Qonto",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/qonto?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "blablacar",
+      "company": "BlaBlaCar",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/blablacar?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "ledger",
+      "company": "Ledger",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/ledger?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "malt",
+      "company": "Malt",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/malt?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "swile",
+      "company": "Swile",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/swile?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "deliverect",
+      "company": "Deliverect",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/deliverect?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "aeratechnology",
+      "company": "Aera Technology",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/aeratechnology?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "logz",
+      "company": "Logz.io",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/logz?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "gohighlevel",
+      "company": "GoHighLevel",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/gohighlevel?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "anyscale",
+      "company": "Anyscale",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/anyscale?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "10alabs",
+      "company": "10a Labs",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/10alabs/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "brightai",
+      "company": "BrightAI",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/brightai/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "exodus54",
+      "company": "exodus54",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/exodus54/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "ivalua",
+      "company": "Ivalua",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/ivalua/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "ntconcepts",
+      "company": "NT Concepts",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/ntconcepts/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "simplifyjobsintegrationsandbox",
+      "company": "simplifyjobsintegrationsandbox",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/simplifyjobsintegrationsandbox/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "verainstituteofjustice",
+      "company": "Vera Institute of Justice",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/verainstituteofjustice/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "aegisventures",
+      "company": "Aegis Ventures",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/aegisventures/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "aquia",
+      "company": "Aquia",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/aquia/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "bgeinc",
+      "company": "BGE, Inc",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/bgeinc/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "carbonfuture",
+      "company": "Carbonfuture",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/carbonfuture/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "compasspathways",
+      "company": "Compass Pathways",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/compasspathways/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "dialecticch",
+      "company": "Dialectic",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/dialecticch/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "equityzen",
+      "company": "EquityZen",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/equityzen/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "fourmile",
+      "company": "Fourmile Veterinary Clinic",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/fourmile/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "gyde",
+      "company": "Gyde",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/gyde/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "innovid",
+      "company": "Innovid",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/innovid/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "lambcareers",
+      "company": "Lamb Insurance Services",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/lambcareers/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "maslanskycareers",
+      "company": "maslansky + partners",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/maslanskycareers/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "nasstudios",
+      "company": "'Nas Studios '",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/nasstudios/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "oodlefinance",
+      "company": "Oodle Finance",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/oodlefinance/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "picniccare",
+      "company": "PicnicCare",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/picniccare/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "rapidfortinc",
+      "company": "RapidFort, Inc.",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/rapidfortinc/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "sangareevet",
+      "company": "Sangaree Animal Hospital",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/sangareevet/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "soundagriculture",
+      "company": "Sound Agriculture",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/soundagriculture/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "tanius",
+      "company": "Tanius Technology",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/tanius/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "truckstop",
+      "company": "Truckstop",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/truckstop/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "watsonsfriendsah",
+      "company": "Watson's Friends Animal Hospital",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/watsonsfriendsah/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "compliancemanagementinternational",
+      "company": "Compliance Management International",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/compliancemanagementinternational/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "fideres",
+      "company": "Fideres",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/fideres/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "redpeak",
+      "company": "RedPeak",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/redpeak/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "openup",
+      "company": "OpenUp",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/openup/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "csglinkedinindeed",
+      "company": "CSG Consultants, Inc.",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/csglinkedinindeed/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "logicalintelligence",
+      "company": "Logical Intelligence",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/logicalintelligence/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "tabapay",
+      "company": "TabaPay",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/tabapay/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "arqitlimited",
+      "company": "Arqit",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/arqitlimited/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "dvah",
+      "company": "Dominion Valley Animal Hospital",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/dvah/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "kindbridgecorporation",
+      "company": "Kindbridge Behavioral Health",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/kindbridgecorporation/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "petmedic-jobs",
+      "company": "PetMedic",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/petmedic-jobs/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "greenhouse",
+      "board": "taxreliefadvocates",
+      "company": "Tax Relief Advocates",
+      "enabled": true,
+      "evidence": {
+        "api": "https://boards-api.greenhouse.io/v1/boards/taxreliefadvocates/jobs?content=true",
+        "why": "Greenhouse public Job Board API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/greenhouse.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "aledade",
+      "company": "Aledade",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/aledade?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "clearcapital",
+      "company": "clearcapital",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/clearcapital?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "fullscript",
+      "company": "Fullscript",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/fullscript?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "metlife",
+      "company": "MetLife",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/metlife?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "rigetti",
+      "company": "Rigetti",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/rigetti?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "tractian",
+      "company": "Tractian",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/tractian?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "adventus",
+      "company": "adventus",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/adventus?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "ashoka",
+      "company": "ashoka",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/ashoka?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "brighte",
+      "company": "brighte",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/brighte?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "cobaltrobotics",
+      "company": "cobaltrobotics",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/cobaltrobotics?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "developintelligence",
+      "company": "developintelligence",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/developintelligence?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "evidentid",
+      "company": "evidentid",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/evidentid?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "goalbookapp-2",
+      "company": "goalbookapp-2",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/goalbookapp-2?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "immiland-canada-inc",
+      "company": "immiland-canada-inc",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/immiland-canada-inc?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "kubra",
+      "company": "kubra",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/kubra?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "massive-rocket",
+      "company": "massive-rocket",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/massive-rocket?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "nibiru",
+      "company": "nibiru",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/nibiru?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "pison",
+      "company": "pison",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/pison?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "qualdoc",
+      "company": "qualdoc",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/qualdoc?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "sait",
+      "company": "sait",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/sait?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "splend",
+      "company": "splend",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/splend?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "tinybird",
+      "company": "tinybird",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/tinybird?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "venteur",
+      "company": "venteur",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/venteur?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "ywcaworks",
+      "company": "ywcaworks",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/ywcaworks?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "galatea",
+      "company": "galatea",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/galatea?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "wearemeru",
+      "company": "wearemeru",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/wearemeru?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "ecosystem",
+      "company": "ecosystem",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/ecosystem?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "MissionWired",
+      "company": "MissionWired",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/MissionWired?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "petehealth",
+      "company": "PeteHealth",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/petehealth?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    },
+    {
+      "provider": "lever",
+      "board": "abt",
+      "company": "abt",
+      "enabled": true,
+      "evidence": {
+        "api": "https://api.lever.co/v0/postings/abt?mode=json",
+        "why": "Lever public postings API; see the platform basis in _comment.",
+        "listed_in": "freehire sources/lever.yml at 1c7b51e812478d8a873862b190c4ca94cad26c11",
+        "checked_on": "2026-09-02",
+        "public_display": "NOT established -- collection and local storage only"
+      }
+    }
+  ]
+}

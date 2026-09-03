@@ -137,8 +137,46 @@ class LocationParserRulesTest {
         // so a search for the second or third city does not find this posting.
         String multi = "Hybrid - San Francisco, New York City, Austin";
         assertEquals("San Francisco", LocationParser.city(multi));
-        assertEquals("New York City", LocationParser.region(multi));
-        // And the raw text is kept whole elsewhere, so nothing is lost from the record.
+        // And the second city is NOT filed as San Francisco's region. It used to be.
+        assertNull(LocationParser.region(multi));
+        // The raw text is kept whole elsewhere, so nothing is lost from the record.
+    }
+
+    // ---------------------------------------------------------------------------
+    // region
+    // ---------------------------------------------------------------------------
+
+    @ParameterizedTest(name = "[{index}] {0} -> region {1}")
+    @CsvSource({
+            // A real subdivision in the middle: kept.
+            "'New York, NY, United States',                    NY",
+            "'Austin, Texas, United States',                   Texas",
+            "'Toronto, ON, Canada',                            ON",
+            "'Vancouver, British Columbia, Canada',            'British Columbia'",
+            // Middle segment is another CITY, not a subdivision: NULL rather than wrong.
+            "'Hybrid - San Francisco, New York City, Austin',  ",
+            "'Hybrid - San Francisco, New York City',          ",
+            "'Hybrid - London, Berlin',                        ",
+            "'Hybrid - San Francisco, New York City, London, Berlin', ",
+            // Two segments: no middle at all.
+            "'Chicago, IL',                                    ",
+            "'London, England',                                ",
+            // A country in the middle is not a subdivision either.
+            "'Remote, United States, Anywhere',                ",
+    })
+    void region(String location, String expected) {
+        assertEquals(expected, LocationParser.region(location), "region for: " + location);
+    }
+
+    @Test
+    void aSubdivisionIsAcceptedEvenWhereItsCountryWouldBeAmbiguous() {
+        // "CA" and "Georgia" are kept out of the COUNTRY sets because the name alone
+        // cannot say which country. Sitting between a city and a country they are
+        // unambiguously a subdivision -- a different question with a safe answer.
+        assertEquals("CA", LocationParser.region("San Francisco, CA, United States"));
+        assertEquals("Georgia", LocationParser.region("Atlanta, Georgia, United States"));
+        // And the country still resolves from the segment that actually names one.
+        assertEquals("US", LocationParser.countryCode("San Francisco, CA, United States"));
     }
 
     @Test
