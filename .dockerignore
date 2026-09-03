@@ -30,3 +30,6 @@ db-backups
 **/.env
 **/.env.*
 !.env.example
+
+# Pilot database credentials.
+infra/pilot-db/.env.pilot-db

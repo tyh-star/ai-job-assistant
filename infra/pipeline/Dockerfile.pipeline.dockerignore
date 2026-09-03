@@ -24,3 +24,6 @@ infra/aws/releases
 **/.DS_Store
 regression-test-output.docx
 db-backups
+
+# Pilot database credentials.
+infra/pilot-db/.env.pilot-db

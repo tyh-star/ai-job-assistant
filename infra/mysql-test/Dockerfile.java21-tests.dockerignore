@@ -36,3 +36,6 @@ db-backups
 # Collected job postings from local pipeline runs. Never belongs in an image layer:
 # real third-party content, and a copy that outlives the directory it came from.
 .pipeline-batches
+
+# Pilot database credentials.
+infra/pilot-db/.env.pilot-db
