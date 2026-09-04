@@ -49,7 +49,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 "spring.datasource.driver-class-name=org.h2.Driver",
                 "jwt.secret=test-only-jwt-secret-key-must-be-32b!!",
                 "openai.api-key=test-openai-key-not-real",
-                "aijob.storage.root=target/aijob-test-uploads"
+                "aijob.storage.root=target/aijob-test-uploads",
+                // This suite exercises the LOCAL catalog implementation specifically.
+                // Without this, the default provider (freehire) would be autowired and
+                // every assertion here -- built against rows this test seeded into
+                // job_catalog -- would run against the wrong service entirely.
+                "aijob.job-catalog.provider=local_catalog"
         }
 )
 @Sql(scripts = "classpath:schema/job-catalog-h2.sql")
@@ -158,7 +163,7 @@ class JobCatalogH2IntegrationTest {
         Long id = insertCatalogJobWithHtml(
                 "<p>Great role</p><script>steal()</script><a href=\"javascript:alert(1)\">x</a>");
 
-        JobCatalogDetail detail = jobCatalogService.findDetail(ALICE, id);
+        JobCatalogDetail detail = jobCatalogService.findDetail(ALICE, String.valueOf(id));
 
         assertNotNull(detail.descriptionHtml());
         assertTrue(detail.descriptionHtml().contains("<p>Great role</p>"));
@@ -168,7 +173,18 @@ class JobCatalogH2IntegrationTest {
 
     @Test
     void missingCatalogJobIsNotFound() {
-        assertThrows(JobNotFoundException.class, () -> jobCatalogService.findDetail(ALICE, 9_999L));
+        assertThrows(JobNotFoundException.class, () -> jobCatalogService.findDetail(ALICE, "9999"));
+    }
+
+    @Test
+    void aNonNumericCatalogJobIdIsNotFoundRatherThanAServerError() {
+        // A reference from the OTHER provider (e.g. a freehire:<slug> id, sent while
+        // this deployment is running local_catalog) must not blow up as a parse error --
+        // from the caller's side, this provider genuinely has no such row.
+        assertThrows(JobNotFoundException.class,
+                () -> jobCatalogService.findDetail(ALICE, "freehire:some-slug"));
+        assertThrows(JobNotFoundException.class,
+                () -> jobCatalogService.saveToMyJobs(ALICE, "not-a-number"));
     }
 
     @Test
@@ -176,11 +192,11 @@ class JobCatalogH2IntegrationTest {
         Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
                 CatalogJobStatus.ACTIVE);
 
-        SaveCatalogJobResponse first = jobCatalogService.saveToMyJobs(ALICE, catalogId);
+        SaveCatalogJobResponse first = jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
         assertFalse(first.alreadySaved());
         assertNotNull(first.jobId());
 
-        SaveCatalogJobResponse second = jobCatalogService.saveToMyJobs(ALICE, catalogId);
+        SaveCatalogJobResponse second = jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
         assertTrue(second.alreadySaved());
         assertEquals(first.jobId(), second.jobId());
 
@@ -199,8 +215,8 @@ class JobCatalogH2IntegrationTest {
         Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
                 CatalogJobStatus.ACTIVE);
 
-        SaveCatalogJobResponse forAlice = jobCatalogService.saveToMyJobs(ALICE, catalogId);
-        SaveCatalogJobResponse forBob = jobCatalogService.saveToMyJobs(BOB, catalogId);
+        SaveCatalogJobResponse forAlice = jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
+        SaveCatalogJobResponse forBob = jobCatalogService.saveToMyJobs(BOB, String.valueOf(catalogId));
 
         assertNotNull(forAlice.jobId());
         assertNotNull(forBob.jobId());
@@ -213,7 +229,7 @@ class JobCatalogH2IntegrationTest {
     void aUserCannotSeeAnotherUsersPersonalJob() {
         Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
                 CatalogJobStatus.ACTIVE);
-        SaveCatalogJobResponse forAlice = jobCatalogService.saveToMyJobs(ALICE, catalogId);
+        SaveCatalogJobResponse forAlice = jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
 
         assertTrue(jobMapper.findByUserId(userId(ALICE)).stream()
                 .anyMatch(job -> job.getId().equals(forAlice.jobId())));
@@ -225,7 +241,7 @@ class JobCatalogH2IntegrationTest {
     void savedPersonalJobIsASnapshotAndDoesNotFollowLaterCatalogEdits() {
         Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
                 CatalogJobStatus.ACTIVE);
-        SaveCatalogJobResponse saved = jobCatalogService.saveToMyJobs(ALICE, catalogId);
+        SaveCatalogJobResponse saved = jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
         String originalDescription = jobMapper.findById(saved.jobId()).getDescription();
 
         JobCatalogEntry entry = jobCatalogMapper.findById(catalogId);
@@ -245,15 +261,15 @@ class JobCatalogH2IntegrationTest {
         Long removed = insertCatalogJob("Removed Role", "Acme", "CA", RemoteType.HYBRID,
                 CatalogJobStatus.REMOVED);
 
-        assertNotNull(jobCatalogService.saveToMyJobs(ALICE, expired).jobId());
-        assertThrows(JobNotFoundException.class, () -> jobCatalogService.saveToMyJobs(ALICE, removed));
+        assertNotNull(jobCatalogService.saveToMyJobs(ALICE, String.valueOf(expired)).jobId());
+        assertThrows(JobNotFoundException.class, () -> jobCatalogService.saveToMyJobs(ALICE, String.valueOf(removed)));
     }
 
     @Test
     void searchMarksPostingsTheCallerAlreadySaved() {
         Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
                 CatalogJobStatus.ACTIVE);
-        SaveCatalogJobResponse saved = jobCatalogService.saveToMyJobs(ALICE, catalogId);
+        SaveCatalogJobResponse saved = jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
 
         JobCatalogSummary forAlice = search(ALICE).results().get(0);
         assertTrue(forAlice.saved());

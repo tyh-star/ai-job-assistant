@@ -41,7 +41,7 @@ vi.mock('../api/jobCatalog', () => ({
 }))
 
 const activeJob: JobCatalogSummary = {
-  id: 501,
+  id: '501',
   title: 'Java Developer',
   companyName: 'Acme',
   locationText: 'Toronto, ON',
@@ -65,7 +65,7 @@ const activeJob: JobCatalogSummary = {
 
 const expiredJob: JobCatalogSummary = {
   ...activeJob,
-  id: 502,
+  id: '502',
   title: 'Platform Engineer',
   status: 'EXPIRED',
   descriptionSnippet: 'Run the platform.',
@@ -121,7 +121,7 @@ describe('JobsPage catalog search', () => {
     vi.mocked(listJobs).mockResolvedValue({ data: [] } as never)
     vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob]))
     vi.mocked(saveJobCatalogJob).mockResolvedValue({
-      data: { jobId: 101, catalogJobId: 501, alreadySaved: false, job: null },
+      data: { jobId: 101, catalogJobId: '501', alreadySaved: false, job: null },
     } as never)
   })
 
@@ -226,8 +226,45 @@ describe('JobsPage catalog search', () => {
     await renderAndSettle()
 
     const alert = await catalog().findByRole('alert')
-    expect(alert).toHaveTextContent('搜索已收录职位失败')
+    expect(alert).toHaveTextContent('请求失败')
     expect(searchJobs).not.toHaveBeenCalled()
+  })
+
+  it('shows the search source as temporarily unavailable, not a generic failure', async () => {
+    vi.mocked(searchJobCatalog).mockRejectedValue({
+      response: { status: 502, data: { message: 'Job search is temporarily unavailable.' } },
+    })
+    await renderAndSettle()
+
+    const alert = await catalog().findByRole('alert')
+    expect(alert).toHaveTextContent('职位搜索暂时不可用')
+  })
+
+  it('shows a rate-limited status distinctly, not a generic failure', async () => {
+    vi.mocked(searchJobCatalog).mockRejectedValue({
+      response: { status: 429, data: { message: 'Search is temporarily busy. Please try again shortly.' } },
+    })
+    await renderAndSettle()
+
+    const alert = await catalog().findByRole('alert')
+    expect(alert).toHaveTextContent('频率限制')
+  })
+
+  it('hints that free-text location is unsupported instead of a generic error banner', async () => {
+    vi.mocked(searchJobCatalog).mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          message:
+            'location is not supported as a text filter by the current job search provider; use country to filter by location',
+        },
+      },
+    })
+    await renderAndSettle()
+
+    expect(await catalog().findByText(/请改用国家筛选项/)).toBeInTheDocument()
+    // The generic alert banner must not ALSO fire for this specific, already-explained case.
+    expect(catalog().queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('saves a posting, exposes the personal job id, and blocks a second save', async () => {
@@ -236,7 +273,7 @@ describe('JobsPage catalog search', () => {
 
     await user.click(await catalog().findByRole('button', { name: '保存职位' }))
 
-    await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith(501))
+    await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith('501'))
     expect(await catalog().findByText('已保存')).toBeInTheDocument()
     expect(catalog().queryByRole('button', { name: '保存职位' })).not.toBeInTheDocument()
     expect(catalog().getByRole('link', { name: '分析职位匹配' })).toHaveAttribute(
@@ -274,6 +311,15 @@ describe('JobsPage catalog search', () => {
     const item = (await catalog().findByText('Platform Engineer')).closest('li')
     expect(item).not.toBeNull()
     expect(within(item as HTMLElement).getByText('已下线')).toBeInTheDocument()
+  })
+
+  it('does not offer an employment type FreeHire has no equivalent for', async () => {
+    await renderAndSettle()
+
+    const select = catalog().getByLabelText('职位类型') as HTMLSelectElement
+    const offered = Array.from(select.options).map((option) => option.value)
+    expect(offered).not.toContain('TEMPORARY')
+    expect(offered).not.toContain('OTHER')
   })
 
   it('translates the catalog panel without claiming full global coverage', async () => {

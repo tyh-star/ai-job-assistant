@@ -27,11 +27,12 @@ export function searchJobCatalog(params: JobCatalogSearchParams) {
   })
 }
 
-export function getJobCatalogJob(catalogJobId: number) {
+/** `catalogJobId` is the opaque id `searchJobCatalog` returned -- pass it back verbatim. */
+export function getJobCatalogJob(catalogJobId: string) {
   return api.get<JobCatalogDetail>(endpoints.jobCatalogJob(catalogJobId))
 }
 
 /** Copies a catalog posting into the caller's own jobs, returning a personal job id. */
-export function saveJobCatalogJob(catalogJobId: number) {
+export function saveJobCatalogJob(catalogJobId: string) {
   return api.post<SaveCatalogJobResponse>(endpoints.jobCatalogSave(catalogJobId))
 }

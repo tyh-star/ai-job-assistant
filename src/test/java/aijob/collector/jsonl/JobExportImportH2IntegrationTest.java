@@ -56,7 +56,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 "jwt.secret=test-only-jwt-secret-key-must-be-32b!!",
                 "openai.api-key=test-openai-key-not-real",
                 "aijob.storage.root=target/aijob-test-uploads",
-                "aijob.collector.allowlist-file=src/test/resources/config/test-sources-allowlist.json"
+                "aijob.collector.allowlist-file=src/test/resources/config/test-sources-allowlist.json",
+                "aijob.job-catalog.provider=local_catalog"
         }
 )
 @Sql(scripts = "classpath:schema/job-catalog-h2.sql")

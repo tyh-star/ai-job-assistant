@@ -12,12 +12,18 @@ const POSTED_WITHIN_DAYS = [1, 3, 7, 14, 30] as const
 const PAGE_SIZE = 20
 
 const REMOTE_TYPES: CatalogRemoteType[] = ['REMOTE', 'HYBRID', 'ONSITE']
+// TEMPORARY and OTHER are deliberately NOT offered here: the active job search
+// provider is FreeHire's hosted API, whose employment-type vocabulary has no
+// equivalent for either (see FreeHireJobCatalogService#employmentTypeOrNull, which
+// rejects them with a 400 rather than silently ignoring the selection). Offering them
+// only for the backend to reject would be its own kind of silent-looking failure, so
+// the option is absent instead. If local_catalog (which does support both) ever
+// becomes the default again, this list needs revisiting alongside that switch.
 const EMPLOYMENT_TYPES: CatalogEmploymentType[] = [
   'FULL_TIME',
   'PART_TIME',
   'CONTRACT',
   'INTERNSHIP',
-  'TEMPORARY',
 ]
 
 /** ISO-3166 alpha-2 codes the collector currently populates. */
@@ -51,8 +57,8 @@ export function JobCatalogSearch({ onSaved }: { onSaved?: () => void } = {}) {
   const [hasSearched, setHasSearched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorKey, setErrorKey] = useState<string | null>(null)
-  const [savingId, setSavingId] = useState<number | null>(null)
-  const [saveErrorId, setSaveErrorId] = useState<number | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [saveErrorId, setSaveErrorId] = useState<string | null>(null)
 
   const runSearch = useCallback(
     async (targetPage: number) => {
@@ -95,7 +101,7 @@ export function JobCatalogSearch({ onSaved }: { onSaved?: () => void } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function onSave(catalogJobId: number) {
+  async function onSave(catalogJobId: string) {
     setSavingId(catalogJobId)
     setSaveErrorId(null)
     try {
@@ -141,6 +147,11 @@ export function JobCatalogSearch({ onSaved }: { onSaved?: () => void } = {}) {
             value={location}
             onChange={(event) => setLocation(event.target.value)}
           />
+          {errorKey === 'errors.jobCatalogLocationUnsupported' ? (
+            <span className="mt-1 block text-xs text-amber-700">
+              {t('jobCatalog.locationUnsupportedHint')}
+            </span>
+          ) : null}
         </label>
         <label className={LABEL_CLASS}>
           <span>{t('jobCatalog.country')}</span>
@@ -220,9 +231,9 @@ export function JobCatalogSearch({ onSaved }: { onSaved?: () => void } = {}) {
         <p className="mt-4 text-sm text-slate-600">{t('jobCatalog.loading')}</p>
       ) : null}
 
-      {errorKey ? (
+      {errorKey && errorKey !== 'errors.jobCatalogLocationUnsupported' ? (
         <p role="alert" className="mt-4 text-sm text-red-700">
-          {t('jobCatalog.error')}
+          {t(errorKey)}
         </p>
       ) : null}
 

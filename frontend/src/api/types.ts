@@ -179,9 +179,15 @@ export interface JobCatalogSearchParams {
   sort?: string
 }
 
-/** A row in the shared catalog. Never carries a raw provider payload. */
+/**
+ * A row in the shared catalog. Never carries a raw provider payload.
+ *
+ * `id` is an opaque per-provider reference -- a plain numeric string under
+ * local_catalog, or `freehire:<public_slug>` under the FreeHire provider. Never parse
+ * it as a number; pass it back verbatim to the detail/save endpoints.
+ */
 export interface JobCatalogSummary {
-  id: number
+  id: string
   title: string
   companyName: string
   locationText: string | null
@@ -223,7 +229,8 @@ export interface JobCatalogDetail extends Omit<JobCatalogSummary, 'descriptionSn
 /** `jobId` is an id in the user's own jobs, usable by Match and Tailor as-is. */
 export interface SaveCatalogJobResponse {
   jobId: number
-  catalogJobId: number
+  /** The same opaque per-provider reference as `JobCatalogSummary.id`. */
+  catalogJobId: string
   alreadySaved: boolean
   job: JobResponse
 }

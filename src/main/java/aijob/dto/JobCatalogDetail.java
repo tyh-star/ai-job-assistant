@@ -8,7 +8,11 @@ import java.time.LocalDateTime;
  * {@code HtmlSanitizer}; the stored provider payload is never exposed.
  */
 public record JobCatalogDetail(
-        Long id,
+        // An opaque catalog reference: a plain local catalog id ("42") in local_catalog
+        // mode, or a namespaced upstream reference ("freehire:<public_slug>") in
+        // freehire mode. Never parsed as a number by any caller outside the provider
+        // that issued it.
+        String id,
         String title,
         String companyName,
         String descriptionText,

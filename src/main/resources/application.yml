@@ -46,6 +46,38 @@ aijob:
     root: ${AIJOB_STORAGE_ROOT:uploads}
   cors:
     allowed-origins: ${AIJOB_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  # Which JobCatalogService backs /api/v1/job-catalog/** — the search, detail and save
+  # routes the website's Jobs page actually calls.
+  #   freehire      (default) every search/detail/save calls FreeHire's own hosted API
+  #                 (freehire.me/api/v1). Nothing is collected or mirrored locally.
+  #   local_catalog explicit opt-in: reads only this deployment's own job_catalog table,
+  #                 built by the self-hosted collector below. Switching to this does NOT
+  #                 turn collection back on by itself — see aijob.collector.enabled.
+  job-catalog:
+    provider: ${JOB_CATALOG_PROVIDER:freehire}
+  freehire:
+    user-agent: ${FREEHIRE_USER_AGENT:ai-job-assistant/1.0 (+https://github.com/tyh-star/ai-job-assistant)}
+    connect-timeout-seconds: ${FREEHIRE_CONNECT_TIMEOUT_SECONDS:5}
+    read-timeout-seconds: ${FREEHIRE_READ_TIMEOUT_SECONDS:10}
+    # A page of full-description search results, generously bounded -- never large
+    # enough to mirror FreeHire's catalog by paging through it.
+    max-response-bytes: ${FREEHIRE_MAX_RESPONSE_BYTES:5242880}
+    # Backend-wide, not per user: this is a fairness cap on OUR OWN egress, separate
+    # from FreeHire's own IP-keyed rate limit (300/min on /agent/jobs/search).
+    max-concurrent-requests: ${FREEHIRE_MAX_CONCURRENT_REQUESTS:5}
+    # A real per-MINUTE request budget, backend-wide (shared by every user, not a
+    # per-user allotment) -- distinct from max-concurrent-requests above, which only
+    # bounds requests in flight at once and says nothing about volume over a minute.
+    # See FreeHireRateLimiter's javadoc. Process-local: correct as the effective global
+    # budget only while production runs a single backend instance (true today) --
+    # scaling to multiple instances needs a shared limiter or a divided budget.
+    rate-limit:
+      # Below FreeHire's own confirmed 300/min limit on /agent/jobs/search, on purpose --
+      # a safety margin, not a value budgeted right up to their ceiling.
+      search-per-minute: ${FREEHIRE_SEARCH_RATE_LIMIT_PER_MINUTE:180}
+      # FreeHire has not published a separate number for GET /jobs/{slug}; this is a
+      # deliberately conservative UNCONFIRMED default, not a documented limit.
+      read-per-minute: ${FREEHIRE_READ_RATE_LIMIT_PER_MINUTE:120}
   # Background ATS collection. Only the `collector` profile schedules anything, and
   # collection stays off until an operator sets JOB_COLLECTOR_ENABLED=true.
   collector:

@@ -26,6 +26,7 @@ import aijob.mapper.UserSavedCatalogJobMapper;
 import aijob.service.JobCatalogService;
 import aijob.util.HtmlSanitizer;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +41,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Reads this deployment's own {@code job_catalog} table, built by the self-hosted
+ * collector. Explicit opt-in only — {@code aijob.job-catalog.provider=local_catalog} —
+ * so switching back from FreeHire never happens by a missing property falling through
+ * to whichever bean the classpath happens to offer.
+ */
 @Service
+@ConditionalOnProperty(
+        name = aijob.config.JobCatalogProviderProperty.PROPERTY,
+        havingValue = aijob.config.JobCatalogProviderProperty.LOCAL_CATALOG)
 public class JobCatalogServiceImpl implements JobCatalogService {
 
     /** Marks personal jobs created from the catalog, and keys the idempotent save. */
@@ -108,16 +118,16 @@ public class JobCatalogServiceImpl implements JobCatalogService {
     }
 
     @Override
-    public JobCatalogDetail findDetail(String email, Long catalogJobId) {
+    public JobCatalogDetail findDetail(String email, String catalogJobId) {
         User user = requireUser(email);
-        JobCatalogEntry entry = requireCatalogEntry(catalogJobId);
+        JobCatalogEntry entry = requireCatalogEntry(parseCatalogJobId(catalogJobId));
 
         UserSavedCatalogJob mapping =
                 userSavedCatalogJobMapper.findByUserAndCatalogJob(user.getId(), entry.getId());
         String source = sourceLabels(List.of(entry.getId())).get(entry.getId());
 
         return new JobCatalogDetail(
-                entry.getId(),
+                String.valueOf(entry.getId()),
                 entry.getTitle(),
                 entry.getCompanyName(),
                 entry.getDescriptionText(),
@@ -146,21 +156,22 @@ public class JobCatalogServiceImpl implements JobCatalogService {
 
     @Override
     @Transactional
-    public SaveCatalogJobResponse saveToMyJobs(String email, Long catalogJobId) {
+    public SaveCatalogJobResponse saveToMyJobs(String email, String catalogJobId) {
         User user = requireUser(email);
-        JobCatalogEntry entry = requireCatalogEntry(catalogJobId);
+        JobCatalogEntry entry = requireCatalogEntry(parseCatalogJobId(catalogJobId));
         if (CatalogJobStatus.REMOVED.name().equals(entry.getStatus())) {
             throw new JobNotFoundException("Catalog job is no longer available");
         }
 
         String externalJobId = String.valueOf(entry.getId());
+        String idRef = String.valueOf(entry.getId());
 
         UserSavedCatalogJob mapping =
                 userSavedCatalogJobMapper.findByUserAndCatalogJob(user.getId(), entry.getId());
         if (mapping != null) {
             Job existing = jobMapper.findById(mapping.getPersonalJobId());
             if (existing != null && user.getId().equals(existing.getUserId())) {
-                return new SaveCatalogJobResponse(existing.getId(), entry.getId(), true, toJobResponse(existing));
+                return new SaveCatalogJobResponse(existing.getId(), idRef, true, toJobResponse(existing));
             }
         }
 
@@ -172,7 +183,7 @@ public class JobCatalogServiceImpl implements JobCatalogService {
             if (mapping == null) {
                 insertMapping(user.getId(), entry.getId(), existing.getId());
             }
-            return new SaveCatalogJobResponse(existing.getId(), entry.getId(), true, toJobResponse(existing));
+            return new SaveCatalogJobResponse(existing.getId(), idRef, true, toJobResponse(existing));
         }
 
         // A snapshot: later catalog edits must not rewrite what the user tailors against.
@@ -192,7 +203,25 @@ public class JobCatalogServiceImpl implements JobCatalogService {
 
         Job saved = jobMapper.findById(job.getId());
         Job result = saved != null ? saved : job;
-        return new SaveCatalogJobResponse(result.getId(), entry.getId(), false, toJobResponse(result));
+        return new SaveCatalogJobResponse(result.getId(), idRef, false, toJobResponse(result));
+    }
+
+    /**
+     * The wire id is opaque to the caller but must actually be a numeric row id in
+     * this provider. A non-numeric value here means the client sent a reference from
+     * the OTHER provider (e.g. a {@code freehire:...} id after switching back to
+     * local_catalog) -- reported as not-found rather than a parse error, since from
+     * the caller's side it is exactly that: this provider has no such row.
+     */
+    private static Long parseCatalogJobId(String catalogJobId) {
+        if (catalogJobId == null) {
+            throw new JobNotFoundException("Catalog job not found");
+        }
+        try {
+            return Long.valueOf(catalogJobId);
+        } catch (NumberFormatException ex) {
+            throw new JobNotFoundException("Catalog job not found");
+        }
     }
 
     private void insertMapping(Long userId, Long catalogJobId, Long personalJobId) {
@@ -224,7 +253,7 @@ public class JobCatalogServiceImpl implements JobCatalogService {
         List<JobCatalogSummary> summaries = new ArrayList<>(entries.size());
         for (JobCatalogEntry entry : entries) {
             summaries.add(new JobCatalogSummary(
-                    entry.getId(),
+                    String.valueOf(entry.getId()),
                     entry.getTitle(),
                     entry.getCompanyName(),
                     entry.getLocationText(),

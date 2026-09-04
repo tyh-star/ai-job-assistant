@@ -93,6 +93,12 @@ export function apiErrorKey(error: unknown): string {
   }
   if (status === 400) {
     const lower = message.toLowerCase()
+    if (lower.includes('location is not supported')) {
+      return 'errors.jobCatalogLocationUnsupported'
+    }
+    if (lower.includes('employmenttype') && lower.includes('is not supported')) {
+      return 'errors.jobCatalogEmploymentTypeUnsupported'
+    }
     if (lower.includes('keywords')) {
       return 'errors.jobSearchKeywordsRequired'
     }

@@ -7,7 +7,9 @@ import java.time.LocalDateTime;
  * Catalog search row. Carries no raw provider payload and no unsanitized HTML.
  */
 public record JobCatalogSummary(
-        Long id,
+        // See JobCatalogDetail.id: an opaque per-provider reference, never a bare
+        // number a caller could reuse as a different provider's row id.
+        String id,
         String title,
         String companyName,
         String locationText,

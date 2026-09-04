@@ -43,6 +43,35 @@ public interface JobMapper {
             @Param("source") String source,
             @Param("externalJobId") String externalJobId);
 
+    /**
+     * Which of {@code externalJobIds} this user has already saved under {@code source}.
+     * One query per search page instead of one per row, for a provider (FreeHire) whose
+     * catalog is not mirrored locally and so has no {@code user_saved_catalog_jobs}-style
+     * mapping table to join against.
+     */
+    // Column aliases are the record's own component names, so MyBatis's automatic
+    // constructor mapping binds them without a hand-written @ResultMap.
+    @Select("""
+            <script>
+            SELECT external_job_id AS externalJobId, id AS id
+            FROM jobs
+            WHERE user_id = #{userId}
+              AND source = #{source}
+              AND external_job_id IN
+              <foreach item="externalId" collection="externalJobIds" open="(" separator="," close=")">
+                  #{externalId}
+              </foreach>
+            </script>
+            """)
+    List<ExternalIdAndPersonalJobId> findSavedExternalJobIds(
+            @Param("userId") Long userId,
+            @Param("source") String source,
+            @Param("externalJobIds") List<String> externalJobIds);
+
+    /** One row of {@link #findSavedExternalJobIds}: an external id and the personal job it became. */
+    record ExternalIdAndPersonalJobId(String externalJobId, Long id) {
+    }
+
     @Update("""
             UPDATE jobs
             SET company = #{company},

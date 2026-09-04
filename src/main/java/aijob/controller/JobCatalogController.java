@@ -54,7 +54,7 @@ public class JobCatalogController {
     @GetMapping("/{catalogJobId}")
     public ResponseEntity<JobCatalogDetail> detail(
             Authentication authentication,
-            @PathVariable Long catalogJobId) {
+            @PathVariable String catalogJobId) {
 
         return ResponseEntity.ok(
                 jobCatalogService.findDetail(authentication.getName(), catalogJobId));
@@ -63,7 +63,7 @@ public class JobCatalogController {
     @PostMapping("/{catalogJobId}/save")
     public ResponseEntity<SaveCatalogJobResponse> save(
             Authentication authentication,
-            @PathVariable Long catalogJobId) {
+            @PathVariable String catalogJobId) {
 
         SaveCatalogJobResponse response =
                 jobCatalogService.saveToMyJobs(authentication.getName(), catalogJobId);

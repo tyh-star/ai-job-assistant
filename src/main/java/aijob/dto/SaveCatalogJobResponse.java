@@ -8,7 +8,7 @@ package aijob.dto;
  */
 public record SaveCatalogJobResponse(
         Long jobId,
-        Long catalogJobId,
+        String catalogJobId,
         boolean alreadySaved,
         JobResponse job
 ) {

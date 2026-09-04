@@ -43,7 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 "jwt.secret=test-only-jwt-secret-key-must-be-32b!!",
                 "openai.api-key=test-openai-key-not-real",
                 "aijob.storage.root=target/aijob-test-uploads",
-                "aijob.collector.allowlist-file=config/sources-allowlist.json"
+                "aijob.collector.allowlist-file=config/sources-allowlist.json",
+                "aijob.job-catalog.provider=local_catalog"
         }
 )
 @EnabledIfEnvironmentVariable(named = "AIJOB_MYSQL_TEST_URL", matches = ".+",
