@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { sanitizeReturnTo } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 import {
@@ -17,6 +18,8 @@ import {
 export function RegisterPage() {
   const { t } = useTranslation()
   const { isAuthenticated, register } = useAuth()
+  const [searchParams] = useSearchParams()
+  const returnTo = sanitizeReturnTo(searchParams.get('returnTo'))
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,7 +27,7 @@ export function RegisterPage() {
   const [loading, setLoading] = useState(false)
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to={returnTo} replace />
   }
 
   async function onSubmit(event: FormEvent) {

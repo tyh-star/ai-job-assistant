@@ -36,6 +36,31 @@ public interface JobService {
 
     void deleteJob(String email, Long id);
 
+    /**
+     * Confirms the user applied to this personal job -- ANY personal job, regardless of
+     * source (manual, Greenhouse import, a saved catalog posting, ...). Scoped to jobs
+     * this user owns.
+     *
+     * <p>Idempotent: a repeat confirmation while already {@code applied=true} never
+     * fails, never duplicates a row, and never resets {@code appliedAt} -- only the
+     * actual {@code false -> true} transition (a fresh application, including one after
+     * a revoke) gets a fresh {@code appliedAt}. This guarantee lives in {@code
+     * JobMapper#markApplied}'s own {@code UPDATE} (a {@code COALESCE} against the row's
+     * current value), not in a check-then-write here -- see that method's javadoc for
+     * why. {@code JobCatalogService#markApplied} calls the exact same mapper method for
+     * the exact same reason, so both entry points share one semantic, not two.
+     *
+     * <p>Distinct from {@code JobCatalogService#markApplied} only in what it's keyed
+     * by: that one takes a catalog provider's opaque {@code catalogJobId} and
+     * saves-if-not-already-saved as part of the same call (used from the search
+     * results, before a personal job id exists yet); this one is for a job ALREADY in
+     * the user's own list.
+     */
+    JobResponse markApplied(String email, Long id);
+
+    /** Reverses a mistaken confirmation. Scoped to jobs this user owns, same as {@link #markApplied}. */
+    JobResponse clearApplied(String email, Long id);
+
     BulkDeleteJobsResponse bulkDeleteJobs(String email, List<Long> jobIds);
 
     JobMatchResponse matchJob(String email, Long jobId, Long resumeId);

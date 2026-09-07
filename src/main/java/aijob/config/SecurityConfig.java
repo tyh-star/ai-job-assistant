@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -92,6 +93,19 @@ public class SecurityConfig {
                                 "/v3/api-docs.yaml",
                                 "/webjars/**",
                                 "/error"
+                        ).permitAll()
+                        // Public job browsing: search and one posting's detail need no
+                        // account, so the site can show real listings before a visitor
+                        // ever signs up. Only these two GET routes -- saving a job,
+                        // confirming/revoking "applied", and every /api/v1/jobs/** route
+                        // (the personal jobs list, Match, Tailor, Dashboard, résumés)
+                        // stay behind the anyRequest().authenticated() rule below.
+                        // "/api/v1/job-catalog/*" matches exactly one path segment (the
+                        // catalogJobId), so it can never also match
+                        // "/api/v1/job-catalog/{id}/save" or ".../applied" (two segments).
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/job-catalog/search",
+                                "/api/v1/job-catalog/*"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

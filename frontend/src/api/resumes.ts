@@ -3,6 +3,7 @@ import { endpoints } from './endpoints'
 import { stripApiV1Prefix } from './url'
 import type {
   ResumeEvidenceItem,
+  ResumeQualityScoreResponse,
   ResumeResponse,
   ResumeStructure,
   SaveResumeEvidenceRequest,
@@ -38,6 +39,11 @@ export function updateResumeStructure(id: number, structure: ResumeStructure) {
 
 export function canonicalizeResume(id: number) {
   return api.post<ResumeResponse>(endpoints.resumeCanonicalize(id))
+}
+
+/** Consumes no AI quota -- see ResumeQualityScorer's javadoc on the backend. */
+export function getResumeQualityScore(id: number) {
+  return api.get<ResumeQualityScoreResponse>(endpoints.resumeQualityScore(id))
 }
 
 export function listResumeEvidence(resumeId: number) {

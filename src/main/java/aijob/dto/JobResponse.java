@@ -18,6 +18,8 @@ public class JobResponse {
     private String source;
     private String status;
     private String externalJobId;
+    private boolean applied;
+    private LocalDateTime appliedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

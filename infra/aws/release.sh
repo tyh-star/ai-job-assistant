@@ -118,6 +118,16 @@ step "7/10 Apply the migrations and verify the structure"
 # And on to utf8mb4_0900_bin: the collation above is binary but PAD SPACE, so it
 # still folds "REQ-A" with "REQ-A ". Separate version, separate file, applied after.
 ./infra/aws/db-apply.sh schema/job_catalog_external_id_no_pad.sql
+# Unrelated to the job catalog tables above -- adds applied/applied_at to `jobs` for the
+# "did the user actually apply" confirmation feature. Chained here, not left as a file
+# nobody runs: same re-runnable, self-verifying, schema_migrations-gated pattern.
+./infra/aws/db-apply.sh schema/jobs_applied_tracking.sql
+# Persistent JWT revocation: adds users.auth_version, bumped on every password change
+# and checked by JwtAuthenticationFilter on every authenticated request. Unrelated to
+# the job catalog tables above, chained here for the same reason jobs_applied_tracking.sql
+# is: re-runnable, self-verifying, schema_migrations-gated, so it must run before the
+# backend that depends on it starts.
+./infra/aws/db-apply.sh schema/users_auth_version.sql
 ./infra/aws/db-apply.sh schema/job_catalog_phase1_verify.sql
 echo "Schema structure verified."
 

@@ -34,6 +34,8 @@ public record JobCatalogDetail(
         LocalDateTime lastSeenAt,
         String status,
         boolean saved,
-        Long personalJobId
+        Long personalJobId,
+        boolean applied,
+        LocalDateTime appliedAt
 ) {
 }

@@ -3,6 +3,7 @@ package aijob.service;
 import aijob.dto.ResumeAnalysisResponse;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.ResumeFileDownload;
+import aijob.dto.ResumeQualityScoreResponse;
 import aijob.dto.ResumeResponse;
 import aijob.dto.ResumeStructure;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,4 +33,12 @@ public interface ResumeService {
     ResumeResponse canonicalizeResume(String email, Long pdfResumeId);
 
     ResumeFileDownload downloadResume(String email, Long resumeId);
+
+    /**
+     * The resume's own structure/content-completeness score -- never a match score
+     * against any job. Deterministic and computed only from data already stored on
+     * this resume; never calls OpenAI or any other AI service. See
+     * {@link aijob.util.ResumeQualityScorer}.
+     */
+    ResumeQualityScoreResponse getQualityScore(String email, Long resumeId);
 }

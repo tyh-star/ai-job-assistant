@@ -62,6 +62,8 @@ class JobControllerGreenhouseImportTest {
                 "GREENHOUSE",
                 "SAVED",
                 "123",
+                false,
+                null,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );

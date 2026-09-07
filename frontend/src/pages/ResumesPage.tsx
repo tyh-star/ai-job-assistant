@@ -152,6 +152,9 @@ export function ResumesPage() {
                           {t('resumes.confirmContent')}
                         </Link>
                       ) : null}
+                      <Link className="text-slate-700 underline" to={`/resumes/${resume.id}/quality-score`}>
+                        {t('resumes.viewQualityScore')}
+                      </Link>
                       <Link className="text-slate-700 underline" to={`/tailor?resumeId=${resume.id}`}>
                         {t('resumes.startTailor')}
                       </Link>

@@ -635,7 +635,7 @@ class JobExportImportH2IntegrationTest {
 
     private JobCatalogSearchResponse search(String q) {
         return jobCatalogService.search(ALICE, new JobCatalogSearchRequest(
-                q, null, null, null, null, null, null, null, null));
+                q, null, null, null, null, null, null, null, null, null, null));
     }
 
     private void assertNothingWasWritten() {

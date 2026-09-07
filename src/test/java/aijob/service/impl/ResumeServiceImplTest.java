@@ -64,6 +64,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -123,6 +124,7 @@ class ResumeServiceImplTest {
                 resumeStructureDraftBuilder,
                 resumeStructureLlmService,
                 resumeTemplateDocxService,
+                new aijob.util.ResumeQualityScorer(),
                 objectMapper,
                 storagePathResolver
         );
@@ -472,6 +474,24 @@ class ResumeServiceImplTest {
         assertFalse(json.contains("extractedText"));
         assertFalse(json.contains("structuredJson"));
         assertFalse(json.contains("layoutJson"));
+    }
+
+    @Test
+    void getQualityScore_neverCallsAiResumeServiceOrResumeStructureLlmService() throws Exception {
+        Resume resume = storedPdfResume("Jordan Lee\njordan.lee@example.com\n\nEXPERIENCE\nEngineer, Acme, 2020 - 2022\nShipped a feature used by 500 customers\n\nSKILLS\nJava");
+        when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
+        when(resumeMapper.findById(12L)).thenReturn(resume);
+
+        aijob.dto.ResumeQualityScoreResponse response = resumeService.getQualityScore(EMAIL, 12L);
+
+        assertTrue(response.isScorable());
+        // The two service-layer gateways to OpenAI in this codebase, verified to have
+        // NEVER been touched -- this is what "the resume scoring endpoint never calls
+        // OpenAI" actually means at the unit level, not just an absence of an obvious
+        // import.
+        verifyNoInteractions(aiResumeService);
+        verifyNoInteractions(resumeStructureLlmService);
+        verifyNoInteractions(resumeDocumentService);
     }
 
     @Test

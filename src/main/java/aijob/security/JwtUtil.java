@@ -34,6 +34,7 @@ public class JwtUtil {
                 .subject(user.email())
                 .claim("userId", user.id())
                 .claim("role", user.role())
+                .claim("authVersion", user.authVersion())
                 .issuedAt(new Date())
                 .expiration(
                         new Date(System.currentTimeMillis() + expiration)
@@ -68,6 +69,16 @@ public class JwtUtil {
         return parseToken(token).get("role", String.class);
     }
 
+    /**
+     * 0 when the claim is absent rather than throwing -- matches the DB column's own
+     * DEFAULT 0, so a token that predates this claim being added is treated as version
+     * 0, the same as every account that has never changed its password.
+     */
+    public int getAuthVersion(String token) {
+        Number authVersion = parseToken(token).get("authVersion", Number.class);
+        return authVersion == null ? 0 : authVersion.intValue();
+    }
+
     // 验证 Token
     public boolean validateToken(String token) {
         try {
@@ -84,7 +95,8 @@ public class JwtUtil {
     public record UserTokenInfo(
             Long id,
             String email,
-            String role
+            String role,
+            int authVersion
     ) {
     }
 

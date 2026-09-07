@@ -202,6 +202,28 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Confirms the user applied to this personal job -- any source, not just a saved
+     * catalog posting (see {@link aijob.service.JobService#markApplied}'s javadoc).
+     */
+    @PostMapping("/{id}/applied")
+    public ResponseEntity<JobResponse> markApplied(
+            Authentication authentication,
+            @PathVariable Long id) {
+
+        JobResponse job = jobService.markApplied(authentication.getName(), id);
+        return ResponseEntity.ok(job);
+    }
+
+    @DeleteMapping("/{id}/applied")
+    public ResponseEntity<JobResponse> clearApplied(
+            Authentication authentication,
+            @PathVariable Long id) {
+
+        JobResponse job = jobService.clearApplied(authentication.getName(), id);
+        return ResponseEntity.ok(job);
+    }
+
     @PostMapping("/{jobId}/match")
     public ResponseEntity<JobMatchResponse> matchJob(
             Authentication authentication,

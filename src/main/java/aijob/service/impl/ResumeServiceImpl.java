@@ -5,6 +5,7 @@ import aijob.dto.PdfLayout;
 import aijob.dto.ResumeAnalysisResponse;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.ResumeFileDownload;
+import aijob.dto.ResumeQualityScoreResponse;
 import aijob.dto.ResumeResponse;
 import aijob.dto.ResumeStructure;
 import aijob.dto.ResumeStructure.ResumeBullet;
@@ -32,6 +33,7 @@ import aijob.service.ResumeService;
 import aijob.service.ResumeStructureLlmService;
 import aijob.service.ResumeTemplateDocxService;
 import aijob.util.PdfLayoutExtractor;
+import aijob.util.ResumeQualityScorer;
 import aijob.util.ResumeStructureDraftBuilder;
 import aijob.util.LayoutProfileBuilder;
 import aijob.util.ResumeTextExtractor;
@@ -75,6 +77,7 @@ public class ResumeServiceImpl implements ResumeService {
     private final ResumeStructureDraftBuilder resumeStructureDraftBuilder;
     private final ResumeStructureLlmService resumeStructureLlmService;
     private final ResumeTemplateDocxService resumeTemplateDocxService;
+    private final ResumeQualityScorer resumeQualityScorer;
     private final ObjectMapper objectMapper;
     private final StoragePathResolver storagePathResolver;
 
@@ -87,6 +90,7 @@ public class ResumeServiceImpl implements ResumeService {
                              ResumeStructureDraftBuilder resumeStructureDraftBuilder,
                              ResumeStructureLlmService resumeStructureLlmService,
                              ResumeTemplateDocxService resumeTemplateDocxService,
+                             ResumeQualityScorer resumeQualityScorer,
                              ObjectMapper objectMapper,
                              StoragePathResolver storagePathResolver) {
         this.resumeMapper = resumeMapper;
@@ -98,6 +102,7 @@ public class ResumeServiceImpl implements ResumeService {
         this.resumeStructureDraftBuilder = resumeStructureDraftBuilder;
         this.resumeStructureLlmService = resumeStructureLlmService;
         this.resumeTemplateDocxService = resumeTemplateDocxService;
+        this.resumeQualityScorer = resumeQualityScorer;
         this.objectMapper = objectMapper;
         this.storagePathResolver = storagePathResolver;
     }
@@ -175,6 +180,19 @@ public class ResumeServiceImpl implements ResumeService {
         Resume resume = getOwnedResume(id, user.getId());
 
         return toResumeResponse(resume);
+    }
+
+    @Override
+    public ResumeQualityScoreResponse getQualityScore(String email, Long resumeId) {
+
+        User user = getUserByEmail(email);
+        Resume resume = getOwnedResume(resumeId, user.getId());
+
+        // Deliberately just the raw extracted text -- see ResumeQualityScorer's
+        // javadoc for why this never touches structuredJson/layoutJson (which would
+        // couple scoring to whether PDF structure classification has run) and never
+        // calls resumeStructureLlmService, aiResumeService, or resumeDocumentService.
+        return resumeQualityScorer.score(resume.getExtractedText());
     }
 
     @Override

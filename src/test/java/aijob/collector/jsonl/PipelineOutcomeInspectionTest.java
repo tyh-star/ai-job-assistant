@@ -140,6 +140,6 @@ class PipelineOutcomeInspectionTest {
 
     private JobCatalogSearchResponse search(String q) {
         return jobCatalogService.search(INSPECTOR,
-                new JobCatalogSearchRequest(q, null, null, null, null, null, 1, 50, null));
+                new JobCatalogSearchRequest(q, null, null, null, null, null, null, null, 1, 50, null));
     }
 }

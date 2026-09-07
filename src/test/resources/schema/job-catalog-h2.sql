@@ -17,6 +17,11 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(100) NOT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
+    -- Bumped by 1 every time the password changes (see UserMapper#changePasswordAndBumpAuthVersion).
+    -- JwtAuthenticationFilter rejects any token whose authVersion claim no longer
+    -- matches this column, which is how a password change invalidates every
+    -- previously-issued token -- not just the browser that changed it.
+    auth_version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,6 +37,8 @@ CREATE TABLE jobs (
     source VARCHAR(100) DEFAULT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'SAVED',
     external_job_id VARCHAR(64) DEFAULT NULL,
+    applied TINYINT NOT NULL DEFAULT 0,
+    applied_at TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uk_jobs_user_source_external UNIQUE (user_id, source, external_job_id),

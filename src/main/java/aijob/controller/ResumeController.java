@@ -3,6 +3,7 @@ package aijob.controller;
 import aijob.dto.ResumeAnalysisResponse;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.ResumeFileDownload;
+import aijob.dto.ResumeQualityScoreResponse;
 import aijob.dto.ResumeResponse;
 import aijob.dto.ResumeStructure;
 import aijob.service.ResumeService;
@@ -114,6 +115,29 @@ public class ResumeController {
                 );
 
         return ResponseEntity.ok(analysis);
+    }
+
+    /**
+     * The resume's OWN structure/content-completeness score -- never a match score
+     * against any job, never a hiring-probability estimate. Deterministic, computed
+     * only from this resume's own already-stored data; never calls OpenAI or any
+     * other AI service. See {@link aijob.util.ResumeQualityScorer}. Ownership is
+     * enforced the same way as every other {@code /resumes/{id}/**} route -- a
+     * resumeId belonging to another user (or no user at all) is indistinguishable
+     * from one that does not exist.
+     */
+    @GetMapping("/{id}/quality-score")
+    public ResponseEntity<ResumeQualityScoreResponse> getQualityScore(
+            Authentication authentication,
+            @PathVariable Long id) {
+
+        ResumeQualityScoreResponse response =
+                resumeService.getQualityScore(
+                        authentication.getName(),
+                        id
+                );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/document-nodes")

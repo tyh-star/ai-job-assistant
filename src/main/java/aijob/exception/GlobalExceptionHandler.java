@@ -1,6 +1,8 @@
 package aijob.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,8 @@ import java.time.LocalDateTime;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // 邮箱已经注册
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -66,6 +70,11 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request) {
 
+        // The client only ever sees "Internal server error" -- this log line is the ONLY
+        // place the real cause survives. Without it, a real 500 is undiagnosable: nothing
+        // about the actual exception (type, message, stack trace) reaches anywhere else.
+        log.error("Unhandled exception on {} {}", request.getMethod(), request.getRequestURI(), ex);
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
@@ -83,6 +92,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalState(
             IllegalStateException ex,
             HttpServletRequest request) {
+
+        log.error("Unhandled IllegalStateException on {} {}", request.getMethod(), request.getRequestURI(), ex);
 
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -428,6 +439,30 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(JobNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleJobNotFound(
             JobNotFoundException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
+    /**
+     * The upstream posting's own detail lookup 404'd -- NOT this site's own auth/ownership
+     * 404 ({@link #handleJobNotFound}). Kept as a distinct handler (not merged into that
+     * one) specifically so the message stays the stable {@link JobDetailUnavailableException#CODE},
+     * never accidentally overwritten by a generic "Job not found" from some other path.
+     */
+    @ExceptionHandler(JobDetailUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleJobDetailUnavailable(
+            JobDetailUnavailableException ex,
             HttpServletRequest request) {
 
         ErrorResponse error = new ErrorResponse(

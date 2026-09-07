@@ -197,6 +197,6 @@ class PilotSearchInspectionTest {
 
     private JobCatalogSearchResponse search(String q, String location, String country) {
         return jobCatalogService.search(INSPECTOR,
-                new JobCatalogSearchRequest(q, location, country, null, null, null, 1, 50, null));
+                new JobCatalogSearchRequest(q, location, null, null, country, null, null, null, 1, 50, null));
     }
 }

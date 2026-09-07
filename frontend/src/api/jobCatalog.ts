@@ -1,6 +1,7 @@
 import { api } from './client'
 import { endpoints } from './endpoints'
 import type {
+  CitySuggestion,
   JobCatalogDetail,
   JobCatalogSearchParams,
   JobCatalogSearchResponse,
@@ -16,6 +17,8 @@ export function searchJobCatalog(params: JobCatalogSearchParams) {
     params: {
       q: params.q || undefined,
       location: params.location || undefined,
+      city: params.city || undefined,
+      cityCountry: params.cityCountry || undefined,
       country: params.country || undefined,
       remoteType: params.remoteType || undefined,
       employmentType: params.employmentType || undefined,
@@ -23,6 +26,21 @@ export function searchJobCatalog(params: JobCatalogSearchParams) {
       page: params.page ?? 1,
       size: params.size ?? 20,
       sort: params.sort || undefined,
+    },
+  })
+}
+
+/**
+ * Structured city suggestions for the search form's city facet -- never free text.
+ * `q` is a prefix; a blank value is not sent (the backend already treats it as an empty
+ * list, but skipping the call entirely avoids firing one on every keystroke before the
+ * user has typed anything).
+ */
+export function searchCatalogCities(q: string, country?: string) {
+  return api.get<CitySuggestion[]>(endpoints.jobCatalogCities, {
+    params: {
+      q: q || undefined,
+      country: country || undefined,
     },
   })
 }
@@ -35,4 +53,19 @@ export function getJobCatalogJob(catalogJobId: string) {
 /** Copies a catalog posting into the caller's own jobs, returning a personal job id. */
 export function saveJobCatalogJob(catalogJobId: string) {
   return api.post<SaveCatalogJobResponse>(endpoints.jobCatalogSave(catalogJobId))
+}
+
+/**
+ * Confirms the user actually submitted an application -- only ever called after the
+ * user's own explicit "yes" to a confirmation prompt, never automatically on a click of
+ * the external apply link. Implicitly saves the posting first if it was not already
+ * saved. Requires login.
+ */
+export function markJobCatalogApplied(catalogJobId: string) {
+  return api.post<SaveCatalogJobResponse>(endpoints.jobCatalogApplied(catalogJobId))
+}
+
+/** Reverses a mistaken applied confirmation. Requires login. */
+export function clearJobCatalogApplied(catalogJobId: string) {
+  return api.delete<SaveCatalogJobResponse>(endpoints.jobCatalogApplied(catalogJobId))
 }

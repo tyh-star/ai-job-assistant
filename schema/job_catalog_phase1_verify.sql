@@ -83,17 +83,52 @@ SET @external_id_exact := (
        AND collation_name = 'utf8mb4_0900_bin'
 );
 
+-- Applied-tracking on `jobs` (schema/jobs_applied_tracking.sql), checked here so a
+-- release cannot silently skip it: correct type, nullability AND default, not just
+-- presence -- a column present with the wrong shape would pass a bare existence check
+-- and still misbehave in production.
+SET @applied_column_correct := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'jobs' AND column_name = 'applied'
+       AND data_type = 'tinyint' AND is_nullable = 'NO' AND column_default = '0'
+);
+SET @applied_at_column_correct := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'jobs' AND column_name = 'applied_at'
+       AND data_type = 'timestamp' AND is_nullable = 'YES'
+);
+
+-- Persistent JWT revocation (schema/users_auth_version.sql), checked here for exactly
+-- the same reason as the two `jobs` columns above: this is the FINAL gate, so a
+-- release that skips that migration (whether by a broken release.sh edit or an
+-- out-of-band deploy) must fail here rather than start a backend that silently
+-- assumes users.auth_version exists -- JwtAuthenticationFilter reads it on every
+-- authenticated request and would throw on every request, not just misbehave quietly.
+SET @auth_version_column_correct := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'users' AND column_name = 'auth_version'
+       AND data_type = 'int' AND is_nullable = 'NO' AND column_default = '0'
+);
+
 SELECT @tables AS tables_found_of_6,
        @columns AS columns_found_of_39,
        @indexes AS indexes_found_of_10,
        @foreign_keys AS foreign_keys_found_of_6,
-       @external_id_exact AS external_job_id_binary_no_pad_of_1;
+       @external_id_exact AS external_job_id_binary_no_pad_of_1,
+       @applied_column_correct AS jobs_applied_column_correct_of_1,
+       @applied_at_column_correct AS jobs_applied_at_column_correct_of_1,
+       @auth_version_column_correct AS users_auth_version_column_correct_of_1;
 
 -- Fails the script (and the shell) when anything is missing. Deliberately before the
 -- schema_migrations read: on a database that never got the migration that table does
 -- not exist, and the counts above are the useful diagnostic, not a missing-table error.
 SET @gate := IF(@tables = 6 AND @columns = 39 AND @indexes = 10 AND @foreign_keys = 6
-                AND @external_id_exact = 1,
+                AND @external_id_exact = 1
+                AND @applied_column_correct = 1 AND @applied_at_column_correct = 1
+                AND @auth_version_column_correct = 1,
     'SELECT 1',
     'SELECT 1 FROM job_catalog_structure_incomplete_see_counts_above');
 PREPARE stmt FROM @gate;

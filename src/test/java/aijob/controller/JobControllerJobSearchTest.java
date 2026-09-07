@@ -366,6 +366,8 @@ class JobControllerJobSearchTest {
                 "ADZUNA",
                 "SAVED",
                 "123",
+                false,
+                null,
                 LocalDateTime.of(2026, 8, 1, 12, 0),
                 LocalDateTime.of(2026, 8, 1, 12, 0)
         );

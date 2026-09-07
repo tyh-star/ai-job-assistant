@@ -1,6 +1,7 @@
 package aijob.freehire;
 
 import aijob.exception.InvalidJobSearchException;
+import aijob.exception.JobDetailUnavailableException;
 import aijob.exception.JobNotFoundException;
 import aijob.exception.JobSearchRateLimitedException;
 import aijob.exception.JobSearchTimeoutException;
@@ -103,7 +104,15 @@ public class FreeHireClient {
      * passed through verbatim as a path segment; {@code RestClient}'s URI builder
      * percent-encodes it, so a slug is never interpreted as extra path structure.
      *
-     * @throws JobNotFoundException when FreeHire answers 404
+     * <p>A 404 here means the UPSTREAM posting's own detail lookup failed -- confirmed
+     * live to genuinely happen for a posting that was still listed in a search result
+     * moments earlier (the source pulled it in between). That is a different fact from
+     * this site's own "not found" (an unowned job, a malformed id, ...), so it is a
+     * distinct exception type -- see {@link JobDetailUnavailableException}'s javadoc for
+     * why callers (and the frontend) must never treat the two the same way.
+     *
+     * @throws JobDetailUnavailableException when FreeHire's own detail lookup 404s or
+     *         answers with no body
      */
     public FreeHireJobJson getBySlug(String slug) {
         checkLocalBudget(readRateLimiter, "read");
@@ -111,15 +120,38 @@ public class FreeHireClient {
                 .uri(uriBuilder -> uriBuilder.path("/jobs/{slug}").build(slug))
                 .retrieve()
                 .onStatus(status -> status.value() == 404, (req, res) -> {
-                    throw new JobNotFoundException("Job not found");
+                    throw new JobDetailUnavailableException(JobDetailUnavailableException.CODE);
                 })
                 .onStatus(status -> status.value() == 429, this::handleRateLimited)
                 .onStatus(HttpStatusCode::isError, this::handleError)
                 .body(FreeHireJobDetailResponseJson.class)));
         if (body == null || body.data() == null) {
-            throw new JobNotFoundException("Job not found");
+            throw new JobDetailUnavailableException(JobDetailUnavailableException.CODE);
         }
         return body.data();
+    }
+
+    /**
+     * {@code GET /geo/cities?q=&country=} — a population-ranked city-name prefix
+     * search, confirmed live 2026-09-05 ({@code {"data":[{"value":"Toronto",
+     * "country":"ca"}]}} for {@code ?q=Toronto&country=ca}) and matching the pinned
+     * upstream source's {@code internal/api/handler/geo.go} exactly: public,
+     * unauthenticated, a blank {@code q} yields an empty (not null) list. Billed against
+     * the same read budget as {@link #getBySlug} — a lightweight reference lookup, not
+     * the heavier search endpoint.
+     */
+    public java.util.List<FreeHireGeoCityJson> searchCities(String q, String country) {
+        checkLocalBudget(readRateLimiter, "read");
+        FreeHireGeoCitiesResponseJson body = withGate(() -> execute(() -> freeHireRestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/geo/cities")
+                        .queryParamIfPresent("q", java.util.Optional.ofNullable(q))
+                        .queryParamIfPresent("country", java.util.Optional.ofNullable(country))
+                        .build())
+                .retrieve()
+                .onStatus(status -> status.value() == 429, this::handleRateLimited)
+                .onStatus(HttpStatusCode::isError, this::handleError)
+                .body(FreeHireGeoCitiesResponseJson.class)));
+        return body == null ? java.util.List.of() : body.dataOrEmpty();
     }
 
     /**

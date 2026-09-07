@@ -1,13 +1,16 @@
 package aijob.service.impl;
 
 import aijob.dto.ChangePasswordRequest;
-import aijob.dto.UpdateUserRequest;
+import aijob.dto.UpdateUserEmailRequest;
+import aijob.dto.UpdateUserEmailResponse;
+import aijob.dto.UpdateUserNameRequest;
 import aijob.dto.UserResponse;
 import aijob.entity.User;
 import aijob.exception.EmailAlreadyExistsException;
 import aijob.exception.IncorrectPasswordException;
 import aijob.exception.UserNotFoundException;
 import aijob.mapper.UserMapper;
+import aijob.security.JwtUtil;
 import aijob.service.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,11 +22,14 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     public UserServiceImpl(UserMapper userMapper,
-                           PasswordEncoder passwordEncoder) {
+                           PasswordEncoder passwordEncoder,
+                           JwtUtil jwtUtil) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     @Override
@@ -64,30 +70,51 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponse updateCurrentUser(
+    public UserResponse updateName(
             String email,
-            UpdateUserRequest request) {
+            UpdateUserNameRequest request) {
+
+        User user = getUserByEmail(email);
+        String newName = request.getName().trim();
+
+        user.setName(newName);
+        userMapper.updateName(user.getId(), newName);
+
+        return toUserResponse(user);
+    }
+
+    @Override
+    public UpdateUserEmailResponse updateEmail(
+            String email,
+            UpdateUserEmailRequest request) {
 
         User user = getUserByEmail(email);
 
-        String newEmail = request.getEmail().trim().toLowerCase();
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new IncorrectPasswordException("Current password is incorrect");
+        }
+
+        String newEmail = request.getNewEmail().trim().toLowerCase();
 
         if (!user.getEmail().equalsIgnoreCase(newEmail)) {
             User existingUser = userMapper.findByEmail(newEmail);
 
             if (existingUser != null) {
-                throw new EmailAlreadyExistsException(
-                        "Email already registered"
-                );
+                throw new EmailAlreadyExistsException("Email already registered");
             }
         }
 
-        user.setName(request.getName().trim());
         user.setEmail(newEmail);
+        userMapper.updateEmail(user.getId(), newEmail);
 
-        userMapper.update(user);
+        // The JWT subject IS the email (see JwtUtil#generateToken) -- the caller's OLD
+        // token now names an email that resolves to nobody, so this MUST hand back a
+        // freshly-signed token, never leave the caller holding a token that breaks on
+        // its very next use.
+        String freshToken = jwtUtil.generateToken(
+                new JwtUtil.UserTokenInfo(user.getId(), user.getEmail(), user.getRole(), user.getAuthVersion()));
 
-        return toUserResponse(user);
+        return new UpdateUserEmailResponse(freshToken, toUserResponse(user));
     }
 
     @Override
@@ -111,9 +138,12 @@ public class UserServiceImpl implements UserService {
                         request.getNewPassword()
                 );
 
-        user.setPassword(encodedPassword);
-
-        userMapper.updatePassword(user);
+        // Single atomic UPDATE -- see UserMapper#changePasswordAndBumpAuthVersion's
+        // javadoc for why the auth_version bump can never be a separate statement.
+        // This is what makes every previously-issued token for this user (on every
+        // device, not just this browser) fail JwtAuthenticationFilter's check from
+        // this point on.
+        userMapper.changePasswordAndBumpAuthVersion(user.getId(), encodedPassword);
     }
 
     @Override
@@ -143,7 +173,8 @@ public class UserServiceImpl implements UserService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole()
+                user.getRole(),
+                user.getCreatedAt()
         );
     }
 }

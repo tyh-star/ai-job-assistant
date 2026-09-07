@@ -43,6 +43,20 @@ export function bulkDeleteJobs(jobIds: number[]) {
   return api.delete<BulkDeleteJobsResponse>(endpoints.jobsBulk, { data: { jobIds } })
 }
 
+/**
+ * Confirms the user applied to this personal job -- any source (manual, Greenhouse, a
+ * saved catalog posting, ...), not just one reached via the job-catalog search results.
+ * Idempotent -- see JobService#markApplied's javadoc.
+ */
+export function markJobApplied(id: number) {
+  return api.post<JobResponse>(endpoints.jobApplied(id))
+}
+
+/** Reverses a mistaken confirmation. */
+export function clearJobApplied(id: number) {
+  return api.delete<JobResponse>(endpoints.jobApplied(id))
+}
+
 export function importGreenhouse(boardToken: string) {
   return api.post<ImportJobsResponse>(endpoints.jobsGreenhouse, { boardToken })
 }

@@ -48,12 +48,18 @@ public class AuthServiceImpl implements AuthService {
         user.setRole("USER");
 
         userMapper.insert(user);
+        // created_at is a DB-side DEFAULT CURRENT_TIMESTAMP -- insert() only backfills
+        // the generated id, so re-fetch to get the real value rather than reporting a
+        // null createdAt on the very first response about this user.
+        User persisted = userMapper.findById(user.getId());
+        User result = persisted != null ? persisted : user;
 
         return new UserResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole()
+                result.getId(),
+                result.getName(),
+                result.getEmail(),
+                result.getRole(),
+                result.getCreatedAt()
         );
     }
     @Override
@@ -87,7 +93,8 @@ public class AuthServiceImpl implements AuthService {
                 new JwtUtil.UserTokenInfo(
                         user.getId(),
                         user.getEmail(),
-                        user.getRole()
+                        user.getRole(),
+                        user.getAuthVersion()
                 )
         );
 

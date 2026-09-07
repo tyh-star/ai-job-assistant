@@ -281,6 +281,77 @@ class JobCatalogH2IntegrationTest {
     }
 
     @Test
+    void anonymousSearchNeverRevealsAnyUsersSavedOrAppliedState() {
+        Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
+                CatalogJobStatus.ACTIVE);
+        jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
+
+        JobCatalogSummary anonymous = search((String) null).results().get(0);
+        assertFalse(anonymous.saved());
+        assertNull(anonymous.personalJobId());
+        assertFalse(anonymous.applied());
+        assertNull(anonymous.appliedAt());
+    }
+
+    @Test
+    void anonymousDetailAlsoRevealsNoUsersSavedState() {
+        Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
+                CatalogJobStatus.ACTIVE);
+        jobCatalogService.saveToMyJobs(ALICE, String.valueOf(catalogId));
+
+        JobCatalogDetail detail = jobCatalogService.findDetail(null, String.valueOf(catalogId));
+        assertFalse(detail.saved());
+        assertNull(detail.personalJobId());
+        assertFalse(detail.applied());
+    }
+
+    @Test
+    void markAppliedSavesIfNeededThenConfirmsAndIsIdempotent() {
+        Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
+                CatalogJobStatus.ACTIVE);
+
+        SaveCatalogJobResponse first = jobCatalogService.markApplied(ALICE, String.valueOf(catalogId));
+        assertTrue(first.job().isApplied());
+        assertNotNull(first.job().getAppliedAt());
+        assertEquals(1, countJobsFor(ALICE), "confirming applied on an unsaved posting must save exactly one row");
+
+        SaveCatalogJobResponse second = jobCatalogService.markApplied(ALICE, String.valueOf(catalogId));
+        assertEquals(first.jobId(), second.jobId());
+        assertEquals(1, countJobsFor(ALICE), "a repeat confirmation must never create a second row");
+    }
+
+    @Test
+    void clearAppliedRevokesAndOnAnUnsavedPostingIsNotFound() {
+        Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
+                CatalogJobStatus.ACTIVE);
+
+        assertThrows(JobNotFoundException.class,
+                () -> jobCatalogService.clearApplied(ALICE, String.valueOf(catalogId)));
+
+        jobCatalogService.markApplied(ALICE, String.valueOf(catalogId));
+        SaveCatalogJobResponse cleared = jobCatalogService.clearApplied(ALICE, String.valueOf(catalogId));
+        assertFalse(cleared.job().isApplied());
+        assertNull(cleared.job().getAppliedAt());
+    }
+
+    @Test
+    void twoUsersAppliedConfirmationsAreIsolated() {
+        Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
+                CatalogJobStatus.ACTIVE);
+
+        jobCatalogService.markApplied(ALICE, String.valueOf(catalogId));
+
+        JobCatalogSummary forBob = search(BOB).results().get(0);
+        assertFalse(forBob.applied(), "Bob never confirmed anything, so his view must not show Alice's applied state");
+
+        jobCatalogService.markApplied(BOB, String.valueOf(catalogId));
+        jobCatalogService.clearApplied(BOB, String.valueOf(catalogId));
+
+        JobCatalogSummary forAliceAfter = search(ALICE).results().get(0);
+        assertTrue(forAliceAfter.applied(), "Bob revoking his own confirmation must never touch Alice's");
+    }
+
+    @Test
     void searchResultsCarrySourceAttributionAndNoRawPayload() {
         Long sourceId = insertJobSource("GREENHOUSE", "acme");
         Long catalogId = insertCatalogJob("Java Developer", "Acme", "CA", RemoteType.HYBRID,
@@ -309,7 +380,7 @@ class JobCatalogH2IntegrationTest {
                                                    Integer postedWithinDays, Integer page,
                                                    Integer size, String sort) {
         return new JobCatalogSearchRequest(
-                q, location, country, remoteType, employmentType, postedWithinDays, page, size, sort);
+                q, location, null, null, country, remoteType, employmentType, postedWithinDays, page, size, sort);
     }
 
     private void insertUser(String email, String name) {

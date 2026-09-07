@@ -1,7 +1,7 @@
 package aijob.freehire;
 
 import aijob.exception.InvalidJobSearchException;
-import aijob.exception.JobNotFoundException;
+import aijob.exception.JobDetailUnavailableException;
 import aijob.exception.JobSearchRateLimitedException;
 import aijob.exception.JobSearchTimeoutException;
 import aijob.exception.JobSearchUnavailableException;
@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -219,13 +220,68 @@ class FreeHireClientTest {
     }
 
     @Test
-    void notFoundSlugThrowsJobNotFound() throws Exception {
+    void notFoundSlugThrowsJobDetailUnavailableWithTheStableCode() throws Exception {
+        // A distinct type from JobNotFoundException (this site's OWN 404s) -- see
+        // JobDetailUnavailableException's javadoc for why the two must never be
+        // confused. The message is a stable, matchable code the frontend's
+        // apiErrorKey routes on, not free text.
         server = startServer(exchange -> respond(exchange, 404, """
                 {"error":"not found"}
                 """));
         FreeHireClient client = clientFor(server);
 
-        assertThrows(JobNotFoundException.class, () -> client.getBySlug("does-not-exist"));
+        JobDetailUnavailableException ex = assertThrows(
+                JobDetailUnavailableException.class,
+                () -> client.getBySlug("does-not-exist"));
+        assertEquals("JOB_DETAIL_NO_LONGER_AVAILABLE", ex.getMessage());
+    }
+
+    // ---------------------------------------------------------------------------
+    // geo/cities -- the real city-search endpoint, confirmed live 2026-09-05
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void searchCitiesSendsQAndCountryAndParsesTheDataEnvelope() throws Exception {
+        StringBuilder capturedPath = new StringBuilder();
+        server = startServer(exchange -> {
+            capturedPath.append(exchange.getRequestURI().toString());
+            respond(exchange, 200, """
+                    {"data":[{"value":"Toronto","country":"ca"}]}
+                    """);
+        });
+        FreeHireClient client = clientFor(server);
+
+        java.util.List<FreeHireGeoCityJson> result = client.searchCities("Toronto", "ca");
+
+        assertTrue(capturedPath.toString().startsWith("/geo/cities?"), capturedPath.toString());
+        assertTrue(capturedPath.toString().contains("q=Toronto"));
+        assertTrue(capturedPath.toString().contains("country=ca"));
+        assertEquals(1, result.size());
+        assertEquals("Toronto", result.get(0).value());
+        assertEquals("ca", result.get(0).country());
+    }
+
+    @Test
+    void searchCitiesWithNoCountryOmitsTheParamEntirely() throws Exception {
+        StringBuilder capturedPath = new StringBuilder();
+        server = startServer(exchange -> {
+            capturedPath.append(exchange.getRequestURI().toString());
+            respond(exchange, 200, "{\"data\":[]}");
+        });
+        FreeHireClient client = clientFor(server);
+
+        client.searchCities("Tor", null);
+
+        assertFalse(capturedPath.toString().contains("country="),
+                "no country selected must not send a bogus empty country param: " + capturedPath);
+    }
+
+    @Test
+    void searchCitiesWithNoMatchesReturnsAnEmptyListNotNull() throws Exception {
+        server = startServer(exchange -> respond(exchange, 200, "{\"data\":[]}"));
+        FreeHireClient client = clientFor(server);
+
+        assertEquals(List.of(), client.searchCities("zzzznotarealcity", null));
     }
 
     // ---------------------------------------------------------------------------

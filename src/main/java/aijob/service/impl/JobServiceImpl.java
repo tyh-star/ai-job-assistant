@@ -460,6 +460,38 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    public JobResponse markApplied(String email, Long id) {
+        User user = getUserByEmail(email);
+        Job job = getOwnedJob(id, user.getId());
+
+        // Deliberately UNCONDITIONAL -- no "already applied?" check here. See
+        // JobMapper#markApplied's javadoc: that UPDATE's own COALESCE is what
+        // guarantees a repeat confirmation never resets appliedAt, so this method does
+        // not need to (and must not) gate the write behind a Java-side read of the
+        // current state, which would be a check-then-act race under concurrent
+        // requests. This is the same call {@code JobCatalogService#markApplied} makes,
+        // unconditionally, for the same reason -- one shared SQL statement is the
+        // single source of truth for this idempotency, not duplicated Java logic in
+        // each caller.
+        LocalDateTime appliedAt = LocalDateTime.now(ZoneOffset.UTC);
+        jobMapper.markApplied(id, user.getId(), appliedAt);
+
+        Job updated = jobMapper.findById(id);
+        return toJobResponse(updated != null ? updated : job);
+    }
+
+    @Override
+    public JobResponse clearApplied(String email, Long id) {
+        User user = getUserByEmail(email);
+        getOwnedJob(id, user.getId());
+
+        jobMapper.clearApplied(id, user.getId());
+
+        Job updated = jobMapper.findById(id);
+        return toJobResponse(updated != null ? updated : getOwnedJob(id, user.getId()));
+    }
+
+    @Override
     @Transactional
     public BulkDeleteJobsResponse bulkDeleteJobs(String email, List<Long> jobIds) {
         if (jobIds == null || jobIds.isEmpty()) {
@@ -3499,6 +3531,8 @@ public class JobServiceImpl implements JobService {
                 job.getSource(),
                 job.getStatus(),
                 job.getExternalJobId(),
+                job.isApplied(),
+                job.getAppliedAt(),
                 job.getCreatedAt(),
                 job.getUpdatedAt()
         );

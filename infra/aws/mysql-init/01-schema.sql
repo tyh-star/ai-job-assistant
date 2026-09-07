@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(100) NOT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'USER',
+    -- Bumped by 1 on every password change; a request's JWT is rejected unless its
+    -- authVersion claim matches this column (see schema/users_auth_version.sql for
+    -- the migration that adds this column to an already-deployed database).
+    auth_version INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -50,6 +54,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     source VARCHAR(100) DEFAULT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'SAVED',
     external_job_id VARCHAR(64) DEFAULT NULL,
+    applied TINYINT(1) NOT NULL DEFAULT 0,
+    applied_at TIMESTAMP NULL DEFAULT NULL,
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

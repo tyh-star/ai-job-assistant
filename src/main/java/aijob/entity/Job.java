@@ -27,6 +27,10 @@ public class Job {
 
     private String externalJobId;
 
+    private boolean applied;
+
+    private LocalDateTime appliedAt;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

@@ -1,8 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { sanitizeReturnTo } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
 import { LanguageSwitch } from '../components/LanguageSwitch'
 import { Spinner } from '../components/Spinner'
@@ -24,13 +25,21 @@ export const AUTH_FOOTER_CLASS = 'auth-footer mt-6 text-base text-slate-600'
 export function LoginPage() {
   const { t } = useTranslation()
   const { isAuthenticated, login } = useAuth()
+  const [searchParams] = useSearchParams()
+  const returnTo = sanitizeReturnTo(searchParams.get('returnTo'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  // The axios interceptor's own forced redirect (see api/client.ts) carries this so
+  // the visitor sees an honest reason, not a blank form that looks like nothing
+  // happened -- initialized once from the URL, not re-read on every render, so it
+  // does not reappear after the user has cleared or replaced it with their own error.
+  const [error, setError] = useState(() =>
+    searchParams.get('reason') === 'session_expired' ? t('auth.sessionExpired') : '',
+  )
   const [loading, setLoading] = useState(false)
 
   if (isAuthenticated) {
-    return <Navigate to="/" replace />
+    return <Navigate to={returnTo} replace />
   }
 
   async function onSubmit(event: FormEvent) {
@@ -52,7 +61,15 @@ export function LoginPage() {
     try {
       await login(email.trim(), password)
     } catch (err) {
-      setError(t(apiErrorKey(err)))
+      // A 401 HERE is always this login attempt's own wrong-credentials rejection
+      // (see rule 4 in api/client.ts's handleResponseError -- /auth/login's own 401
+      // never goes through that generic handling), so it must show the real
+      // "wrong email or password" message, never apiErrorKey's generic
+      // "errors.unauthorized" ("your session expired"), which is correct for a 401
+      // from any OTHER call but actively misleading here -- this login never had a
+      // session to expire in the first place.
+      const status = (err as { response?: { status?: number } }).response?.status
+      setError(status === 401 ? t('auth.invalidCredentials') : t(apiErrorKey(err)))
     } finally {
       setLoading(false)
     }

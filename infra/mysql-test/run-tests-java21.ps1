@@ -134,7 +134,8 @@ if (-not $FullSuiteOnly) {
     try {
         $results['mysql'] = Invoke-Maven 'MYSQL SUITE on Java 21 (isolated aijob_import_test)' `
             @('--network', $network, '--env-file', $containerEnv) `
-            @('test', '-Dtest=JobExportImportMySqlIntegrationTest', '-DfailIfNoSpecifiedTests=false')
+            @('test', '-Dtest=JobExportImportMySqlIntegrationTest,JobCatalogAppliedMySqlIntegrationTest,JobCatalogSearchMySqlRealStackTest',
+              '-DfailIfNoSpecifiedTests=false')
         Show-Result $results['mysql'] 'mysql'
 
         $all = ($results['mysql'].Output | Out-String)

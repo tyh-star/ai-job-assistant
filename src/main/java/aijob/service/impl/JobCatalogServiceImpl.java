@@ -3,6 +3,7 @@ package aijob.service.impl;
 import aijob.catalog.CatalogJobSourceRow;
 import aijob.catalog.JobCatalogSearchQuery;
 import aijob.catalog.SqlDialect;
+import aijob.dto.CitySuggestion;
 import aijob.dto.JobCatalogDetail;
 import aijob.dto.JobCatalogSearchRequest;
 import aijob.dto.JobCatalogSearchResponse;
@@ -80,9 +81,9 @@ public class JobCatalogServiceImpl implements JobCatalogService {
 
     @Override
     public JobCatalogSearchResponse search(String email, JobCatalogSearchRequest request) {
-        User user = requireUser(email);
+        Long userId = requireUserIdOrNullForAnonymous(email);
         JobCatalogSearchRequest safe = request == null
-                ? new JobCatalogSearchRequest(null, null, null, null, null, null, null, null, null)
+                ? new JobCatalogSearchRequest(null, null, null, null, null, null, null, null, null, null, null)
                 : request;
 
         int page = safe.page() == null ? 1 : safe.page();
@@ -111,7 +112,7 @@ public class JobCatalogServiceImpl implements JobCatalogService {
         long total = jobCatalogMapper.countSearch(query);
         List<JobCatalogEntry> entries = total == 0 ? List.of() : jobCatalogMapper.search(query);
 
-        List<JobCatalogSummary> results = toSummaries(user.getId(), entries);
+        List<JobCatalogSummary> results = toSummaries(userId, entries);
         int totalPages = size == 0 ? 0 : (int) ((total + size - 1) / size);
         boolean hasMore = (long) page * size < total;
         return new JobCatalogSearchResponse(page, size, total, totalPages, hasMore, results);
@@ -119,11 +120,13 @@ public class JobCatalogServiceImpl implements JobCatalogService {
 
     @Override
     public JobCatalogDetail findDetail(String email, String catalogJobId) {
-        User user = requireUser(email);
+        Long userId = requireUserIdOrNullForAnonymous(email);
         JobCatalogEntry entry = requireCatalogEntry(parseCatalogJobId(catalogJobId));
 
-        UserSavedCatalogJob mapping =
-                userSavedCatalogJobMapper.findByUserAndCatalogJob(user.getId(), entry.getId());
+        UserSavedCatalogJob mapping = userId == null
+                ? null
+                : userSavedCatalogJobMapper.findByUserAndCatalogJob(userId, entry.getId());
+        Job personal = mapping == null ? null : jobMapper.findById(mapping.getPersonalJobId());
         String source = sourceLabels(List.of(entry.getId())).get(entry.getId());
 
         return new JobCatalogDetail(
@@ -151,7 +154,9 @@ public class JobCatalogServiceImpl implements JobCatalogService {
                 entry.getLastSeenAt(),
                 entry.getStatus(),
                 mapping != null,
-                mapping == null ? null : mapping.getPersonalJobId());
+                mapping == null ? null : mapping.getPersonalJobId(),
+                personal != null && personal.isApplied(),
+                personal == null ? null : personal.getAppliedAt());
     }
 
     @Override
@@ -206,6 +211,37 @@ public class JobCatalogServiceImpl implements JobCatalogService {
         return new SaveCatalogJobResponse(result.getId(), idRef, false, toJobResponse(result));
     }
 
+    @Override
+    @Transactional
+    public SaveCatalogJobResponse markApplied(String email, String catalogJobId) {
+        // Reuses the idempotent save path -- applied/appliedAt live on the same personal
+        // jobs row a save creates, and this backend never marks a job applied without a
+        // row to attach that fact to.
+        SaveCatalogJobResponse saveResult = saveToMyJobs(email, catalogJobId);
+        Long userId = requireUser(email).getId();
+        LocalDateTime appliedAt = LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+        jobMapper.markApplied(saveResult.jobId(), userId, appliedAt);
+        Job updated = jobMapper.findById(saveResult.jobId());
+        return new SaveCatalogJobResponse(
+                saveResult.jobId(), saveResult.catalogJobId(), saveResult.alreadySaved(), toJobResponse(updated));
+    }
+
+    @Override
+    @Transactional
+    public SaveCatalogJobResponse clearApplied(String email, String catalogJobId) {
+        User user = requireUser(email);
+        Long parsedId = parseCatalogJobId(catalogJobId);
+        String externalJobId = String.valueOf(parsedId);
+        Job existing = jobMapper.findByUserIdAndSourceAndExternalJobId(user.getId(), CATALOG_SOURCE, externalJobId);
+        if (existing == null) {
+            // Nothing was ever saved, so nothing was ever marked applied either.
+            throw new JobNotFoundException("Catalog job not found");
+        }
+        jobMapper.clearApplied(existing.getId(), user.getId());
+        Job updated = jobMapper.findById(existing.getId());
+        return new SaveCatalogJobResponse(existing.getId(), externalJobId, true, toJobResponse(updated));
+    }
+
     /**
      * The wire id is opaque to the caller but must actually be a numeric row id in
      * this provider. A non-numeric value here means the client sent a reference from
@@ -240,8 +276,15 @@ public class JobCatalogServiceImpl implements JobCatalogService {
         for (JobCatalogEntry entry : entries) {
             ids.add(entry.getId());
         }
-        Set<Long> savedIds = new HashSet<>(userSavedCatalogJobMapper.findSavedCatalogJobIds(userId, ids));
         Map<Long, String> sources = sourceLabels(ids);
+
+        // userId == null means an anonymous (unauthenticated) search -- never looked up
+        // against anyone's saved/applied state, so every result below comes back
+        // saved=false/applied=false rather than leaking one user's data to another
+        // caller who happens to search for the same posting.
+        Set<Long> savedIds = userId == null
+                ? Set.of()
+                : new HashSet<>(userSavedCatalogJobMapper.findSavedCatalogJobIds(userId, ids));
         Map<Long, Long> personalJobIds = new HashMap<>();
         for (Long id : savedIds) {
             UserSavedCatalogJob mapping = userSavedCatalogJobMapper.findByUserAndCatalogJob(userId, id);
@@ -249,9 +292,15 @@ public class JobCatalogServiceImpl implements JobCatalogService {
                 personalJobIds.put(id, mapping.getPersonalJobId());
             }
         }
+        // One batch fetch instead of one applied-status query per saved row.
+        Map<Long, Job> personalJobsById = personalJobIds.isEmpty()
+                ? Map.of()
+                : indexById(jobMapper.findByIds(new ArrayList<>(personalJobIds.values())));
 
         List<JobCatalogSummary> summaries = new ArrayList<>(entries.size());
         for (JobCatalogEntry entry : entries) {
+            Long personalJobId = personalJobIds.get(entry.getId());
+            Job personal = personalJobId == null ? null : personalJobsById.get(personalJobId);
             summaries.add(new JobCatalogSummary(
                     String.valueOf(entry.getId()),
                     entry.getTitle(),
@@ -272,9 +321,24 @@ public class JobCatalogServiceImpl implements JobCatalogService {
                     entry.getStatus(),
                     snippet(entry.getDescriptionText()),
                     savedIds.contains(entry.getId()),
-                    personalJobIds.get(entry.getId())));
+                    personalJobId,
+                    personal != null && personal.isApplied(),
+                    personal == null ? null : personal.getAppliedAt(),
+                    // local_catalog's own `location` is a genuine free-text LIKE filter
+                    // (see this class's `search`), not FreeHire's ambiguous `cities`
+                    // facet -- there is no "matched vs. posting's own location" gap to
+                    // surface here, so cityMatch is always absent for this provider.
+                    null));
         }
         return summaries;
+    }
+
+    private static Map<Long, Job> indexById(List<Job> jobs) {
+        Map<Long, Job> byId = new HashMap<>();
+        for (Job job : jobs) {
+            byId.put(job.getId(), job);
+        }
+        return byId;
     }
 
     private Map<Long, String> sourceLabels(List<Long> catalogJobIds) {
@@ -412,6 +476,8 @@ public class JobCatalogServiceImpl implements JobCatalogService {
                 job.getSource(),
                 job.getStatus(),
                 job.getExternalJobId(),
+                job.isApplied(),
+                job.getAppliedAt(),
                 job.getCreatedAt(),
                 job.getUpdatedAt());
     }
@@ -427,11 +493,30 @@ public class JobCatalogServiceImpl implements JobCatalogService {
         return entry;
     }
 
+    @Override
+    public List<CitySuggestion> searchCities(String q, String country) {
+        // No structured city dictionary of its own -- this provider's location facet is
+        // the free-text `location` LIKE filter (see #search), a separate mechanism.
+        // Empty, not an error: "no suggestions available for this provider" is a
+        // legitimate, expected answer, not a failure.
+        return List.of();
+    }
+
     private User requireUser(String email) {
         User user = userMapper.findByEmail(email);
         if (user == null) {
             throw new UserNotFoundException("User not found");
         }
         return user;
+    }
+
+    /**
+     * {@code null} in, {@code null} out: an anonymous caller (no JWT at all) gets an
+     * anonymous, entirely public result -- no user lookup, no exception. A non-null
+     * email that does not resolve to a real user is still an error (a stale/forged
+     * token), never silently treated as anonymous.
+     */
+    private Long requireUserIdOrNullForAnonymous(String email) {
+        return email == null ? null : requireUser(email).getId();
     }
 }

@@ -6,6 +6,7 @@ import aijob.dto.ConservativeRewriteCandidate;
 import aijob.dto.ConservativeRewriteCandidatesResponse;
 import aijob.dto.ConservativeRewriteRepair;
 import aijob.dto.EditedTailorChange;
+import aijob.dto.JobResponse;
 import aijob.dto.RejectedTailorChange;
 import aijob.dto.ResumeDocumentNode;
 import aijob.dto.TailorChange;
@@ -66,6 +67,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -2223,6 +2225,139 @@ class JobServiceImplTest {
                 () -> jobService.bulkDeleteJobs(EMAIL, List.of(11L, 12L))
         );
         verify(jobMapper, never()).deleteByIdAndUserId(any(), any());
+    }
+
+    // ---------------------------------------------------------------------------
+    // markApplied/clearApplied -- Jobs page "已保存职位"/"已投递职位" tabs
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void markApplied_ownedJob_setsAppliedTrueWithAFreshAppliedAt() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job job = greenhouseJob(11L);
+        job.setApplied(false);
+        Job updated = greenhouseJob(11L);
+        updated.setApplied(true);
+        updated.setAppliedAt(LocalDateTime.of(2026, 9, 6, 12, 0));
+        when(jobMapper.findById(11L)).thenReturn(job).thenReturn(updated);
+
+        JobResponse response = jobService.markApplied(EMAIL, 11L);
+
+        verify(jobMapper).markApplied(eq(11L), eq(1L), any(LocalDateTime.class));
+        assertTrue(response.isApplied());
+        assertNotNull(response.getAppliedAt());
+    }
+
+    @Test
+    void markApplied_alwaysCallsTheMapperUnconditionally_atomicityLivesInTheSqlNotInJava() {
+        // JobServiceImpl.markApplied is deliberately UNCONDITIONAL -- it never checks
+        // "already applied?" in Java before writing (that would be a check-then-act
+        // race under concurrent requests). The real idempotency guarantee (a repeat
+        // confirmation never resets appliedAt) lives entirely in JobMapper#markApplied's
+        // own COALESCE, which a mocked mapper cannot exercise -- see
+        // JobControllerAppliedSecurityTest for that proof against real H2 persistence.
+        // This test only confirms the Java layer's own contract: it calls through to
+        // the mapper every single time, unconditionally.
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+
+        Job applied = greenhouseJob(11L);
+        applied.setApplied(true);
+        applied.setAppliedAt(LocalDateTime.of(2026, 9, 6, 12, 0));
+        when(jobMapper.findById(11L)).thenReturn(applied);
+
+        jobService.markApplied(EMAIL, 11L);
+        jobService.markApplied(EMAIL, 11L);
+
+        verify(jobMapper, times(2)).markApplied(eq(11L), eq(1L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void markApplied_afterARevoke_getsAGenuinelyNewAppliedAt() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+
+        Job unapplied = greenhouseJob(11L);
+        Job appliedFirst = greenhouseJob(11L);
+        appliedFirst.setApplied(true);
+        appliedFirst.setAppliedAt(LocalDateTime.of(2026, 9, 6, 9, 0));
+        Job revoked = greenhouseJob(11L);
+        Job appliedSecond = greenhouseJob(11L);
+        appliedSecond.setApplied(true);
+        appliedSecond.setAppliedAt(LocalDateTime.of(2026, 9, 6, 15, 0));
+
+        when(jobMapper.findById(11L))
+                .thenReturn(unapplied)      // markApplied #1: getOwnedJob
+                .thenReturn(appliedFirst)   // markApplied #1: re-fetch
+                .thenReturn(appliedFirst)   // clearApplied: getOwnedJob
+                .thenReturn(revoked)        // clearApplied: re-fetch
+                .thenReturn(revoked)        // markApplied #2: getOwnedJob
+                .thenReturn(appliedSecond); // markApplied #2: re-fetch
+
+        JobResponse first = jobService.markApplied(EMAIL, 11L);
+        JobResponse afterRevoke = jobService.clearApplied(EMAIL, 11L);
+        JobResponse second = jobService.markApplied(EMAIL, 11L);
+
+        assertFalse(afterRevoke.isApplied());
+        assertNull(afterRevoke.getAppliedAt());
+        assertNotEquals(first.getAppliedAt(), second.getAppliedAt(),
+                "re-applying after a revoke must get a genuinely new appliedAt, not the stale one");
+        verify(jobMapper, times(2)).markApplied(eq(11L), eq(1L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void markApplied_otherUsersJob_isNotFound() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job foreign = greenhouseJob(99L);
+        foreign.setUserId(2L);
+        when(jobMapper.findById(99L)).thenReturn(foreign);
+
+        assertThrows(JobNotFoundException.class, () -> jobService.markApplied(EMAIL, 99L));
+        verify(jobMapper, never()).markApplied(any(), any(), any());
+    }
+
+    @Test
+    void clearApplied_ownedAppliedJob_setsAppliedFalse() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job applied = greenhouseJob(11L);
+        applied.setApplied(true);
+        applied.setAppliedAt(LocalDateTime.of(2026, 9, 6, 12, 0));
+        Job cleared = greenhouseJob(11L);
+        cleared.setApplied(false);
+        when(jobMapper.findById(11L)).thenReturn(applied).thenReturn(cleared);
+
+        JobResponse response = jobService.clearApplied(EMAIL, 11L);
+
+        verify(jobMapper).clearApplied(11L, 1L);
+        assertFalse(response.isApplied());
+        assertNull(response.getAppliedAt());
+    }
+
+    @Test
+    void clearApplied_otherUsersJob_isNotFound() {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail(EMAIL);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user);
+        Job foreign = greenhouseJob(99L);
+        foreign.setUserId(2L);
+        when(jobMapper.findById(99L)).thenReturn(foreign);
+
+        assertThrows(JobNotFoundException.class, () -> jobService.clearApplied(EMAIL, 99L));
+        verify(jobMapper, never()).clearApplied(any(), any());
     }
 
     private void assertRejectedCountMatches(TailoredResumeResponse response, int expected) {

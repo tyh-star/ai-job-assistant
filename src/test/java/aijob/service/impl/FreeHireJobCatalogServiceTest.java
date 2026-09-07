@@ -1,6 +1,7 @@
 package aijob.service.impl;
 
 import aijob.dto.JobCatalogDetail;
+import aijob.jobsearch.ExternalJobIds;
 import aijob.dto.JobCatalogSearchRequest;
 import aijob.dto.JobCatalogSearchResponse;
 import aijob.dto.JobCatalogSummary;
@@ -8,6 +9,7 @@ import aijob.dto.SaveCatalogJobResponse;
 import aijob.entity.Job;
 import aijob.entity.User;
 import aijob.exception.InvalidJobSearchException;
+import aijob.exception.JobDetailUnavailableException;
 import aijob.exception.JobNotFoundException;
 import aijob.exception.UserNotFoundException;
 import aijob.freehire.FreeHireClient;
@@ -23,6 +25,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.util.MultiValueMap;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -51,6 +57,8 @@ class FreeHireJobCatalogServiceTest {
     private static final String ALICE = "alice@example.com";
     private static final String BOB = "bob@example.com";
 
+    private static final Instant FIXED_NOW = Instant.parse("2026-09-04T12:00:00Z");
+
     private FreeHireClient client;
     private JobMapper jobMapper;
     private UserMapper userMapper;
@@ -61,7 +69,8 @@ class FreeHireJobCatalogServiceTest {
         client = mock(FreeHireClient.class);
         jobMapper = mock(JobMapper.class);
         userMapper = mock(UserMapper.class);
-        service = new FreeHireJobCatalogService(client, jobMapper, userMapper);
+        Clock clock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
+        service = new FreeHireJobCatalogService(client, jobMapper, userMapper, clock);
 
         when(userMapper.findByEmail(ALICE)).thenReturn(user(1L, ALICE));
         when(userMapper.findByEmail(BOB)).thenReturn(user(2L, BOB));
@@ -82,8 +91,8 @@ class FreeHireJobCatalogServiceTest {
     void searchTranslatesEveryFacetToFreeHiresOwnParamNames() {
         stubSearch(emptyResult());
 
-        service.search(ALICE, new JobCatalogSearchRequest(
-                "engineer", null, "us", "REMOTE", "FULL_TIME", 7, 1, 20, "POSTED_AT"));
+        service.search(ALICE, request().q("engineer").country("us").remoteType("REMOTE")
+                .employmentType("FULL_TIME").postedWithinDays(7).page(1).size(20).sort("POSTED_AT").build());
 
         MultiValueMap<String, String> sent = capturedParams();
         assertEquals(List.of("engineer"), sent.get("q"));
@@ -101,8 +110,7 @@ class FreeHireJobCatalogServiceTest {
     void pageTwoComputesTheCorrectOffset() {
         stubSearch(emptyResult());
 
-        service.search(ALICE, new JobCatalogSearchRequest(
-                null, null, null, null, null, null, 3, 10, null));
+        service.search(ALICE, request().page(3).size(10).build());
 
         MultiValueMap<String, String> sent = capturedParams();
         assertEquals(List.of("20"), sent.get("offset"));
@@ -113,8 +121,7 @@ class FreeHireJobCatalogServiceTest {
     void pageSizeIsCappedAtTheSharedMaximum() {
         stubSearch(emptyResult());
 
-        service.search(ALICE, new JobCatalogSearchRequest(
-                null, null, null, null, null, null, 1, 10_000, null));
+        service.search(ALICE, request().page(1).size(10_000).build());
 
         assertEquals(List.of(String.valueOf(JobCatalogSearchRequest.MAX_PAGE_SIZE)),
                 capturedParams().get("limit"));
@@ -130,7 +137,7 @@ class FreeHireJobCatalogServiceTest {
         // this call never reaches the network at all: it must fail validation before any
         // params are built or any request sent.
         InvalidJobSearchException ex = assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest("engineer", "Toronto", null, null, null, null, null, null, null)));
+                request().q("engineer").location("Toronto").build()));
         assertTrue(ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("location"));
         verify(client, never()).search(any());
     }
@@ -138,7 +145,7 @@ class FreeHireJobCatalogServiceTest {
     @Test
     void locationAloneIsAlsoRejectedNotSentAsATextSearch() {
         assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest(null, "Berlin", null, null, null, null, null, null, null)));
+                request().location("Berlin").build()));
         verify(client, never()).search(any());
     }
 
@@ -146,8 +153,7 @@ class FreeHireJobCatalogServiceTest {
     void blankLocationIsNotTreatedAsAFilterAtAll() {
         stubSearch(emptyResult());
 
-        service.search(ALICE, new JobCatalogSearchRequest(
-                "engineer", "   ", null, null, null, null, null, null, null));
+        service.search(ALICE, request().q("engineer").location("   ").build());
 
         assertEquals(List.of("engineer"), capturedParams().get("q"));
     }
@@ -156,8 +162,7 @@ class FreeHireJobCatalogServiceTest {
     void countrySelectionMapsToTheRealCountriesFacetNotFreeText() {
         stubSearch(emptyResult());
 
-        service.search(ALICE, new JobCatalogSearchRequest(
-                null, null, "CA", null, null, null, null, null, null));
+        service.search(ALICE, request().country("CA").build());
 
         MultiValueMap<String, String> sent = capturedParams();
         assertEquals(List.of("ca"), sent.get("countries"));
@@ -167,6 +172,147 @@ class FreeHireJobCatalogServiceTest {
         assertNull(sent.get("q"), "a bare country filter must not also become a text search");
     }
 
+    // ---------------------------------------------------------------------------
+    // city: the real fix for "location box accepts input but always 400s" --
+    // a structured city facet instead of free text, and the countries/cities
+    // OR-group discovered in FreeHire's own upstream source (query_filter.go).
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void citySelectionMapsToTheRealCitiesFacet() {
+        stubSearch(emptyResult());
+
+        service.search(ALICE, request().city("Toronto").build());
+
+        MultiValueMap<String, String> sent = capturedParams();
+        assertEquals(List.of("Toronto"), sent.get("cities"), "sent verbatim -- never re-cased or reformatted");
+        assertNull(sent.get("q"), "a bare city filter must not also become a text search");
+    }
+
+    @Test
+    void citySelectionNeverAlsoSendsCountryEvenIfBothWereSomehowSet() {
+        // See FreeHireJobCatalogService#buildSearchParams: countries/regions/cities share
+        // ONE OR-group upstream (confirmed against the pinned upstream source), so
+        // "countries=ca AND cities=Toronto" in the same request would NOT mean "Toronto,
+        // Canada" -- it would mean "anywhere in Canada, OR anywhere named Toronto",
+        // silently widening the search. cities is also a bare name match with no country
+        // of its own (see cityFilterMatchesByNameOnlyAcrossCountries in
+        // FreeHireEndToEndControllerTest), so there is no combination of the two facets
+        // that would narrow to "Toronto, Canada" -- this must never reach the network as
+        // a combined countries+cities request regardless.
+        stubSearch(emptyResult());
+
+        InvalidJobSearchException ex = assertThrows(InvalidJobSearchException.class,
+                () -> service.search(ALICE, request().city("Toronto").country("US").build()));
+        assertTrue(ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("city")
+                && ex.getMessage().toLowerCase(java.util.Locale.ROOT).contains("country"));
+        verify(client, never()).search(any());
+    }
+
+    @Test
+    void blankCityIsNotTreatedAsAFilterAtAllAndCountryStillWorks() {
+        stubSearch(emptyResult());
+
+        service.search(ALICE, request().city("   ").country("CA").build());
+
+        MultiValueMap<String, String> sent = capturedParams();
+        assertEquals(List.of("ca"), sent.get("countries"));
+        assertNull(sent.get("cities"));
+    }
+
+    @Test
+    void cityCountryIsNeverSentToFreeHireEvenThoughItIsAccepted() {
+        // cityCountry is site-local display metadata (see
+        // JobCatalogSearchRequest#cityCountry's javadoc) -- accepted alongside city, but
+        // must never reach FreeHire as `countries`, which would silently widen the
+        // search via the same OR-group as the rejected city+country combination above.
+        stubSearch(new FreeHireSearchResponseJson(
+                List.of(job("tor-1", "https://x/1", "Data Engineer", "Acme", "Toronto, Canada",
+                        "<p>d</p>", List.of("ca"), List.of(), "hybrid", List.of("Toronto"))),
+                new FreeHireMetaJson(1, 20, 0, null)));
+
+        service.search(ALICE, request().city("Toronto").cityCountry("CA").build());
+
+        MultiValueMap<String, String> sent = capturedParams();
+        assertEquals(List.of("Toronto"), sent.get("cities"));
+        assertNull(sent.get("countries"), "cityCountry must never become a countries param");
+        assertNull(sent.get("cityCountry"), "cityCountry is never a FreeHire query param at all");
+    }
+
+    @Test
+    void cityMatchIsConfirmedWhenTheHitsOwnCountriesBacksUpTheSuggestion() {
+        stubSearch(new FreeHireSearchResponseJson(
+                List.of(job("tor-clean", "https://x/1", "Data Engineer", "Acme", "Toronto, Canada",
+                        "<p>d</p>", List.of("ca"), List.of(), "hybrid", List.of("Toronto"))),
+                new FreeHireMetaJson(1, 20, 0, null)));
+
+        JobCatalogSearchResponse response = service.search(ALICE, request().city("Toronto").cityCountry("CA").build());
+
+        JobCatalogSummary.CityMatch match = response.results().get(0).cityMatch();
+        assertEquals("Toronto", match.city());
+        assertEquals("CA", match.countryCode());
+        assertTrue(match.countryConfirmed());
+    }
+
+    @Test
+    void cityMatchIsPresentButNotConfirmedWhenAGenuineMultiLocationPostingsOwnCountryDiffers() {
+        // The real bug this round: a multi-location posting (confirmed live against real
+        // freehire.me on 2026-09-06) whose own `countries` is "us", not "ca", even though
+        // its `cities` array genuinely contains "Toronto". Must never be presented as
+        // confirmed "Toronto, Canada" -- but must also never be silently hidden.
+        stubSearch(new FreeHireSearchResponseJson(
+                List.of(job("tor-multi-us", "https://x/2", "Brand Manager", "RemoteCo", "Remote (US)",
+                        "<p>d</p>", List.of("us"), List.of(), "remote", List.of("New York City", "Toronto"))),
+                new FreeHireMetaJson(1, 20, 0, null)));
+
+        JobCatalogSearchResponse response = service.search(ALICE, request().city("Toronto").cityCountry("CA").build());
+
+        JobCatalogSummary summary = response.results().get(0);
+        assertEquals("Remote (US)", summary.locationText(), "the posting's own location must never be hidden");
+        assertEquals("US", summary.countryCode());
+        JobCatalogSummary.CityMatch match = summary.cityMatch();
+        assertEquals("Toronto", match.city(), "cities does contain Toronto -- cityMatch must still be present");
+        assertFalse(match.countryConfirmed(), "this hit's own countries is us, not ca -- must not claim CA");
+    }
+
+    @Test
+    void cityMatchIsAbsentWhenTheSearchWasNotCityScopedAtAll() {
+        stubSearch(new FreeHireSearchResponseJson(
+                List.of(job("plain", "https://x/3", "Engineer", "Acme", "Remote - US",
+                        "<p>d</p>", List.of("us"), List.of(), "remote", List.of())),
+                new FreeHireMetaJson(1, 20, 0, null)));
+
+        JobCatalogSearchResponse response = service.search(ALICE, request().country("US").build());
+
+        assertNull(response.results().get(0).cityMatch());
+    }
+
+    @Test
+    void searchCitiesDelegatesToFreeHireClientAndMapsTheWireShape() {
+        when(client.searchCities("Toronto", "ca"))
+                .thenReturn(List.of(new aijob.freehire.FreeHireGeoCityJson("Toronto", "ca")));
+
+        List<aijob.dto.CitySuggestion> suggestions = service.searchCities("Toronto", "CA");
+
+        assertEquals(1, suggestions.size());
+        assertEquals("Toronto", suggestions.get(0).value());
+        assertEquals("ca", suggestions.get(0).countryCode());
+        verify(client).searchCities("Toronto", "ca");
+    }
+
+    @Test
+    void searchCitiesWithABlankQueryNeverCallsFreeHire() {
+        assertEquals(List.of(), service.searchCities("", null));
+        assertEquals(List.of(), service.searchCities(null, "CA"));
+        verify(client, never()).searchCities(any(), any());
+    }
+
+    @Test
+    void searchCitiesRejectsAnInvalidCountryCodeBeforeAnyNetworkCall() {
+        assertThrows(InvalidJobSearchException.class, () -> service.searchCities("Toronto", "CANADA"));
+        verify(client, never()).searchCities(any(), any());
+    }
+
     @Test
     void employmentTypesWithNoFreeHireEquivalentAreRejectedNotSilentlyOmitted() {
         // Regression test: silently dropping the facet made an unsupported selection
@@ -174,12 +320,12 @@ class FreeHireJobCatalogServiceTest {
         // exactly the "silently ignored filter" this must never do. It must now fail
         // validation before any network call, for both TEMPORARY and OTHER.
         InvalidJobSearchException ex = assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest(null, null, null, null, "TEMPORARY", null, null, null, null)));
+                request().employmentType("TEMPORARY").build()));
         assertTrue(ex.getMessage().contains("TEMPORARY"));
         verify(client, never()).search(any());
 
         assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest(null, null, null, null, "OTHER", null, null, null, null)));
+                request().employmentType("OTHER").build()));
         verify(client, never()).search(any());
     }
 
@@ -187,8 +333,7 @@ class FreeHireJobCatalogServiceTest {
     void relevanceSortSendsNoSortParamAtAll() {
         stubSearch(emptyResult());
 
-        service.search(ALICE, new JobCatalogSearchRequest(
-                "x", null, null, null, null, null, null, null, "RELEVANCE"));
+        service.search(ALICE, request().q("x").sort("RELEVANCE").build());
 
         assertNull(capturedParams().get("sort"));
     }
@@ -196,20 +341,20 @@ class FreeHireJobCatalogServiceTest {
     @Test
     void invalidRemoteTypeIsRejectedBeforeAnyNetworkCall() {
         assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest(null, null, null, "ANYWHERE", null, null, null, null, null)));
+                request().remoteType("ANYWHERE").build()));
         verify(client, never()).search(any());
     }
 
     @Test
     void invalidCountryIsRejected() {
         assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest(null, null, "CANADA", null, null, null, null, null, null)));
+                request().country("CANADA").build()));
     }
 
     @Test
     void invalidPostedWithinDaysIsRejected() {
         assertThrows(InvalidJobSearchException.class, () -> service.search(ALICE,
-                new JobCatalogSearchRequest(null, null, null, null, null, 9, null, null, null)));
+                request().postedWithinDays(9).build()));
     }
 
     // ---------------------------------------------------------------------------
@@ -274,12 +419,62 @@ class FreeHireJobCatalogServiceTest {
         FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "T", "C", "R",
                 "<p>d</p>", List.of(), List.of(), null);
         stubSearch(new FreeHireSearchResponseJson(List.of(hit), new FreeHireMetaJson(1, 20, 0, null)));
+        // The row's own externalJobId is whatever the REAL column actually stores -- the
+        // PERSISTED (hashed) id, never the raw slug -- see
+        // FreeHireJobCatalogService#savedByExternalId's javadoc for the reverse-mapping
+        // back to the raw slug this asserts against.
         when(jobMapper.findSavedExternalJobIds(eq(1L), eq(FreeHireJobCatalogService.SOURCE), anyList()))
-                .thenReturn(List.of(new JobMapper.ExternalIdAndPersonalJobId("acme-swe-x1", 77L)));
+                .thenReturn(List.of(new JobMapper.ExternalIdAndPersonalJobId(persistId("acme-swe-x1"), 77L, false, null)));
 
         JobCatalogSummary summary = service.search(ALICE, blankRequest()).results().get(0);
         assertTrue(summary.saved());
         assertEquals(77L, summary.personalJobId());
+        assertFalse(summary.applied());
+    }
+
+    @Test
+    void aSearchHitAlreadyAppliedByThisUserIsMarkedApplied() {
+        FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "T", "C", "R",
+                "<p>d</p>", List.of(), List.of(), null);
+        stubSearch(new FreeHireSearchResponseJson(List.of(hit), new FreeHireMetaJson(1, 20, 0, null)));
+        LocalDateTime appliedAt = LocalDateTime.of(2026, 9, 3, 10, 0);
+        when(jobMapper.findSavedExternalJobIds(eq(1L), eq(FreeHireJobCatalogService.SOURCE), anyList()))
+                .thenReturn(List.of(new JobMapper.ExternalIdAndPersonalJobId(persistId("acme-swe-x1"), 77L, true, appliedAt)));
+
+        JobCatalogSummary summary = service.search(ALICE, blankRequest()).results().get(0);
+        assertTrue(summary.applied());
+        assertEquals(appliedAt, summary.appliedAt());
+    }
+
+    @Test
+    void anonymousSearchNeverLooksUpAnyUsersSavedOrAppliedState() {
+        FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "T", "C", "R",
+                "<p>d</p>", List.of(), List.of(), null);
+        stubSearch(new FreeHireSearchResponseJson(List.of(hit), new FreeHireMetaJson(1, 20, 0, null)));
+
+        JobCatalogSummary summary = service.search(null, blankRequest()).results().get(0);
+
+        assertFalse(summary.saved());
+        assertNull(summary.personalJobId());
+        assertFalse(summary.applied());
+        assertNull(summary.appliedAt());
+        Mockito.verifyNoInteractions(userMapper);
+        verify(jobMapper, never()).findSavedExternalJobIds(any(), any(), anyList());
+    }
+
+    @Test
+    void anonymousDetailAlsoNeverLooksUpSavedOrAppliedState() {
+        FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "Title", "Co", "Remote",
+                "<p>Safe</p>", List.of("de"), List.of("europe"), "hybrid");
+        when(client.getBySlug("acme-swe-x1")).thenReturn(hit);
+
+        JobCatalogDetail detail = service.findDetail(null, "freehire:acme-swe-x1");
+
+        assertFalse(detail.saved());
+        assertNull(detail.personalJobId());
+        assertFalse(detail.applied());
+        Mockito.verifyNoInteractions(userMapper);
+        verify(jobMapper, never()).findByUserIdAndSourceAndExternalJobId(any(), any(), any());
     }
 
     // ---------------------------------------------------------------------------
@@ -294,11 +489,26 @@ class FreeHireJobCatalogServiceTest {
     }
 
     @Test
+    void findDetailPropagatesTheUpstreamDetailUnavailableExceptionDistinctFromThisSitesOwnNotFound() {
+        // A real, expected scenario (confirmed live against freehire.me): a posting
+        // still listed in search results moments earlier can 404 on its own detail
+        // lookup. This is never the SAME exception type as findDetailRequiresTheFreehirePrefix's
+        // "this site rejects the reference" case above -- confusing the two would make
+        // the frontend show a misleading message for either.
+        when(client.getBySlug("acme-swe-gone")).thenThrow(
+                new JobDetailUnavailableException(JobDetailUnavailableException.CODE));
+
+        JobDetailUnavailableException ex = assertThrows(JobDetailUnavailableException.class,
+                () -> service.findDetail(ALICE, "freehire:acme-swe-gone"));
+        assertEquals(JobDetailUnavailableException.CODE, ex.getMessage());
+    }
+
+    @Test
     void findDetailFetchesBySlugAndSanitizesHtml() {
         FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "Title", "Co", "Remote",
                 "<p>Safe</p><script>evil()</script>", List.of("de"), List.of("europe"), "hybrid");
         when(client.getBySlug("acme-swe-x1")).thenReturn(hit);
-        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1"))
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
                 .thenReturn(null);
 
         JobCatalogDetail detail = service.findDetail(ALICE, "freehire:acme-swe-x1");
@@ -321,11 +531,76 @@ class FreeHireJobCatalogServiceTest {
         Mockito.verifyNoInteractions(client);
     }
 
+    // ---------------------------------------------------------------------------
+    // requireSlug's own input validation -- malformed input is a 400
+    // (InvalidJobSearchException), never confused with a 404 (this site's own
+    // "not found") or JobDetailUnavailableException (a REAL upstream 404, which a
+    // malformed slug must never even reach FreeHire to trigger).
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void aSlugWithLeadingOrTrailingWhitespaceIs400NotNotFound() {
+        assertThrows(InvalidJobSearchException.class,
+                () -> service.saveToMyJobs(ALICE, "freehire: acme-swe-x1"));
+        assertThrows(InvalidJobSearchException.class,
+                () -> service.saveToMyJobs(ALICE, "freehire:acme-swe-x1 "));
+        Mockito.verifyNoInteractions(client);
+    }
+
+    @Test
+    void aSlugContainingAPathSeparatorIs400NotNotFound() {
+        assertThrows(InvalidJobSearchException.class,
+                () -> service.saveToMyJobs(ALICE, "freehire:acme/../etc"));
+        assertThrows(InvalidJobSearchException.class,
+                () -> service.saveToMyJobs(ALICE, "freehire:acme\\swe"));
+        Mockito.verifyNoInteractions(client);
+    }
+
+    @Test
+    void anAbsurdlyLongSlugIs400NotNotFound() {
+        String tooLong = "x".repeat(3000);
+        assertThrows(InvalidJobSearchException.class,
+                () -> service.saveToMyJobs(ALICE, "freehire:" + tooLong));
+        Mockito.verifyNoInteractions(client);
+    }
+
+    @Test
+    void aGenuinelyLongButPlausibleSlugIsNeverRejectedForLengthAlone() {
+        // The actual fix: this must NOT throw at all on account of length -- only the
+        // persisted (hashed) id has a width limit, never the raw slug. 77 characters is
+        // the exact real length confirmed live against freehire.me.
+        String longSlug = "magento-2-frontend-developer-hyva-experience-required-unotech-global-bptpehnr";
+        assertEquals(77, longSlug.length());
+        FreeHireJobJson hit = job(longSlug, "https://x.example/1", "Title", "Acme", "Remote",
+                "<p>d</p>", List.of("in"), List.of(), null);
+        when(client.getBySlug(longSlug)).thenReturn(hit);
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId(longSlug)))
+                .thenReturn(null);
+        stubInsertAssigningId(101L);
+        when(jobMapper.findById(101L)).thenReturn(personalJob(101L, 1L, persistId(longSlug), "Title", "Acme"));
+
+        SaveCatalogJobResponse response = service.saveToMyJobs(ALICE, "freehire:" + longSlug);
+
+        assertFalse(response.alreadySaved());
+        verify(client).getBySlug(longSlug);
+    }
+
+    @Test
+    void savingAPostingWhoseUpstreamDetailHas404dNeverInsertsAPartialRow() {
+        when(client.getBySlug("acme-swe-gone")).thenThrow(
+                new JobDetailUnavailableException(JobDetailUnavailableException.CODE));
+
+        JobDetailUnavailableException ex = assertThrows(JobDetailUnavailableException.class,
+                () -> service.saveToMyJobs(ALICE, "freehire:acme-swe-gone"));
+        assertEquals(JobDetailUnavailableException.CODE, ex.getMessage());
+        verify(jobMapper, never()).insert(any());
+    }
+
     @Test
     void savingForTheFirstTimeFetchesFromFreeHireAndInsertsOnePersonalJob() {
         FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "Title", "Acme", "Remote",
                 "<p>Full JD.</p>", List.of("us"), List.of(), "remote");
-        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1"))
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
                 .thenReturn(null);
         when(client.getBySlug("acme-swe-x1")).thenReturn(hit);
         stubInsertAssigningId(101L);
@@ -342,14 +617,18 @@ class FreeHireJobCatalogServiceTest {
         verify(jobMapper).insert(captor.capture());
         Job inserted = captor.getValue();
         assertEquals(FreeHireJobCatalogService.SOURCE, inserted.getSource());
-        assertEquals("acme-swe-x1", inserted.getExternalJobId(), "stored unprefixed -- source already scopes it");
+        // The PERSISTED id (a SHA-256 hex digest), never the raw slug -- see
+        // FreeHireJobCatalogService#persistId's javadoc for why storing the raw slug
+        // directly is what let a real 79-character slug overflow VARCHAR(64).
+        assertEquals(persistId("acme-swe-x1"), inserted.getExternalJobId());
+        assertEquals(64, inserted.getExternalJobId().length());
         assertEquals(1L, inserted.getUserId());
     }
 
     @Test
     void repeatingTheSaveIsIdempotentAndMakesNoSecondNetworkCall() {
         Job existing = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
-        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1"))
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
                 .thenReturn(existing);
 
         SaveCatalogJobResponse response = service.saveToMyJobs(ALICE, "freehire:acme-swe-x1");
@@ -360,14 +639,71 @@ class FreeHireJobCatalogServiceTest {
         verify(jobMapper, never()).insert(any());
     }
 
+    // ---------------------------------------------------------------------------
+    // Rolling-upgrade compatibility: a row saved before the persistId fix stored the
+    // raw slug directly in external_job_id. See
+    // FreeHireJobCatalogService#findExistingByPersistedOrLegacyId's javadoc.
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void saveFindsALegacyRawSlugRowWhenThePersistedIdLookupMisses() {
+        // The persisted-id lookup misses (nothing saved under the NEW identity yet)...
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("legacy-slug")))
+                .thenReturn(null);
+        // ...but the raw slug itself matches a row saved before this fix existed.
+        Job legacyRow = personalJob(55L, 1L, "legacy-slug", "Legacy Title", "Acme");
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "legacy-slug"))
+                .thenReturn(legacyRow);
+
+        SaveCatalogJobResponse response = service.saveToMyJobs(ALICE, "freehire:legacy-slug");
+
+        assertTrue(response.alreadySaved());
+        assertEquals(55L, response.jobId());
+        verify(client, never()).getBySlug(any());
+        verify(jobMapper, never()).insert(any());
+    }
+
+    @Test
+    void clearAppliedFindsALegacyRawSlugRowWhenThePersistedIdLookupMisses() {
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("legacy-slug")))
+                .thenReturn(null);
+        Job legacyRow = personalJob(55L, 1L, "legacy-slug", "Legacy Title", "Acme");
+        legacyRow.setApplied(true);
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "legacy-slug"))
+                .thenReturn(legacyRow);
+        Job afterClear = personalJob(55L, 1L, "legacy-slug", "Legacy Title", "Acme");
+        when(jobMapper.findById(55L)).thenReturn(afterClear);
+
+        SaveCatalogJobResponse response = service.clearApplied(ALICE, "freehire:legacy-slug");
+
+        assertFalse(response.job().isApplied());
+        verify(jobMapper).clearApplied(55L, 1L);
+    }
+
+    @Test
+    void aSearchHitMatchingALegacyRawSlugRowIsMarkedSaved() {
+        FreeHireJobJson hit = job("legacy-slug", "https://x.example/1", "T", "C", "R",
+                "<p>d</p>", List.of(), List.of(), null);
+        stubSearch(new FreeHireSearchResponseJson(List.of(hit), new FreeHireMetaJson(1, 20, 0, null)));
+        // The row this returns stores the RAW slug as its externalJobId (not hashed) --
+        // exactly what the real column holds for a pre-existing legacy row.
+        when(jobMapper.findSavedExternalJobIds(eq(1L), eq(FreeHireJobCatalogService.SOURCE), anyList()))
+                .thenReturn(List.of(new JobMapper.ExternalIdAndPersonalJobId("legacy-slug", 55L, false, null)));
+
+        JobCatalogSummary summary = service.search(ALICE, blankRequest()).results().get(0);
+
+        assertTrue(summary.saved());
+        assertEquals(55L, summary.personalJobId());
+    }
+
     @Test
     void twoUsersSavingTheSamePostingGetIndependentPersonalJobs() {
         FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "Title", "Acme", "Remote",
                 "<p>d</p>", List.of(), List.of(), null);
         when(client.getBySlug("acme-swe-x1")).thenReturn(hit);
-        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1"))
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
                 .thenReturn(null);
-        when(jobMapper.findByUserIdAndSourceAndExternalJobId(2L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1"))
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(2L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
                 .thenReturn(null);
         stubInsertAssigningId(101L);
         when(jobMapper.findById(101L)).thenReturn(personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme"));
@@ -380,8 +716,8 @@ class FreeHireJobCatalogServiceTest {
 
         assertEquals(202L, forBob.jobId());
         // Each user's lookup was scoped to their own id -- Bob's fetch never saw Alice's row.
-        verify(jobMapper).findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1");
-        verify(jobMapper).findByUserIdAndSourceAndExternalJobId(2L, FreeHireJobCatalogService.SOURCE, "acme-swe-x1");
+        verify(jobMapper).findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1"));
+        verify(jobMapper).findByUserIdAndSourceAndExternalJobId(2L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1"));
     }
 
     @Test
@@ -389,6 +725,121 @@ class FreeHireJobCatalogServiceTest {
         when(userMapper.findByEmail("ghost@example.com")).thenReturn(null);
         assertThrows(UserNotFoundException.class,
                 () -> service.search("ghost@example.com", blankRequest()));
+    }
+
+    // ---------------------------------------------------------------------------
+    // applied: confirm, revoke, idempotency, per-user isolation
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void markAppliedSavesFirstWhenNotYetSavedThenMarksApplied() {
+        FreeHireJobJson hit = job("acme-swe-x1", "https://x.example/1", "Title", "Acme", "Remote",
+                "<p>Full JD.</p>", List.of("us"), List.of(), "remote");
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(null);
+        when(client.getBySlug("acme-swe-x1")).thenReturn(hit);
+        stubInsertAssigningId(101L);
+        Job afterSave = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        Job afterApply = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        afterApply.setApplied(true);
+        afterApply.setAppliedAt(LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+        // findById is called once right after the insert (still un-applied) and again
+        // after markApplied (now applied) -- two different snapshots of the same row.
+        when(jobMapper.findById(101L)).thenReturn(afterSave, afterApply);
+
+        SaveCatalogJobResponse response = service.markApplied(ALICE, "freehire:acme-swe-x1");
+
+        assertEquals(101L, response.jobId());
+        assertTrue(response.job().isApplied());
+        assertEquals(LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC), response.job().getAppliedAt());
+        verify(jobMapper).markApplied(101L, 1L, LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+        verify(client, times(1)).getBySlug("acme-swe-x1");
+    }
+
+    @Test
+    void markAppliedOnAnAlreadySavedJobSkipsTheFreeHireFetch() {
+        Job existing = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(existing);
+        Job afterApply = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        afterApply.setApplied(true);
+        afterApply.setAppliedAt(LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+        when(jobMapper.findById(101L)).thenReturn(afterApply);
+
+        SaveCatalogJobResponse response = service.markApplied(ALICE, "freehire:acme-swe-x1");
+
+        assertTrue(response.job().isApplied());
+        verify(client, never()).getBySlug(any());
+        verify(jobMapper, never()).insert(any());
+        verify(jobMapper).markApplied(101L, 1L, LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+    }
+
+    @Test
+    void confirmingAppliedTwiceIsIdempotentAndJustRefreshesTheTimestamp() {
+        Job existing = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(existing);
+        Job afterApply = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        afterApply.setApplied(true);
+        afterApply.setAppliedAt(LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+        when(jobMapper.findById(101L)).thenReturn(afterApply);
+
+        service.markApplied(ALICE, "freehire:acme-swe-x1");
+        service.markApplied(ALICE, "freehire:acme-swe-x1");
+
+        // Two confirmations, two UPDATEs (a real refresh each time), never a duplicate
+        // personal job and never an exception -- confirming again is a safe no-op that
+        // just rewrites the same flag and a fresh timestamp.
+        verify(jobMapper, times(2))
+                .markApplied(101L, 1L, LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+        verify(jobMapper, never()).insert(any());
+    }
+
+    @Test
+    void clearAppliedRevokesAMistakenConfirmation() {
+        Job existing = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        existing.setApplied(true);
+        existing.setAppliedAt(LocalDateTime.ofInstant(FIXED_NOW, ZoneOffset.UTC));
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(existing);
+        Job afterClear = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        when(jobMapper.findById(101L)).thenReturn(afterClear);
+
+        SaveCatalogJobResponse response = service.clearApplied(ALICE, "freehire:acme-swe-x1");
+
+        assertFalse(response.job().isApplied());
+        assertNull(response.job().getAppliedAt());
+        verify(jobMapper).clearApplied(101L, 1L);
+    }
+
+    @Test
+    void clearAppliedOnANeverSavedJobIsNotFound() {
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(null);
+
+        assertThrows(JobNotFoundException.class, () -> service.clearApplied(ALICE, "freehire:acme-swe-x1"));
+        verify(jobMapper, never()).clearApplied(any(), any());
+    }
+
+    @Test
+    void twoUsersApplyingToTheSamePostingAreScopedIndependently() {
+        Job aliceExisting = personalJob(101L, 1L, "acme-swe-x1", "Title", "Acme");
+        Job bobExisting = personalJob(202L, 2L, "acme-swe-x1", "Title", "Acme");
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(1L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(aliceExisting);
+        when(jobMapper.findByUserIdAndSourceAndExternalJobId(2L, FreeHireJobCatalogService.SOURCE, persistId("acme-swe-x1")))
+                .thenReturn(bobExisting);
+        when(jobMapper.findById(101L)).thenReturn(aliceExisting);
+        when(jobMapper.findById(202L)).thenReturn(bobExisting);
+
+        service.markApplied(ALICE, "freehire:acme-swe-x1");
+        service.markApplied(BOB, "freehire:acme-swe-x1");
+
+        // Each confirmation is scoped by that user's own id -- Bob's confirmation can
+        // never mark Alice's row (or vice versa), even though both point at the same
+        // underlying FreeHire posting.
+        verify(jobMapper).markApplied(eq(101L), eq(1L), any());
+        verify(jobMapper).markApplied(eq(202L), eq(2L), any());
     }
 
     // ---------------------------------------------------------------------------
@@ -426,8 +877,60 @@ class FreeHireJobCatalogServiceTest {
         return job;
     }
 
+    /**
+     * The identity {@code jobs.external_job_id} actually stores for a FreeHire slug --
+     * see {@code FreeHireJobCatalogService#persistId}'s javadoc. Every stub/verify
+     * against {@code jobMapper.findByUserIdAndSourceAndExternalJobId} below goes through
+     * this, never the raw slug directly, matching production exactly.
+     */
+    private static String persistId(String slug) {
+        return ExternalJobIds.persistId(FreeHireJobCatalogService.SOURCE, slug);
+    }
+
     private static JobCatalogSearchRequest blankRequest() {
-        return new JobCatalogSearchRequest(null, null, null, null, null, null, null, null, null);
+        return new JobCatalogSearchRequest(null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    /**
+     * A tiny fluent builder so a test only names the fields it actually cares about --
+     * {@code JobCatalogSearchRequest} is a positional record, and a bare 10-argument
+     * constructor call at every call site is exactly the kind of thing a future field
+     * addition silently breaks in the wrong place.
+     */
+    private static RequestBuilder request() {
+        return new RequestBuilder();
+    }
+
+    private static final class RequestBuilder {
+        private String q;
+        private String location;
+        private String city;
+        private String cityCountry;
+        private String country;
+        private String remoteType;
+        private String employmentType;
+        private Integer postedWithinDays;
+        private Integer page;
+        private Integer size;
+        private String sort;
+
+        RequestBuilder q(String v) { this.q = v; return this; }
+        RequestBuilder location(String v) { this.location = v; return this; }
+        RequestBuilder city(String v) { this.city = v; return this; }
+        RequestBuilder cityCountry(String v) { this.cityCountry = v; return this; }
+        RequestBuilder country(String v) { this.country = v; return this; }
+        RequestBuilder remoteType(String v) { this.remoteType = v; return this; }
+        RequestBuilder employmentType(String v) { this.employmentType = v; return this; }
+        RequestBuilder postedWithinDays(Integer v) { this.postedWithinDays = v; return this; }
+        RequestBuilder page(Integer v) { this.page = v; return this; }
+        RequestBuilder size(Integer v) { this.size = v; return this; }
+        RequestBuilder sort(String v) { this.sort = v; return this; }
+
+        JobCatalogSearchRequest build() {
+            return new JobCatalogSearchRequest(
+                    q, location, city, cityCountry, country, remoteType, employmentType,
+                    postedWithinDays, page, size, sort);
+        }
     }
 
     private static FreeHireSearchResponseJson emptyResult() {
@@ -437,9 +940,15 @@ class FreeHireJobCatalogServiceTest {
     private static FreeHireJobJson job(String slug, String url, String title, String company, String location,
                                        String description, List<String> countries, List<String> regions,
                                        String workMode) {
+        return job(slug, url, title, company, location, description, countries, regions, workMode, List.of());
+    }
+
+    private static FreeHireJobJson job(String slug, String url, String title, String company, String location,
+                                       String description, List<String> countries, List<String> regions,
+                                       String workMode, List<String> cities) {
         return new FreeHireJobJson(
                 slug, "greenhouse", "ext-" + slug, url, title, company, company.toLowerCase(),
-                location, description, countries, regions, workMode, List.of(), List.of(), "tech",
+                location, description, countries, regions, workMode, cities, List.of(), "tech",
                 "2026-09-01T00:00:00Z", "2026-08-30T00:00:00Z", null);
     }
 }

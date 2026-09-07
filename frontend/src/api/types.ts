@@ -27,6 +27,7 @@ export interface UserResponse {
   name: string
   email: string
   role: string
+  createdAt: string
 }
 
 export interface StoredUser {
@@ -34,6 +35,26 @@ export interface StoredUser {
   name: string
   email: string
   role: string
+}
+
+export interface UpdateNameRequest {
+  name: string
+}
+
+export interface UpdateEmailRequest {
+  currentPassword: string
+  newEmail: string
+}
+
+/** The frontend must replace its stored token with `token` -- see AuthContext's updateEmail. */
+export interface UpdateEmailResponse {
+  token: string
+  user: UserResponse
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
 }
 
 export interface ResumeResponse {
@@ -121,6 +142,33 @@ export interface ResumeTextBlock {
   text: string
 }
 
+/** One rubric category's contribution -- every category's maxScore sums to exactly 100. */
+export interface ResumeQualityCategoryScore {
+  code: string
+  score: number
+  maxScore: number
+}
+
+/**
+ * The resume's OWN structure/content-completeness score -- never a match score
+ * against any job, never a hiring-probability estimate. Deterministic, computed only
+ * from data this resume already had; consumes no AI quota.
+ */
+export interface ResumeQualityScoreResponse {
+  scorable: boolean
+  /** Set only when `scorable` is false, e.g. "TEXT_NOT_AVAILABLE". */
+  reasonCode?: string | null
+  /** Null when `scorable` is false. Otherwise 0-100, always the sum of `categories`. */
+  score?: number | null
+  /** Null when `scorable` is false. One of EXCELLENT / GOOD / FAIR / NEEDS_IMPROVEMENT. */
+  level?: string | null
+  rubricVersion: string
+  categories: ResumeQualityCategoryScore[]
+  strengths: string[]
+  /** Already ordered highest-priority first -- show only the first 3. */
+  suggestions: string[]
+}
+
 export interface ResumeStructure {
   resumeId?: number
   reviewStatus?: string
@@ -150,6 +198,8 @@ export interface JobResponse {
   source: string
   status: string
   externalJobId: string | null
+  applied: boolean
+  appliedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -170,6 +220,16 @@ export type CatalogEmploymentType =
 export interface JobCatalogSearchParams {
   q?: string
   location?: string
+  /** A structured city value -- one of the `value` strings `searchCatalogCities` returned, never free text. */
+  city?: string
+  /**
+   * The `countryCode` that came with `city` from its own suggestion (see
+   * `CitySuggestion`). Display/validation metadata ONLY -- the backend never forwards
+   * it to FreeHire as a country filter alongside `city` (see
+   * `JobCatalogSearchRequest#cityCountry`'s javadoc for why). Meaningless without
+   * `city` also set.
+   */
+  cityCountry?: string
   country?: string
   remoteType?: string
   employmentType?: string
@@ -177,6 +237,15 @@ export interface JobCatalogSearchParams {
   page?: number
   size?: number
   sort?: string
+}
+
+/**
+ * One city suggestion for the search form's city facet. `value` is opaque and must be
+ * sent back verbatim as `JobCatalogSearchParams.city` -- never reformatted or re-cased.
+ */
+export interface CitySuggestion {
+  value: string
+  countryCode: string | null
 }
 
 /**
@@ -207,6 +276,17 @@ export interface JobCatalogSummary {
   descriptionSnippet: string | null
   saved: boolean
   personalJobId: number | null
+  applied: boolean
+  appliedAt: string | null
+  /**
+   * Present only when this search was scoped by `city`. `countryCode` here is only
+   * ever an echo of the city suggestion's OWN country (see
+   * `JobCatalogSearchParams.cityCountry`) -- never re-derived from this specific
+   * posting. `countryConfirmed` says whether THIS posting's own data actually backs
+   * that country up; when false, never present `countryCode` as this posting's
+   * confirmed country (see `JobCatalogSummary.CityMatch`'s backend javadoc).
+   */
+  cityMatch: { city: string; countryCode: string | null; countryConfirmed: boolean } | null
 }
 
 export interface JobCatalogSearchResponse {
@@ -218,7 +298,7 @@ export interface JobCatalogSearchResponse {
   results: JobCatalogSummary[]
 }
 
-export interface JobCatalogDetail extends Omit<JobCatalogSummary, 'descriptionSnippet'> {
+export interface JobCatalogDetail extends Omit<JobCatalogSummary, 'descriptionSnippet' | 'cityMatch'> {
   descriptionText: string | null
   /** Server-sanitized HTML. */
   descriptionHtml: string | null

@@ -142,10 +142,10 @@ class JobExportImportRealSampleTest {
 
         // And the catalog search finds them.
         JobCatalogSearchResponse byCompany = jobCatalogService.search(ALICE, new JobCatalogSearchRequest(
-                "Vercel", null, null, null, null, null, 1, 50, null));
+                "Vercel", null, null, null, null, null, null, null, 1, 50, null));
         assertTrue(byCompany.totalCount() > 0, "the imported postings are searchable");
         JobCatalogSearchResponse byTitle = jobCatalogService.search(ALICE, new JobCatalogSearchRequest(
-                "Engineer", null, null, null, null, null, 1, 50, null));
+                "Engineer", null, null, null, null, null, null, null, 1, 50, null));
 
         // Printed so an operator running this check sees the numbers rather than only a
         // green tick. The assertions above are what actually gates the run.

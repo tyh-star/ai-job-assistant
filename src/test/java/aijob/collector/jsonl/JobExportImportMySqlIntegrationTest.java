@@ -116,6 +116,11 @@ class JobExportImportMySqlIntegrationTest {
             "schema/job_catalog_external_id_exact_identity.sql";
     private static final String NO_PAD_MIGRATION =
             "schema/job_catalog_external_id_no_pad.sql";
+    /** Unrelated to the job catalog tables above, but chained right after them by
+     *  release.sh -- kept in this same ordered list so this class keeps building the
+     *  schema exactly the way a real release does. */
+    private static final String APPLIED_TRACKING_MIGRATION =
+            "schema/jobs_applied_tracking.sql";
     private static final String STRUCTURE_VERIFIER = "schema/job_catalog_phase1_verify.sql";
 
     /** What the identity column must end up as: binary comparison AND no space padding. */
@@ -235,6 +240,8 @@ class JobExportImportMySqlIntegrationTest {
                     new FileSystemResource(EXTERNAL_ID_MIGRATION));
             ScriptUtils.executeSqlScript(connection,
                     new FileSystemResource(NO_PAD_MIGRATION));
+            ScriptUtils.executeSqlScript(connection,
+                    new FileSystemResource(APPLIED_TRACKING_MIGRATION));
         }
     }
 
@@ -507,7 +514,7 @@ class JobExportImportMySqlIntegrationTest {
                         "https://job-boards.greenhouse.io/vercel/jobs/1")));
         importer.importBatch(batch.jsonl(), batch.manifest());
         JobCatalogSearchResponse lower = jobCatalogService.search(ALICE,
-                new JobCatalogSearchRequest("backend engineer", null, null, null, null, null, 1, 20, null));
+                new JobCatalogSearchRequest("backend engineer", null, null, null, null, null, null, null, 1, 20, null));
         assertEquals(1, lower.results().size(), "a lower-case query must still match a capitalised title");
     }
 
@@ -836,7 +843,7 @@ class JobExportImportMySqlIntegrationTest {
         importer.importBatch(batch.jsonl(), batch.manifest());
 
         JobCatalogSearchResponse found = jobCatalogService.search(ALICE, new JobCatalogSearchRequest(
-                "Vercel", null, null, null, null, null, 1, 50, null));
+                "Vercel", null, null, null, null, null, null, null, 1, 50, null));
         assertTrue(found.totalCount() > 0, "MySQL FULLTEXT search must find the imported postings");
     }
 

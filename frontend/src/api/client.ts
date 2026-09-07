@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiErrorBody } from './types'
+import { loginPathAfterSessionExpiry } from '../auth/returnTo'
 import { TOKEN_KEY, clearSession } from '../auth/session'
 import {
   isPublicAuthEndpoint,
@@ -29,18 +30,84 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
-api.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError<ApiErrorBody>) => {
-    if (error.response?.status === 401) {
-      clearSession()
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.assign('/login')
-      }
-    }
+// Pages that require an account -- a 401 here means THIS page's own token just went
+// stale, so the visitor is sent to /login?returnTo=<this exact page>, never silently
+// left on a page that can't actually do anything for them.
+const PROTECTED_PATH_PREFIXES = ['/dashboard', '/resumes', '/profile', '/tailor']
+
+export function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
+
+/**
+ * The specific /jobs actions that need an account (save, mark/clear applied, and the
+ * personal-jobs list GET /jobs that backs the 已保存/已投递 tabs) -- as opposed to
+ * search/detail/cities, which are public and must never be treated as a session
+ * expiry just because a stale token happened to be attached to the request.
+ */
+export function isLoginRequiredJobsAction(requestUrl: string): boolean {
+  const path = requestUrl.split('?')[0]
+  return /^\/jobs\/?$/.test(path)
+    || /^\/job-catalog\/[^/]+\/save\/?$/.test(path)
+    || /^\/job-catalog\/[^/]+\/applied\/?$/.test(path)
+}
+
+/**
+ * Fired after any 401 clears the session, so AuthContext can flip its live `user`
+ * state to signed-out even on paths where nothing below navigates away (this module
+ * has no React context of its own to update directly). See AuthContext's listener.
+ */
+export const SESSION_EXPIRED_EVENT = 'aijob:session-expired'
+
+/**
+ * Exported as a plain function (rather than only living inline in the
+ * `interceptors.response.use` call) so a test can invoke it directly with a
+ * synthetic 401 -- provoking a REAL 401 through the full axios + MockMvc stack, just
+ * to exercise this one handler, would be its own kind of over-elaborate test.
+ *
+ * A 401 is not one uniform event -- where it happened and what it was FOR decide
+ * what happens next:
+ *   1. Merely browsing a public page (/jobs search/detail/cities, or "/", which is
+ *      never rendered itself) -- clear the stale token and do nothing else. The
+ *      visitor stays exactly where they are, now anonymous; content that never
+ *      needed login keeps working.
+ *   2. A protected page's own token went stale -- to /login?returnTo=<that exact
+ *      page>, so logging back in returns them there.
+ *   3. Still on /jobs, but the specific action just clicked (save / mark applied /
+ *      the saved-applied tabs) needed login and the token turned out stale -- same
+ *      redirect-with-return as #2, always back to /jobs, with an honest notice.
+ *   4. /auth/login or /auth/register's OWN 401 (wrong credentials) is not a session
+ *      expiry at all -- skipped entirely, so the page's own error handling shows the
+ *      real message instead of this being mistaken for an expired session.
+ */
+export function handleResponseError(error: AxiosError<ApiErrorBody>): Promise<never> {
+  if (error.response?.status !== 401) {
     return Promise.reject(error)
-  },
-)
+  }
+
+  const requestUrl = error.config?.url ?? ''
+  if (isPublicAuthEndpoint(requestUrl)) {
+    return Promise.reject(error)
+  }
+
+  clearSession()
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+
+  const pathname = window.location.pathname
+  if (isProtectedPath(pathname)) {
+    window.location.assign(loginPathAfterSessionExpiry(`${pathname}${window.location.search}`))
+    return Promise.reject(error)
+  }
+
+  if ((pathname === '/jobs' || pathname === '/') && isLoginRequiredJobsAction(requestUrl)) {
+    window.location.assign(loginPathAfterSessionExpiry('/jobs'))
+    return Promise.reject(error)
+  }
+
+  return Promise.reject(error)
+}
+
+api.interceptors.response.use((response) => response, handleResponseError)
 
 export function apiErrorKey(error: unknown): string {
   const axiosError = error as AxiosError<ApiErrorBody>
@@ -61,6 +128,13 @@ export function apiErrorKey(error: unknown): string {
     }
     if (message.toLowerCase().includes('search session')) {
       return 'errors.jobSearchSessionNotFound'
+    }
+    // The upstream posting's OWN detail lookup 404'd (see
+    // JobDetailUnavailableException) -- a distinct, stable code from this site's own
+    // 404s ('errors.notFound' below), never conflated: retrying a save can never help
+    // when the posting itself is gone, so this must never look like a generic failure.
+    if (message.toUpperCase().includes('JOB_DETAIL_NO_LONGER_AVAILABLE')) {
+      return 'errors.jobDetailUnavailable'
     }
     return 'errors.notFound'
   }
@@ -93,8 +167,14 @@ export function apiErrorKey(error: unknown): string {
   }
   if (status === 400) {
     const lower = message.toLowerCase()
+    if (lower.includes('current password is incorrect')) {
+      return 'errors.incorrectPassword'
+    }
     if (lower.includes('location is not supported')) {
       return 'errors.jobCatalogLocationUnsupported'
+    }
+    if (lower.includes('city and country cannot both be set')) {
+      return 'errors.jobCatalogCityCountryConflict'
     }
     if (lower.includes('employmenttype') && lower.includes('is not supported')) {
       return 'errors.jobCatalogEmploymentTypeUnsupported'
