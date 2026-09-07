@@ -107,6 +107,11 @@ public class SecurityConfig {
                                 "/api/v1/job-catalog/search",
                                 "/api/v1/job-catalog/*"
                         ).permitAll()
+                        // Site feedback's public summary -- average rating and reviewer
+                        // count only (see FeedbackController/FeedbackSummaryResponse).
+                        // Never the same route as /api/v1/feedback/me, which stays behind
+                        // anyRequest().authenticated() below.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/feedback/summary").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form.disable())

@@ -142,6 +142,25 @@ export interface ResumeTextBlock {
   text: string
 }
 
+export interface FeedbackRequest {
+  rating: number
+  comment?: string | null
+}
+
+/** The CALLER'S OWN feedback only -- never another user's. */
+export interface FeedbackResponse {
+  rating: number
+  comment: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** The PUBLIC summary -- deliberately only these two numbers, never a comment or identity. */
+export interface FeedbackSummaryResponse {
+  averageRating: number
+  reviewerCount: number
+}
+
 /** One rubric category's contribution -- every category's maxScore sums to exactly 100. */
 export interface ResumeQualityCategoryScore {
   code: string

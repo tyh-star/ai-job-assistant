@@ -8,6 +8,9 @@
 // /jobs avoids that extra hop rather than changing the destination.
 const DEFAULT_RETURN_TO = '/jobs'
 
+/** The profile card that holds site ratings. Old /feedback URLs redirect here. */
+export const PROFILE_FEEDBACK_RETURN_TO = '/profile#feedback'
+
 // Built via `new RegExp` from an escaped string, rather than a `/.../` literal, so the
 // control-character escapes stay literal source text rather than risking being turned
 // into the actual control byte by some tool in the chain -- which would be invisible

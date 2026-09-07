@@ -128,6 +128,10 @@ step "7/10 Apply the migrations and verify the structure"
 # is: re-runnable, self-verifying, schema_migrations-gated, so it must run before the
 # backend that depends on it starts.
 ./infra/aws/db-apply.sh schema/users_auth_version.sql
+# "网站评价" -- one star rating (1-5) + optional comment, at most one row per user.
+# Unrelated to the job catalog tables above, chained here for the same reason the two
+# migrations before it are: re-runnable, self-verifying, schema_migrations-gated.
+./infra/aws/db-apply.sh schema/site_feedback.sql
 ./infra/aws/db-apply.sh schema/job_catalog_phase1_verify.sql
 echo "Schema structure verified."
 

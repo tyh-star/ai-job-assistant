@@ -14,14 +14,16 @@ SELECT table_name AS present_table
   FROM information_schema.TABLES
  WHERE table_schema = DATABASE()
    AND table_name IN ('schema_migrations', 'job_sources', 'job_catalog',
-                      'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs')
+                      'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs',
+                      'site_feedback')
  ORDER BY table_name;
 
 SET @tables := (
     SELECT COUNT(*) FROM information_schema.TABLES
      WHERE table_schema = DATABASE()
        AND table_name IN ('schema_migrations', 'job_sources', 'job_catalog',
-                          'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs')
+                          'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs',
+                          'site_feedback')
 );
 
 SET @columns := (
@@ -45,6 +47,8 @@ SET @columns := (
                  'error_summary'))
          OR (table_name = 'user_saved_catalog_jobs' AND column_name IN
                 ('user_id', 'catalog_job_id', 'personal_job_id'))
+         OR (table_name = 'site_feedback' AND column_name IN
+                ('user_id', 'rating', 'comment', 'created_at', 'updated_at'))
        )
 );
 
@@ -57,7 +61,8 @@ SET @indexes := (
                           'idx_job_catalog_status_posted',
                           'uk_job_source_records_source_external',
                           'idx_job_source_records_catalog',
-                          'uk_user_saved_catalog_jobs_user_catalog')
+                          'uk_user_saved_catalog_jobs_user_catalog',
+                          'uk_site_feedback_user')
 );
 
 SET @foreign_keys := (
@@ -113,22 +118,33 @@ SET @auth_version_column_correct := (
        AND data_type = 'int' AND is_nullable = 'NO' AND column_default = '0'
 );
 
-SELECT @tables AS tables_found_of_6,
-       @columns AS columns_found_of_39,
-       @indexes AS indexes_found_of_10,
+-- Site feedback (schema/site_feedback.sql), checked here for the same reason as
+-- everything else in this final gate: a release that skips it must fail here rather
+-- than start a backend whose /api/v1/feedback/** routes hit a missing table.
+SET @site_feedback_unique_correct := (
+    SELECT COUNT(DISTINCT table_name, index_name) FROM information_schema.STATISTICS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'site_feedback' AND index_name = 'uk_site_feedback_user'
+);
+
+SELECT @tables AS tables_found_of_7,
+       @columns AS columns_found_of_44,
+       @indexes AS indexes_found_of_11,
        @foreign_keys AS foreign_keys_found_of_6,
        @external_id_exact AS external_job_id_binary_no_pad_of_1,
        @applied_column_correct AS jobs_applied_column_correct_of_1,
        @applied_at_column_correct AS jobs_applied_at_column_correct_of_1,
-       @auth_version_column_correct AS users_auth_version_column_correct_of_1;
+       @auth_version_column_correct AS users_auth_version_column_correct_of_1,
+       @site_feedback_unique_correct AS site_feedback_unique_key_correct_of_1;
 
 -- Fails the script (and the shell) when anything is missing. Deliberately before the
 -- schema_migrations read: on a database that never got the migration that table does
 -- not exist, and the counts above are the useful diagnostic, not a missing-table error.
-SET @gate := IF(@tables = 6 AND @columns = 39 AND @indexes = 10 AND @foreign_keys = 6
+SET @gate := IF(@tables = 7 AND @columns = 44 AND @indexes = 11 AND @foreign_keys = 6
                 AND @external_id_exact = 1
                 AND @applied_column_correct = 1 AND @applied_at_column_correct = 1
-                AND @auth_version_column_correct = 1,
+                AND @auth_version_column_correct = 1
+                AND @site_feedback_unique_correct = 1,
     'SELECT 1',
     'SELECT 1 FROM job_catalog_structure_incomplete_see_counts_above');
 PREPARE stmt FROM @gate;

@@ -13,6 +13,8 @@ const getMe = vi.fn()
 const updateName = vi.fn()
 const updateEmail = vi.fn()
 const changePassword = vi.fn()
+const getFeedbackSummary = vi.fn()
+const getMyFeedback = vi.fn()
 
 vi.mock('../api/auth', () => ({
   login: vi.fn(),
@@ -21,6 +23,13 @@ vi.mock('../api/auth', () => ({
   updateName: (...args: unknown[]) => updateName(...args),
   updateEmail: (...args: unknown[]) => updateEmail(...args),
   changePassword: (...args: unknown[]) => changePassword(...args),
+}))
+
+vi.mock('../api/feedback', () => ({
+  getFeedbackSummary: (...args: unknown[]) => getFeedbackSummary(...args),
+  getMyFeedback: (...args: unknown[]) => getMyFeedback(...args),
+  saveMyFeedback: vi.fn(),
+  deleteMyFeedback: vi.fn(),
 }))
 
 const EXISTING_USER = { userId: 1, name: 'Alice', email: 'alice@example.com', role: 'USER' }
@@ -61,6 +70,8 @@ describe('ProfilePage', () => {
     getMe.mockResolvedValue({
       data: { id: 1, name: 'Alice', email: 'alice@example.com', role: 'USER', createdAt: '2026-01-01T00:00:00' },
     })
+    getFeedbackSummary.mockResolvedValue({ data: { averageRating: 0, reviewerCount: 0 } })
+    getMyFeedback.mockRejectedValue({ response: { status: 404, data: { message: 'No feedback submitted yet' } } })
   })
 
   afterEach(() => {
@@ -73,6 +84,17 @@ describe('ProfilePage', () => {
     renderProfile()
     expect(await screen.findByText('alice@example.com')).toBeInTheDocument()
     expect(getMe).toHaveBeenCalled()
+  })
+
+  it('shows the site-rating card after the password section', async () => {
+    renderProfile()
+    await screen.findByText('alice@example.com')
+    const password = screen.getByRole('heading', { name: 'Change password' })
+    const feedback = screen.getByRole('heading', { name: 'Rate the site' })
+    expect(password.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(document.getElementById('feedback')).not.toBeNull()
+    expect(getFeedbackSummary).toHaveBeenCalled()
+    expect(getMyFeedback).toHaveBeenCalled()
   })
 
   it('rejects a blank name without calling the API', async () => {

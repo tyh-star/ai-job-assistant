@@ -5,6 +5,7 @@ import { changePassword as changePasswordApi, getMe } from '../api/auth'
 import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Alert } from '../components/Alert'
+import { FeedbackForm } from '../components/FeedbackForm'
 import { Spinner } from '../components/Spinner'
 
 const SECTION_CLASS = 'rounded-xl border border-slate-200 bg-white p-6'
@@ -76,6 +77,7 @@ export function ProfilePage() {
           <NameSection />
           <EmailSection />
           <PasswordSection />
+          <FeedbackForm />
         </div>
       ) : null}
     </div>

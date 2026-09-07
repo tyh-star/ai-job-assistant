@@ -258,5 +258,18 @@ CREATE TABLE IF NOT EXISTS user_saved_catalog_jobs (
         FOREIGN KEY (personal_job_id) REFERENCES jobs (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS site_feedback (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    rating TINYINT NOT NULL,
+    comment VARCHAR(1000) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_site_feedback_user (user_id),
+    CONSTRAINT chk_site_feedback_rating CHECK (rating BETWEEN 1 AND 5),
+    CONSTRAINT fk_site_feedback_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO schema_migrations (version)
 VALUES ('2026-08-31-job-catalog-phase1');

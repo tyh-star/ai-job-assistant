@@ -49,6 +49,9 @@ services:
       JSEARCH_API_BASE_URL: ${JSEARCH_API_BASE_URL:-https://api.openwebninja.com}
       JOB_SEARCH_PRIMARY_PROVIDER: ${JOB_SEARCH_PRIMARY_PROVIDER:-JSEARCH}
       JSEARCH_MAX_PAGES_PER_SEARCH: ${JSEARCH_MAX_PAGES_PER_SEARCH:-10}
+      # Public Jobs page reads FreeHire; do not flip this to local_catalog unless the
+      # self-hosted collector is intentionally in use. Default matches application.yml.
+      JOB_CATALOG_PROVIDER: ${JOB_CATALOG_PROVIDER:-freehire}
       AIJOB_STORAGE_ROOT: ${AIJOB_STORAGE_ROOT:-/data/uploads}
       AIJOB_TAILOR_ENGINE: ${AIJOB_TAILOR_ENGINE:-V3}
       PDF_EXPORT_SOFFICE_PATH: ${PDF_EXPORT_SOFFICE_PATH:-/usr/bin/soffice}

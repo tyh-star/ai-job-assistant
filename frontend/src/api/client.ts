@@ -1,6 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiErrorBody } from './types'
-import { loginPathAfterSessionExpiry } from '../auth/returnTo'
+import { loginPathAfterSessionExpiry, PROFILE_FEEDBACK_RETURN_TO } from '../auth/returnTo'
 import { TOKEN_KEY, clearSession } from '../auth/session'
 import {
   isPublicAuthEndpoint,
@@ -53,6 +53,16 @@ export function isLoginRequiredJobsAction(requestUrl: string): boolean {
 }
 
 /**
+ * GET/PUT/DELETE /feedback/me are the only site-feedback calls that need an account.
+ * GET /feedback/summary is public -- a 401 there (e.g. a revoked token attached to a
+ * public browse) must never be treated as "this page requires login".
+ */
+export function isLoginRequiredFeedbackAction(requestUrl: string): boolean {
+  const path = requestUrl.split('?')[0]
+  return /^\/feedback\/me\/?$/.test(path)
+}
+
+/**
  * Fired after any 401 clears the session, so AuthContext can flip its live `user`
  * state to signed-out even on paths where nothing below navigates away (this module
  * has no React context of its own to update directly). See AuthContext's listener.
@@ -76,7 +86,10 @@ export const SESSION_EXPIRED_EVENT = 'aijob:session-expired'
  *   3. Still on /jobs, but the specific action just clicked (save / mark applied /
  *      the saved-applied tabs) needed login and the token turned out stale -- same
  *      redirect-with-return as #2, always back to /jobs, with an honest notice.
- *   4. /auth/login or /auth/register's OWN 401 (wrong credentials) is not a session
+ *   4. Still on /profile, but GET/PUT/DELETE /feedback/me (the site-rating card)
+ *      needed login and the token turned out stale -- same redirect-with-return,
+ *      always back to /profile#feedback so login lands on the rating card.
+ *   5. /auth/login or /auth/register's OWN 401 (wrong credentials) is not a session
  *      expiry at all -- skipped entirely, so the page's own error handling shows the
  *      real message instead of this being mistaken for an expired session.
  */
@@ -94,6 +107,14 @@ export function handleResponseError(error: AxiosError<ApiErrorBody>): Promise<ne
   window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
 
   const pathname = window.location.pathname
+  // Must run before the generic /profile protected-path branch, which would drop
+  // the #feedback hash and land the visitor on the top of the profile instead of
+  // the rating card they were submitting.
+  if (pathname === '/profile' && isLoginRequiredFeedbackAction(requestUrl)) {
+    window.location.assign(loginPathAfterSessionExpiry(PROFILE_FEEDBACK_RETURN_TO))
+    return Promise.reject(error)
+  }
+
   if (isProtectedPath(pathname)) {
     window.location.assign(loginPathAfterSessionExpiry(`${pathname}${window.location.search}`))
     return Promise.reject(error)

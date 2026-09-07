@@ -45,12 +45,15 @@ describe('AppLayout', () => {
     clearSession()
   })
 
-  it('signed out, shows only 查找职位 in the main nav -- never a link to a page that would just redirect away', () => {
+  it('signed out, shows only 职位 in the main nav -- never a link to a page that would just redirect away', () => {
     renderLayout()
     expect(screen.getByRole('link', { name: '职位' })).toBeInTheDocument()
     for (const name of ['工作台', '简历', '改写']) {
       expect(screen.queryByRole('link', { name })).not.toBeInTheDocument()
     }
+    expect(screen.queryByRole('link', { name: '网站评价' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '评价网站' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
   })
 
   it('shows login AND register links, never a user name/logout, when signed out', () => {
@@ -66,6 +69,8 @@ describe('AppLayout', () => {
     expect(screen.getByRole('button', { name: '退出登录' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '登录' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: '注册' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '网站评价' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
     clearSession()
   })
 })

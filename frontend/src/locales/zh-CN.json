@@ -128,6 +128,28 @@
     "backToList": "返回简历列表",
     "fullNameRequired": "姓名不能为空"
   },
+  "feedback": {
+    "title": "网站评价",
+    "ratingLabel": "你的评分",
+    "ratingRequired": "请选择 1-5 星评分",
+    "commentLabel": "你的评价（可选）",
+    "commentPlaceholder": "你喜欢什么，或者我们应该改进什么？",
+    "commentTooLong": "评价内容不能超过 1000 字",
+    "remainingChars": "还可输入 {{count}} 字",
+    "submit": "提交评价",
+    "submitting": "提交中…",
+    "update": "更新评价",
+    "delete": "删除我的评价",
+    "deleteConfirm": "确定删除你的评价吗？此操作无法撤销。",
+    "thankYou": "感谢你的评价！",
+    "updated": "你的评价已更新。",
+    "deleted": "你的评价已删除。",
+    "loading": "加载中…",
+    "summaryText_one": "已有 {{count}} 位用户评价，平均 {{average}} / 5 星",
+    "summaryText_other": "已有 {{count}} 位用户评价，平均 {{average}} / 5 星",
+    "summaryEmpty": "暂无评价——成为第一个评价网站的人。",
+    "starAriaLabel": "{{count}} 星"
+  },
   "resumeQuality": {
     "title": "简历质量评分",
     "loading": "正在评分…",

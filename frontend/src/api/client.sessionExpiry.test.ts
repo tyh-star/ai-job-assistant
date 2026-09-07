@@ -3,6 +3,7 @@ import type { AxiosError } from 'axios'
 import {
   SESSION_EXPIRED_EVENT,
   handleResponseError,
+  isLoginRequiredFeedbackAction,
   isLoginRequiredJobsAction,
   isProtectedPath,
 } from './client'
@@ -43,6 +44,7 @@ describe('isProtectedPath', () => {
 
   it('does not match the public pages, or a path that merely starts similarly', () => {
     expect(isProtectedPath('/jobs')).toBe(false)
+    expect(isProtectedPath('/feedback')).toBe(false)
     expect(isProtectedPath('/')).toBe(false)
     expect(isProtectedPath('/login')).toBe(false)
     expect(isProtectedPath('/register')).toBe(false)
@@ -62,6 +64,15 @@ describe('isLoginRequiredJobsAction', () => {
     expect(isLoginRequiredJobsAction('/job-catalog/search')).toBe(false)
     expect(isLoginRequiredJobsAction('/job-catalog/cities')).toBe(false)
     expect(isLoginRequiredJobsAction('/job-catalog/freehire:abc')).toBe(false)
+  })
+})
+
+describe('isLoginRequiredFeedbackAction', () => {
+  it('matches only GET/PUT/DELETE /feedback/me, never the public summary', () => {
+    expect(isLoginRequiredFeedbackAction('/feedback/me')).toBe(true)
+    expect(isLoginRequiredFeedbackAction('/feedback/me/')).toBe(true)
+    expect(isLoginRequiredFeedbackAction('/feedback/summary')).toBe(false)
+    expect(isLoginRequiredFeedbackAction('/feedback')).toBe(false)
   })
 })
 
@@ -126,7 +137,21 @@ describe('handleResponseError (the 401 side of the axios interceptor)', () => {
     expect(window.location.assign).toHaveBeenCalledWith('/login?returnTo=%2Fjobs&reason=session_expired')
   })
 
-  it('rule 4: /auth/login\'s own 401 (wrong credentials) never clears the session or fires the event', async () => {
+  it('rule 4: submitting a rating on /profile with a stale token returns to /profile#feedback', async () => {
+    setLocation('/profile')
+    await expect(handleResponseError(axios401('/feedback/me'))).rejects.toBeTruthy()
+    expect(window.location.assign).toHaveBeenCalledWith(
+      '/login?returnTo=%2Fprofile%23feedback&reason=session_expired',
+    )
+  })
+
+  it('rule 4: a non-rating 401 on /profile still returns to /profile, not the hash', async () => {
+    setLocation('/profile')
+    await expect(handleResponseError(axios401('/users/me'))).rejects.toBeTruthy()
+    expect(window.location.assign).toHaveBeenCalledWith('/login?returnTo=%2Fprofile&reason=session_expired')
+  })
+
+  it('rule 5: /auth/login\'s own 401 (wrong credentials) never clears the session or fires the event', async () => {
     setLocation('/login')
     const listener = vi.fn()
     window.addEventListener(SESSION_EXPIRED_EVENT, listener)
@@ -139,7 +164,7 @@ describe('handleResponseError (the 401 side of the axios interceptor)', () => {
     window.removeEventListener(SESSION_EXPIRED_EVENT, listener)
   })
 
-  it('rule 4: /auth/register\'s own 401 is likewise left alone', async () => {
+  it('rule 5: /auth/register\'s own 401 is likewise left alone', async () => {
     setLocation('/register')
     await expect(handleResponseError(axios401('/auth/register'))).rejects.toBeTruthy()
     expect(getToken()).toBe('stale-token')

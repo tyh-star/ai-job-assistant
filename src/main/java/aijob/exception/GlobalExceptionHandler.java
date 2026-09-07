@@ -162,6 +162,24 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(FeedbackNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFeedbackNotFound(
+            FeedbackNotFoundException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
     @ExceptionHandler(ResumeNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResumeNotFound(
             ResumeNotFoundException ex,

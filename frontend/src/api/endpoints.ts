@@ -14,6 +14,8 @@ export const endpoints = {
   resumeFamily: (id: number | string) => `/resumes/${id}/family`,
   resumeStructure: (id: number | string) => `/resumes/${id}/structure`,
   resumeQualityScore: (id: number | string) => `/resumes/${id}/quality-score`,
+  feedbackMe: '/feedback/me',
+  feedbackSummary: '/feedback/summary',
   resumeCanonicalize: (id: number | string) => `/resumes/${id}/canonicalize`,
   resumeEvidence: (resumeId: number | string) => `/resumes/${resumeId}/evidence`,
   resumeEvidenceItem: (resumeId: number | string, evidenceId: number | string) =>
@@ -71,6 +73,8 @@ export function frontendRelativeEndpoints(): string[] {
     endpoints.resumeFamily(9),
     endpoints.resumeStructure(9),
     endpoints.resumeQualityScore(9),
+    endpoints.feedbackMe,
+    endpoints.feedbackSummary,
     endpoints.resumeCanonicalize(9),
     endpoints.resumeEvidence(9),
     endpoints.resumeEvidenceItem(9, 3),

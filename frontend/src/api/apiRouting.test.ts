@@ -126,6 +126,7 @@ describe('frontend API modules', () => {
       'client.ts',
       'endpoints.ts',
       'url.ts',
+      'feedback.ts',
     ]
     for (const file of files) {
       const source = readFileSync(join(srcDir, file), 'utf8')

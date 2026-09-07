@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nextProvider } from 'react-i18next'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import i18n from './i18n'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
@@ -53,12 +53,32 @@ vi.mock('./api/resumes', () => ({
   listResumes: vi.fn().mockResolvedValue({ data: [] }),
 }))
 
+const getFeedbackSummary = vi.fn()
+const getMyFeedback = vi.fn()
+
+vi.mock('./api/feedback', () => ({
+  getFeedbackSummary: (...args: unknown[]) => getFeedbackSummary(...args),
+  getMyFeedback: (...args: unknown[]) => getMyFeedback(...args),
+  saveMyFeedback: vi.fn(),
+  deleteMyFeedback: vi.fn(),
+}))
+
 const EXISTING_USER = { userId: 1, name: 'Alice', email: 'alice@example.com', role: 'USER' }
+
+function LocationProbe() {
+  const location = useLocation()
+  return (
+    <div data-testid="current-location">
+      {`${location.pathname}${location.search}${location.hash}`}
+    </div>
+  )
+}
 
 function renderAppAt(path: string) {
   return render(
     <I18nextProvider i18n={i18n}>
       <MemoryRouter initialEntries={[path]}>
+        <LocationProbe />
         <AuthProvider>
           <App />
         </AuthProvider>
@@ -74,6 +94,9 @@ describe('public landing and returnTo routing', () => {
     getMe.mockResolvedValue({
       data: { id: 1, name: 'Alice', email: 'alice@example.com', role: 'USER', createdAt: '2026-01-01T00:00:00' },
     })
+    getFeedbackSummary.mockResolvedValue({ data: { averageRating: 0, reviewerCount: 0 } })
+    getMyFeedback.mockRejectedValue({ response: { status: 404, data: { message: 'No feedback submitted yet' } } })
+    Element.prototype.scrollIntoView = vi.fn()
   })
 
   afterEach(() => {
@@ -89,6 +112,10 @@ describe('public landing and returnTo routing', () => {
     // The nav shows only what an anonymous visitor can actually use.
     expect(screen.getByRole('link', { name: '登录' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '注册' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '网站评价' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '评价网站' })).not.toBeInTheDocument()
+    expect(getFeedbackSummary).not.toHaveBeenCalled()
+    expect(getMyFeedback).not.toHaveBeenCalled()
   })
 
   it('root path ALSO lands a signed-in visitor on /jobs -- "/" never varies by auth state', async () => {
@@ -110,6 +137,62 @@ describe('public landing and returnTo routing', () => {
 
     expect(await screen.findByText('你好，Alice')).toBeInTheDocument()
   })
+
+  it('a signed-in visitor on /profile sees the site-rating card and loads summary plus /me', async () => {
+    saveSession('test-token', EXISTING_USER)
+    renderAppAt('/profile')
+    expect(await screen.findByRole('heading', { name: '个人中心' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '网站评价' })).toBeInTheDocument()
+    expect(getFeedbackSummary).toHaveBeenCalled()
+    expect(getMyFeedback).toHaveBeenCalled()
+  })
+
+  it('a signed-in visitor on /jobs never loads site-feedback APIs', async () => {
+    saveSession('test-token', EXISTING_USER)
+    renderAppAt('/jobs')
+    expect(await screen.findByText('全球公开职位')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '网站评价' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '网站评价' })).not.toBeInTheDocument()
+    expect(getFeedbackSummary).not.toHaveBeenCalled()
+    expect(getMyFeedback).not.toHaveBeenCalled()
+  })
+
+  it('an anonymous visitor to /feedback is sent to login carrying returnTo=/profile#feedback', async () => {
+    renderAppAt('/feedback')
+    expect(await screen.findByRole('heading', { name: '登录' })).toBeInTheDocument()
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/login?returnTo=%2Fprofile%23feedback')
+    expect(screen.queryByRole('heading', { name: '网站评价' })).not.toBeInTheDocument()
+    expect(getFeedbackSummary).not.toHaveBeenCalled()
+    expect(getMyFeedback).not.toHaveBeenCalled()
+  })
+
+  it('a signed-in visitor to /feedback is redirected to the profile rating card', async () => {
+    saveSession('test-token', EXISTING_USER)
+    renderAppAt('/feedback')
+    expect(await screen.findByRole('heading', { name: '个人中心' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '网站评价' })).toBeInTheDocument()
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/profile#feedback')
+    expect(document.getElementById('feedback')).not.toBeNull()
+  })
+
+  it('logging in from the old /feedback URL lands on the profile rating card', async () => {
+    renderAppAt('/feedback')
+    expect(await screen.findByRole('heading', { name: '登录' })).toBeInTheDocument()
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/login?returnTo=%2Fprofile%23feedback')
+
+    login.mockImplementation(async () => ({
+      data: { token: 'fresh-token', userId: 1, name: 'Alice', email: 'alice@example.com', role: 'USER' },
+    }))
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText('邮箱'), 'alice@example.com')
+    await user.type(screen.getByLabelText('密码'), 'Password123')
+    await user.click(screen.getByRole('button', { name: '登录' }))
+
+    expect(await screen.findByRole('heading', { name: '个人中心' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '网站评价' })).toBeInTheDocument()
+    expect(screen.getByTestId('current-location')).toHaveTextContent('/profile#feedback')
+    await waitFor(() => expect(Element.prototype.scrollIntoView).toHaveBeenCalled())
+  }, 10000)
 
   it('an anonymous visitor to /dashboard is redirected to login, not shown the Dashboard', async () => {
     renderAppAt('/dashboard')
