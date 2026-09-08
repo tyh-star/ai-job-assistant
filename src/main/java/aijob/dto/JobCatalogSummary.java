@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Catalog search row. Carries no raw provider payload and no unsanitized HTML.
+ * Catalog search row. Compact list data only: no full job description, no apply URL,
+ * no raw provider payload, and no unsanitized HTML. Those belong on
+ * {@link JobCatalogDetail}, loaded when the caller asks for one posting.
  */
 public record JobCatalogSummary(
         // See JobCatalogDetail.id: an opaque per-provider reference, never a bare
@@ -19,14 +21,12 @@ public record JobCatalogSummary(
         BigDecimal salaryMin,
         BigDecimal salaryMax,
         String currency,
-        String applyUrl,
         String canonicalUrl,
         String source,
         LocalDateTime postedAt,
         LocalDateTime firstSeenAt,
         LocalDateTime lastSeenAt,
         String status,
-        String descriptionSnippet,
         boolean saved,
         Long personalJobId,
         boolean applied,

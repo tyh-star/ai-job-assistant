@@ -367,7 +367,10 @@ class FreeHireEndToEndControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.results[0].id").value("freehire:acme-swe-e2e"))
                 .andExpect(jsonPath("$.results[0].title").value("Backend Engineer"))
-                .andExpect(jsonPath("$.results[0].applyUrl").value("https://boards.greenhouse.io/acme/jobs/e2e"))
+                .andExpect(jsonPath("$.results[0].canonicalUrl").value("https://boards.greenhouse.io/acme/jobs/e2e"))
+                .andExpect(jsonPath("$.results[0].applyUrl").doesNotExist())
+                .andExpect(jsonPath("$.results[0].descriptionSnippet").doesNotExist())
+                .andExpect(jsonPath("$.results[0].descriptionText").doesNotExist())
                 .andExpect(jsonPath("$.results[0].saved").value(false));
 
         assertTrue(lastPath.contains("q=engineer"));
@@ -378,6 +381,7 @@ class FreeHireEndToEndControllerTest {
                 .andExpect(jsonPath("$.id").value("freehire:acme-swe-e2e"))
                 .andExpect(jsonPath("$.descriptionText").value(
                         org.hamcrest.Matchers.containsString("Full JD paragraph two")))
+                .andExpect(jsonPath("$.applyUrl").value("https://boards.greenhouse.io/acme/jobs/e2e"))
                 .andExpect(jsonPath("$.saved").value(false));
 
         // A bare local-style numeric id must not resolve to a FreeHire row.

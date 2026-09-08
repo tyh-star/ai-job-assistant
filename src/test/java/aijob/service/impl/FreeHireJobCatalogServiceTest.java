@@ -19,6 +19,10 @@ import aijob.freehire.FreeHireMetaJson;
 import aijob.freehire.FreeHireSearchResponseJson;
 import aijob.mapper.JobMapper;
 import aijob.mapper.UserMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -362,7 +366,7 @@ class FreeHireJobCatalogServiceTest {
     // ---------------------------------------------------------------------------
 
     @Test
-    void searchMapsTheFullResultShapeIncludingIdentityAndLinks() {
+    void searchMapsTheFullResultShapeIncludingIdentityAndLinks() throws Exception {
         FreeHireJobJson hit = job("acme-swe-x1", "https://boards.greenhouse.io/acme/jobs/1",
                 "Software Engineer", "Acme", "Remote - US", "<p>Full JD body here.</p>",
                 List.of("us"), List.of("remote"), "remote");
@@ -375,12 +379,22 @@ class FreeHireJobCatalogServiceTest {
         assertEquals("freehire:acme-swe-x1", summary.id(), "must carry the freehire: namespace, never a bare id");
         assertEquals("Software Engineer", summary.title());
         assertEquals("Acme", summary.companyName());
-        assertEquals("https://boards.greenhouse.io/acme/jobs/1", summary.applyUrl());
+        assertEquals("https://boards.greenhouse.io/acme/jobs/1", summary.canonicalUrl());
         assertEquals("US", summary.countryCode());
         assertEquals("REMOTE", summary.remoteType());
         assertEquals("ACTIVE", summary.status());
         assertFalse(summary.saved());
         assertNull(summary.personalJobId());
+
+        ObjectMapper mapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        JsonNode json = mapper.valueToTree(summary);
+        assertFalse(json.has("applyUrl"), "apply URL belongs on detail, never on the search row");
+        assertFalse(json.has("descriptionSnippet"));
+        assertFalse(json.has("descriptionText"));
+        assertFalse(json.has("descriptionHtml"));
+        assertFalse(mapper.writeValueAsString(summary).contains("Full JD body"));
     }
 
     @Test
@@ -410,7 +424,6 @@ class FreeHireJobCatalogServiceTest {
         stubSearch(new FreeHireSearchResponseJson(List.of(hit), new FreeHireMetaJson(1, 20, 0, null)));
 
         JobCatalogSummary summary = service.search(ALICE, blankRequest()).results().get(0);
-        assertNull(summary.applyUrl());
         assertNull(summary.canonicalUrl());
     }
 
@@ -518,6 +531,8 @@ class FreeHireJobCatalogServiceTest {
         assertFalse(detail.descriptionHtml().contains("<script"));
         assertEquals("DE", detail.countryCode());
         assertEquals("HYBRID", detail.remoteType());
+        assertEquals("https://x.example/1", detail.applyUrl());
+        assertTrue(detail.descriptionText().contains("Safe"));
         assertFalse(detail.saved());
     }
 

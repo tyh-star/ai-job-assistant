@@ -17,6 +17,8 @@ import aijob.mapper.JobCatalogMapper;
 import aijob.mapper.JobMapper;
 import aijob.service.JobCatalogService;
 import aijob.util.CatalogFingerprint;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +77,9 @@ class JobCatalogH2IntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void seedUsers() {
@@ -361,9 +366,16 @@ class JobCatalogH2IntegrationTest {
         JobCatalogSummary summary = search(ALICE).results().get(0);
 
         assertEquals("GREENHOUSE", summary.source());
-        assertNotNull(summary.applyUrl());
+        assertNotNull(summary.canonicalUrl());
         assertNotNull(summary.firstSeenAt());
         assertFalse(summary.toString().contains("do-not-return"));
+
+        JsonNode json = objectMapper.valueToTree(summary);
+        assertFalse(json.has("applyUrl"), "apply URL belongs on detail, never on the search row");
+        assertFalse(json.has("descriptionSnippet"));
+        assertFalse(json.has("descriptionText"));
+        assertFalse(json.has("descriptionHtml"));
+        assertTrue(json.has("canonicalUrl"));
     }
 
     private JobCatalogSearchResponse search(String email) {

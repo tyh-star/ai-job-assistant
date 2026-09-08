@@ -56,7 +56,6 @@ public class JobCatalogServiceImpl implements JobCatalogService {
 
     /** Marks personal jobs created from the catalog, and keys the idempotent save. */
     public static final String CATALOG_SOURCE = "JOB_CATALOG";
-    static final int SNIPPET_CHARS = 280;
 
     private final JobCatalogMapper jobCatalogMapper;
     private final UserSavedCatalogJobMapper userSavedCatalogJobMapper;
@@ -312,14 +311,12 @@ public class JobCatalogServiceImpl implements JobCatalogService {
                     entry.getSalaryMin(),
                     entry.getSalaryMax(),
                     entry.getCurrency(),
-                    entry.getApplyUrl(),
                     entry.getCanonicalUrl(),
                     sources.get(entry.getId()),
                     entry.getPostedAt(),
                     entry.getFirstSeenAt(),
                     entry.getLastSeenAt(),
                     entry.getStatus(),
-                    snippet(entry.getDescriptionText()),
                     savedIds.contains(entry.getId()),
                     personalJobId,
                     personal != null && personal.isApplied(),
@@ -452,17 +449,6 @@ public class JobCatalogServiceImpl implements JobCatalogService {
             return text;
         }
         return entry.getTitle() + " — " + entry.getCompanyName();
-    }
-
-    private static String snippet(String text) {
-        if (text == null || text.isBlank()) {
-            return null;
-        }
-        String flattened = text.strip().replaceAll("\\s+", " ");
-        if (flattened.length() <= SNIPPET_CHARS) {
-            return flattened;
-        }
-        return flattened.substring(0, SNIPPET_CHARS).strip() + "…";
     }
 
     private static JobResponse toJobResponse(Job job) {

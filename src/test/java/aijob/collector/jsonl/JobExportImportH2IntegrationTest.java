@@ -625,7 +625,7 @@ class JobExportImportH2IntegrationTest {
         assertEquals(2, byCompany.results().size());
         for (JobCatalogSummary summary : byCompany.results()) {
             assertEquals("Vercel", summary.companyName());
-            assertNotNull(summary.applyUrl());
+            assertNotNull(summary.canonicalUrl());
         }
     }
 

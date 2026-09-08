@@ -544,13 +544,11 @@ public class FreeHireJobCatalogService implements JobCatalogService {
                     null,
                     null,
                     ExternalLinks.displayUrl(hit.url()),
-                    ExternalLinks.displayUrl(hit.url()),
                     sourceLabel(hit),
                     parseInstant(hit.postedAt()),
                     parseInstant(hit.createdAt()),
                     parseInstant(hit.createdAt()),
                     hit.closedAt() != null ? "EXPIRED" : "ACTIVE",
-                    snippet(HtmlTextExtractor.toPlainText(hit.description())),
                     row != null,
                     row != null ? row.id() : null,
                     row != null && row.applied(),
@@ -714,18 +712,6 @@ public class FreeHireJobCatalogService implements JobCatalogService {
         }
         return blankToPlaceholder(hit.title(), "Untitled position")
                 + " — " + blankToPlaceholder(hit.company(), "Unknown company");
-    }
-
-    private static String snippet(String text) {
-        if (text == null || text.isBlank()) {
-            return null;
-        }
-        String flattened = text.strip().replaceAll("\\s+", " ");
-        int max = 280;
-        if (flattened.length() <= max) {
-            return flattened;
-        }
-        return flattened.substring(0, max).strip() + "…";
     }
 
     /**

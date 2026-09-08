@@ -325,14 +325,12 @@ export interface JobCatalogSummary {
   salaryMin: number | null
   salaryMax: number | null
   currency: string | null
-  applyUrl: string | null
   canonicalUrl: string | null
   source: string | null
   postedAt: string | null
   firstSeenAt: string | null
   lastSeenAt: string | null
   status: CatalogJobStatus
-  descriptionSnippet: string | null
   saved: boolean
   personalJobId: number | null
   applied: boolean
@@ -357,12 +355,13 @@ export interface JobCatalogSearchResponse {
   results: JobCatalogSummary[]
 }
 
-export interface JobCatalogDetail extends Omit<JobCatalogSummary, 'descriptionSnippet' | 'cityMatch'> {
+export interface JobCatalogDetail extends Omit<JobCatalogSummary, 'cityMatch'> {
   descriptionText: string | null
-  /** Server-sanitized HTML. */
+  /** Server-sanitized HTML. Never render this unless the backend sanitizer is the source. */
   descriptionHtml: string | null
   city: string | null
   region: string | null
+  applyUrl: string | null
 }
 
 /** `jobId` is an id in the user's own jobs, usable by Match and Tailor as-is. */

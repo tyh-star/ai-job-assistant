@@ -19,6 +19,7 @@ import {
 } from '../api/jobs'
 import {
   clearJobCatalogApplied,
+  getJobCatalogJob,
   markJobCatalogApplied,
   saveJobCatalogJob,
   searchCatalogCities,
@@ -28,7 +29,7 @@ import {
   listJobSearchHistory,
   recordJobSearchHistory,
 } from '../api/jobSearchHistory'
-import type { JobCatalogSummary } from '../api/types'
+import type { JobCatalogDetail, JobCatalogSummary } from '../api/types'
 import { AuthProvider } from '../auth/AuthContext'
 import { saveSession } from '../auth/session'
 import { JobsPage } from './JobsPage'
@@ -79,14 +80,12 @@ const activeJob: JobCatalogSummary = {
   salaryMin: null,
   salaryMax: null,
   currency: null,
-  applyUrl: 'https://boards.greenhouse.io/acme/jobs/501',
   canonicalUrl: 'https://boards.greenhouse.io/acme/jobs/501',
   source: 'GREENHOUSE',
   postedAt: '2026-08-01T12:00:00Z',
   firstSeenAt: '2026-08-02T00:00:00Z',
   lastSeenAt: '2026-08-20T00:00:00Z',
   status: 'ACTIVE',
-  descriptionSnippet: 'Build APIs with Java.',
   saved: false,
   personalJobId: null,
   applied: false,
@@ -99,7 +98,22 @@ const expiredJob: JobCatalogSummary = {
   id: '502',
   title: 'Platform Engineer',
   status: 'EXPIRED',
-  descriptionSnippet: 'Run the platform.',
+}
+
+function catalogDetailFor(
+  summary: JobCatalogSummary,
+  overrides: Partial<JobCatalogDetail> = {},
+): JobCatalogDetail {
+  const { cityMatch: _cityMatch, ...rest } = summary
+  return {
+    ...rest,
+    descriptionText: `${summary.title} full job description.`,
+    descriptionHtml: `<p>${summary.title} full job description.</p>`,
+    city: null,
+    region: null,
+    applyUrl: 'https://boards.greenhouse.io/acme/jobs/501',
+    ...overrides,
+  }
 }
 
 function pageOf(results: JobCatalogSummary[], overrides: Record<string, unknown> = {}) {
@@ -147,6 +161,17 @@ function catalog(headingName = '全球公开职位') {
   return within(section)
 }
 
+async function expandCatalogJob(title: string, headingName = '全球公开职位') {
+  const user = userEvent.setup()
+  const item = (await catalog(headingName).findByText(title)).closest('li')
+  if (!item) {
+    throw new Error(`job row not found: ${title}`)
+  }
+  const viewDetails = headingName === 'Global public jobs' ? /View details/ : /查看详情/
+  await user.click(within(item).getByRole('button', { name: viewDetails }))
+  return { user, item: item as HTMLElement }
+}
+
 async function renderAndSettle() {
   renderPage()
   await waitFor(() => expect(listJobs).toHaveBeenCalled())
@@ -180,6 +205,9 @@ describe('JobsPage catalog search', () => {
     } as never)
     vi.mocked(listJobSearchHistory).mockResolvedValue({ data: [] } as never)
     vi.mocked(recordJobSearchHistory).mockResolvedValue({} as never)
+    vi.mocked(getJobCatalogJob).mockImplementation(async (id: string) => ({
+      data: catalogDetailFor(id === expiredJob.id ? expiredJob : { ...activeJob, id }),
+    }) as never)
     vi.mocked(getJobApplicationStats).mockResolvedValue({
       data: {
         todayCount: 0,
@@ -202,7 +230,10 @@ describe('JobsPage catalog search', () => {
 
     expect(await catalog().findByText('Java Developer')).toBeInTheDocument()
     expect(catalog().getByText('Acme')).toBeInTheDocument()
-    expect(catalog().getByText(/GREENHOUSE/)).toBeInTheDocument()
+    expect(catalog().getByText(/Toronto, ON/)).toBeInTheDocument()
+    expect(catalog().queryByText(/GREENHOUSE/)).not.toBeInTheDocument()
+    expect(catalog().queryByText(/full job description/)).not.toBeInTheDocument()
+    expect(getJobCatalogJob).not.toHaveBeenCalled()
     expect(searchJobs).not.toHaveBeenCalled()
     expect(fetchNextSearchPage).not.toHaveBeenCalled()
     expect(importSearchResults).not.toHaveBeenCalled()
@@ -396,8 +427,8 @@ describe('JobsPage catalog search', () => {
   it('never auto-marks applied on the click -- only after returning and confirming', async () => {
     const user = userEvent.setup()
     await renderAndSettle()
-
-    await user.click(catalog().getByRole('link', { name: '查看原始职位' }))
+    await expandCatalogJob('Java Developer')
+    await user.click(await catalog().findByRole('link', { name: '查看原始职位' }))
     // The click itself must never call the API -- only an explicit confirmation does.
     expect(markJobCatalogApplied).not.toHaveBeenCalled()
     expect(catalog().queryByText('你是否已经提交申请？')).not.toBeInTheDocument()
@@ -406,8 +437,8 @@ describe('JobsPage catalog search', () => {
   it('prompts to confirm applied once the user returns to the tab, then can be revoked', async () => {
     const user = userEvent.setup()
     await renderAndSettle()
-
-    await user.click(catalog().getByRole('link', { name: '查看原始职位' }))
+    await expandCatalogJob('Java Developer')
+    await user.click(await catalog().findByRole('link', { name: '查看原始职位' }))
     window.dispatchEvent(new Event('focus'))
 
     expect(await catalog().findByText('你是否已经提交申请？')).toBeInTheDocument()
@@ -431,8 +462,8 @@ describe('JobsPage catalog search', () => {
   it('declining the confirm prompt marks nothing', async () => {
     const user = userEvent.setup()
     await renderAndSettle()
-
-    await user.click(catalog().getByRole('link', { name: '查看原始职位' }))
+    await expandCatalogJob('Java Developer')
+    await user.click(await catalog().findByRole('link', { name: '查看原始职位' }))
     window.dispatchEvent(new Event('focus'))
     expect(await catalog().findByText('你是否已经提交申请？')).toBeInTheDocument()
 
@@ -667,7 +698,7 @@ describe('JobsPage catalog search', () => {
   it('saves a posting, exposes the personal job id, and blocks a second save', async () => {
     const user = userEvent.setup()
     await renderAndSettle()
-
+    await expandCatalogJob('Java Developer')
     await user.click(await catalog().findByRole('button', { name: '收藏职位' }))
 
     await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith('501'))
@@ -700,7 +731,7 @@ describe('JobsPage catalog search', () => {
     })
     const user = userEvent.setup()
     await renderAndSettle()
-
+    await expandCatalogJob('Java Developer')
     await user.click(await catalog().findByRole('button', { name: '收藏职位' }))
     await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith('501'))
 
@@ -718,8 +749,8 @@ describe('JobsPage catalog search', () => {
     })
     const user = userEvent.setup()
     await renderAndSettle()
-
-    await user.click(catalog().getByRole('link', { name: '查看原始职位' }))
+    await expandCatalogJob('Java Developer')
+    await user.click(await catalog().findByRole('link', { name: '查看原始职位' }))
     window.dispatchEvent(new Event('focus'))
     await user.click(await catalog().findByRole('button', { name: '是，标记为已投递' }))
 
@@ -736,6 +767,8 @@ describe('JobsPage catalog search', () => {
 
     expect(await catalog().findByText('已收藏')).toBeInTheDocument()
     expect(catalog().queryByRole('button', { name: '收藏职位' })).not.toBeInTheDocument()
+    expect(catalog().queryByRole('link', { name: '分析职位匹配' })).not.toBeInTheDocument()
+    await expandCatalogJob('Java Developer')
     expect(catalog().getByRole('link', { name: '分析职位匹配' })).toHaveAttribute(
       'href',
       '/tailor?jobId=77',
@@ -817,6 +850,264 @@ describe('JobsPage catalog search', () => {
       expect(tab.className).not.toMatch(/\bw-\d|\bmin-w-\[|\bwhitespace-nowrap\b/)
     }
   })
+
+  it('shows 10 compact rows with no JD, no apply link and no favorite actions', async () => {
+    const ten = Array.from({ length: 10 }, (_, index) => ({
+      ...activeJob,
+      id: `job-${index + 1}`,
+      title: `Compact Job ${index + 1}`,
+    }))
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf(ten, { totalCount: 10 }))
+    await renderAndSettle()
+
+    expect(catalog().getAllByRole('button', { name: /查看详情/ })).toHaveLength(10)
+    expect(catalog().queryByText(/full job description/)).not.toBeInTheDocument()
+    expect(catalog().queryByRole('link', { name: '查看原始职位' })).not.toBeInTheDocument()
+    expect(catalog().queryByRole('button', { name: '收藏职位' })).not.toBeInTheDocument()
+    expect(getJobCatalogJob).not.toHaveBeenCalled()
+    expect(searchJobCatalog).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads one job detail on first expand and reuses the in-memory cache after collapse', async () => {
+    const user = userEvent.setup()
+    await renderAndSettle()
+    expect(getJobCatalogJob).not.toHaveBeenCalled()
+
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(1)
+    expect(getJobCatalogJob).toHaveBeenCalledWith('501')
+    expect(searchJobCatalog).toHaveBeenCalledTimes(1)
+
+    await user.click(catalog().getByRole('button', { name: '收起详情' }))
+    expect(catalog().queryByText('Java Developer full job description.')).not.toBeInTheDocument()
+
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps only one row expanded at a time', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob, expiredJob]))
+    await renderAndSettle()
+
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+
+    await expandCatalogJob('Platform Engineer')
+    expect(await catalog().findByText('Platform Engineer full job description.')).toBeInTheDocument()
+    expect(catalog().queryByText('Java Developer full job description.')).not.toBeInTheDocument()
+
+    const javaItem = catalog().getByText('Java Developer').closest('li') as HTMLElement
+    const platItem = catalog().getByText('Platform Engineer').closest('li') as HTMLElement
+    expect(within(javaItem).getByRole('button', { name: /查看详情/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(within(platItem).getByRole('button', { name: /查看详情/ })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('ignores a slow first-job response after the second job is already open', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob, expiredJob]))
+    let resolveFirst: ((value: { data: JobCatalogDetail }) => void) | undefined
+    vi.mocked(getJobCatalogJob).mockImplementation((id: string) => {
+      if (id === '501') {
+        return new Promise((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return Promise.resolve({ data: catalogDetailFor(expiredJob) })
+    })
+    const user = userEvent.setup()
+    await renderAndSettle()
+
+    const javaItem = (await catalog().findByText('Java Developer')).closest('li') as HTMLElement
+    const platItem = catalog().getByText('Platform Engineer').closest('li') as HTMLElement
+    await user.click(within(javaItem).getByRole('button', { name: /查看详情/ }))
+    await user.click(within(platItem).getByRole('button', { name: /查看详情/ }))
+
+    expect(await within(platItem).findByText('Platform Engineer full job description.')).toBeInTheDocument()
+    resolveFirst?.({ data: catalogDetailFor(activeJob) })
+    await waitFor(() => expect(getJobCatalogJob).toHaveBeenCalledTimes(2))
+    expect(within(javaItem).queryByText('Java Developer full job description.')).not.toBeInTheDocument()
+    expect(within(platItem).getByText('Platform Engineer full job description.')).toBeInTheDocument()
+    expect(within(javaItem).getByRole('button', { name: /查看详情/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(within(platItem).getByRole('button', { name: /查看详情/ })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('does not fire a second detail request when the same row is clicked twice quickly', async () => {
+    let started = 0
+    vi.mocked(getJobCatalogJob).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          started += 1
+          window.setTimeout(() => resolve({ data: catalogDetailFor(activeJob) }), 30)
+        }),
+    )
+    const user = userEvent.setup()
+    await renderAndSettle()
+    const toggle = (await catalog().findByText('Java Developer'))
+      .closest('li')!
+      .querySelector('button[aria-controls]') as HTMLButtonElement
+    await user.click(toggle)
+    await user.click(toggle)
+    await waitFor(() => expect(started).toBe(1))
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(1)
+  })
+
+  it('collapses the open row and drops the detail cache when filters or page change', async () => {
+    const user = userEvent.setup()
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([activeJob], { page: 1, totalCount: 20, totalPages: 2, hasMore: true }),
+    )
+    await renderAndSettle()
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(1)
+
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([expiredJob], { page: 2, totalCount: 20, totalPages: 2, hasMore: false }),
+    )
+    await user.click(catalog().getByRole('button', { name: '下一页' }))
+    expect(await catalog().findByText('Platform Engineer')).toBeInTheDocument()
+    expect(catalog().queryByText('Java Developer full job description.')).not.toBeInTheDocument()
+    expect(catalog().getByRole('button', { name: /查看详情/ })).toHaveAttribute('aria-expanded', 'false')
+
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([activeJob], { page: 1, totalCount: 20, totalPages: 2, hasMore: true }),
+    )
+    await user.click(catalog().getByRole('button', { name: '上一页' }))
+    expect(await catalog().findByText('Java Developer')).toBeInTheDocument()
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a per-row 404 without clearing other search results', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob, expiredJob]))
+    vi.mocked(getJobCatalogJob).mockImplementation((id: string) => {
+      if (id === '501') {
+        return Promise.reject({ response: { status: 404, data: { message: 'not found' } } })
+      }
+      return Promise.resolve({ data: catalogDetailFor(expiredJob) })
+    })
+    await renderAndSettle()
+
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('该职位详情已经失效，可能已经下架')).toBeInTheDocument()
+    expect(catalog().getByText('Java Developer')).toBeInTheDocument()
+    expect(catalog().getByText('Platform Engineer')).toBeInTheDocument()
+
+    await expandCatalogJob('Platform Engineer')
+    expect(await catalog().findByText('Platform Engineer full job description.')).toBeInTheDocument()
+    expect(catalog().getByText('Java Developer')).toBeInTheDocument()
+    expect(catalog().queryByText('该职位详情已经失效，可能已经下架')).not.toBeInTheDocument()
+  })
+
+  it('maps 429 Retry-After, 502 and timeout to per-row messages and retries the request', async () => {
+    const user = userEvent.setup()
+    await renderAndSettle()
+
+    vi.mocked(getJobCatalogJob).mockRejectedValueOnce({
+      response: { status: 429, headers: { 'retry-after': '30' }, data: {} },
+    })
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByRole('alert')).toHaveTextContent(/过于频繁/)
+    expect(catalog().getByRole('alert')).toHaveTextContent('30')
+
+    vi.mocked(getJobCatalogJob).mockRejectedValueOnce({
+      response: { status: 502, data: { message: 'bad gateway' } },
+    })
+    await user.click(catalog().getByRole('button', { name: '重试' }))
+    expect(await catalog().findByText('职位详情暂时不可用，请稍后再试。')).toBeInTheDocument()
+
+    vi.mocked(getJobCatalogJob).mockRejectedValueOnce({
+      code: 'ECONNABORTED',
+      message: 'timeout of 10000ms exceeded',
+    })
+    await user.click(catalog().getByRole('button', { name: '重试' }))
+    expect(await catalog().findByText('职位详情暂时不可用，请稍后再试。')).toBeInTheDocument()
+
+    vi.mocked(getJobCatalogJob).mockResolvedValueOnce({ data: catalogDetailFor(activeJob) } as never)
+    await user.click(catalog().getByRole('button', { name: '重试' }))
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(4)
+  })
+
+  it('updates compact saved and applied badges as soon as those actions succeed', async () => {
+    const user = userEvent.setup()
+    await renderAndSettle()
+    await expandCatalogJob('Java Developer')
+    await user.click(await catalog().findByRole('button', { name: '收藏职位' }))
+    await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith('501'))
+    expect(await screen.findByRole('tab', { name: /已收藏/ })).toHaveAttribute('aria-selected', 'true')
+    await user.click(screen.getByRole('tab', { name: '查找职位' }))
+    expect(await catalog().findByText('已收藏')).toBeInTheDocument()
+
+    await user.click(await catalog().findByRole('link', { name: '查看原始职位' }))
+    window.dispatchEvent(new Event('focus'))
+    await user.click(await catalog().findByRole('button', { name: '是，标记为已投递' }))
+    await waitFor(() => expect(markJobCatalogApplied).toHaveBeenCalledWith('501'))
+    await user.click(screen.getByRole('tab', { name: '查找职位' }))
+    expect(await catalog().findByText('已投递')).toBeInTheDocument()
+    expect(catalog().getByText('已收藏')).toBeInTheDocument()
+  })
+
+  it('does not write search history when a job detail is opened', async () => {
+    await renderAndSettle()
+    expect(recordJobSearchHistory).not.toHaveBeenCalled()
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(recordJobSearchHistory).not.toHaveBeenCalled()
+  })
+
+  it('toggles the accordion with Enter, Space, aria-expanded and aria-controls', async () => {
+    const user = userEvent.setup()
+    await renderAndSettle()
+    const toggle = (await catalog().findByText('Java Developer'))
+      .closest('li')!
+      .querySelector('button[aria-controls]') as HTMLButtonElement
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    const panelId = toggle.getAttribute('aria-controls')
+    expect(panelId).toBeTruthy()
+    expect(document.getElementById(panelId as string)).not.toBeNull()
+
+    toggle.focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'true'))
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+
+    await user.keyboard(' ')
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'false'))
+    expect(catalog().queryByText('Java Developer full job description.')).not.toBeInTheDocument()
+  })
+
+  it('wraps long job descriptions instead of allowing a horizontal overflow class', async () => {
+    vi.mocked(getJobCatalogJob).mockResolvedValue({
+      data: catalogDetailFor(activeJob, {
+        descriptionText: 'LongJD '.repeat(80),
+      }),
+    } as never)
+    await renderAndSettle()
+    await expandCatalogJob('Java Developer')
+    const description = await catalog().findByText(/LongJD/)
+    expect(description.className).toMatch(/whitespace-pre-wrap/)
+    expect(description.className).toMatch(/break-words/)
+    expect(description.className).toMatch(/overflow-hidden/)
+    expect(description.className).toMatch(/min-w-0/)
+    const row = catalog().getByText('Java Developer').closest('li') as HTMLElement
+    expect(row.className).toMatch(/min-w-0/)
+    expect(row.className).toMatch(/overflow-hidden/)
+  })
+
+  it('translates compact and detail catalog copy in English', async () => {
+    await i18n.changeLanguage('en')
+    await renderAndSettle()
+    const panel = catalog('Global public jobs')
+    expect(panel.getByRole('button', { name: /View details/ })).toBeInTheDocument()
+    await expandCatalogJob('Java Developer', 'Global public jobs')
+    expect(await panel.findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(panel.getByRole('button', { name: 'Hide details' })).toBeInTheDocument()
+    expect(panel.getByRole('button', { name: 'Add to favorites' })).toBeInTheDocument()
+    expect(panel.getByRole('link', { name: 'Open original job' })).toBeInTheDocument()
+  })
 })
 
 function renderAnonymous() {
@@ -837,6 +1128,7 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     localStorage.clear()
     await i18n.changeLanguage('zh-CN')
     vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob]))
+    vi.mocked(getJobCatalogJob).mockResolvedValue({ data: catalogDetailFor(activeJob) } as never)
   })
 
   afterEach(async () => {
@@ -845,10 +1137,16 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     await i18n.changeLanguage('zh-CN')
   })
 
-  it('can search and see results without logging in', async () => {
+  it('can search, expand a detail, and still must log in to favorite', async () => {
     renderAnonymous()
     await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
     expect(await screen.findByText('Java Developer')).toBeInTheDocument()
+    expect(getJobCatalogJob).not.toHaveBeenCalled()
+
+    await expandCatalogJob('Java Developer')
+    expect(await catalog().findByText('Java Developer full job description.')).toBeInTheDocument()
+    expect(getJobCatalogJob).toHaveBeenCalledTimes(1)
+    expect(saveJobCatalogJob).not.toHaveBeenCalled()
   })
 
   it('never fetches the personal jobs list for a visitor who is not logged in', async () => {
@@ -881,6 +1179,7 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     const user = userEvent.setup()
     renderAnonymous()
     await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
+    await expandCatalogJob('Java Developer')
     await user.click(await screen.findByRole('button', { name: '收藏职位' }))
     expect(saveJobCatalogJob).not.toHaveBeenCalled()
   })
@@ -889,6 +1188,7 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     const user = userEvent.setup()
     renderAnonymous()
     await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
+    await expandCatalogJob('Java Developer')
     await user.click(await screen.findByRole('link', { name: '查看原始职位' }))
     window.dispatchEvent(new Event('focus'))
     expect(screen.queryByText('你是否已经提交申请？')).not.toBeInTheDocument()

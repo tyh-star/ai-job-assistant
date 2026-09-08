@@ -134,7 +134,7 @@ class PipelineOutcomeInspectionTest {
         log.info("PIPELINE-STATE search q=Vercel total={} q=Engineer total={}",
                 byCompany.totalCount(), byTitle.totalCount());
         for (JobCatalogSummary s : byCompany.results().stream().limit(3).toList()) {
-            log.info("PIPELINE-STATE   hit: {} | {} | {}", s.title(), s.companyName(), s.applyUrl());
+            log.info("PIPELINE-STATE   hit: {} | {} | {}", s.title(), s.companyName(), s.canonicalUrl());
         }
     }
 
