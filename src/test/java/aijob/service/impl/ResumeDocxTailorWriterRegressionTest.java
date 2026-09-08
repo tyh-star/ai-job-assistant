@@ -128,8 +128,8 @@ class ResumeDocxTailorWriterRegressionTest {
 
     private Path copyClasspathResume() throws Exception {
         Path original = tempDir.resolve("regression-resume.docx");
-        try (InputStream inputStream = getClass().getResourceAsStream("/regression/test-resume.docx")) {
-            assertNotNull(inputStream, "Missing src/test/resources/regression/test-resume.docx");
+        try (InputStream inputStream = getClass().getResourceAsStream("/regression/synthetic-formatting-resume.docx")) {
+            assertNotNull(inputStream, "Missing src/test/resources/regression/synthetic-formatting-resume.docx");
             Files.copy(inputStream, original, StandardCopyOption.REPLACE_EXISTING);
         }
         return original;

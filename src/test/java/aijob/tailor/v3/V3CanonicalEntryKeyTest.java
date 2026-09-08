@@ -69,6 +69,7 @@ public class V3CanonicalEntryKeyTest {
         assertFalse(ledger.sameEntry("p-2", "p-4"));
     }
 
+    /** Synthetic Alex Morgan fixture pair: fictional Prime Deals / SmartPC Builder. */
     public static List<ResumeDocumentNode> primeAndSmart() {
         return List.of(
                 node("p-0", "RELEVANT PROJECTS"),
@@ -76,7 +77,7 @@ public class V3CanonicalEntryKeyTest {
                 node("p-2", "Design and implement the application using Java Spring Boot with an MVC pattern."),
                 node("p-3", "Integrated RESTful APIs to handle user authentication, product updates and shopping cart managements"),
                 node("p-4", "Successfully deployed the initial version of the project onto AWS"),
-                node("p-5", "SmartPC Builder | York University | Jan 2025 - Mar 2025"),
+                node("p-5", "SmartPC Builder | Example University | Jan 2025 - Mar 2025"),
                 node("p-6", "Developed a Java Maven project that helps users select optimal components within a given budget"),
                 node("p-7", "Implemented an algorithm that dynamically suggests components (CPU, GPU & RAM)")
         );

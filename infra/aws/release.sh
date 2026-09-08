@@ -132,6 +132,11 @@ step "7/10 Apply the migrations and verify the structure"
 # Unrelated to the job catalog tables above, chained here for the same reason the two
 # migrations before it are: re-runnable, self-verifying, schema_migrations-gated.
 ./infra/aws/db-apply.sh schema/site_feedback.sql
+# 通用简历生成器 (resume builder): multiple named drafts per user plus the
+# idempotency table for POST .../generate. Unrelated to the job catalog
+# tables above, chained here for the same reason the migrations before it
+# are: re-runnable, self-verifying, schema_migrations-gated.
+./infra/aws/db-apply.sh schema/resume_builder.sql
 ./infra/aws/db-apply.sh schema/job_catalog_phase1_verify.sql
 echo "Schema structure verified."
 

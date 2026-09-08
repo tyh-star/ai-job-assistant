@@ -7,7 +7,7 @@ import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.CanonicalEntryKeyResolver;
 import aijob.util.ClaimLedger;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -36,8 +36,8 @@ class V3EnhancedPdfConfirmVerticalTest {
     void pdfParentEnhancedProposalConfirmParsesGeneratedDocx() throws Exception {
         Path uploadsRoot = Path.of("uploads");
         Map<String, String> before = snapshot(uploadsRoot);
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("child.docx"));
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("child.docx"));
         ResumeDocumentServiceImpl parser = new ResumeDocumentServiceImpl();
         List<ResumeDocumentNode> original = parser.parseDocx(canonical);
         ClaimLedger ledger = ClaimLedger.from(original);
@@ -93,9 +93,9 @@ class V3EnhancedPdfConfirmVerticalTest {
         assertFalse(smart.toLowerCase(Locale.ROOT).contains("spring boot"));
         assertTrue(entryText(index, rewrittenById, PRIME).toLowerCase(Locale.ROOT).contains("maintain"));
         assertTrue(rewrittenById.values().stream().anyMatch(text -> text.toLowerCase(Locale.ROOT).contains("education")
-                || text.toLowerCase(Locale.ROOT).contains("york")));
+                || text.toLowerCase(Locale.ROOT).contains("example")));
         assertEquals(before, snapshot(uploadsRoot));
-        assertEquals(sha256(pdf), sha256(YaohangCanonicalDocxFixture.pdf()));
+        assertEquals(sha256(pdf), sha256(GeneratedResumePdfFixture.pdf()));
     }
 
     private static String firstBullet(List<ResumeDocumentNode> nodes, String needle) {

@@ -16,18 +16,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * SYNTHETIC Tailor V2 T2B fixture.
- * Handwritten nodes plus an ACME internship that is NOT in the real Yaohang PDF.
- * Real PDF/canonical DOCX coverage lives in {@link TailorV2T2B2YaohangRealPdfTest}.
+ * Handwritten nodes plus an ACME internship that is not in the generated Alex Morgan PDF.
+ * Generated PDF/canonical DOCX coverage lives in {@link TailorV2T2B2GeneratedPdfTest}.
+ * "Prime Deals" in this class is a synthetic fixture project name, not a real product.
  */
-public class TailorV2T2BYaohangTest {
+public class TailorV2T2BAlexMorganTest {
 
     private static final String JD =
             "Junior Java Backend Developer using Spring Boot, Maven, and REST APIs.";
 
-    /** SYNTHETIC nodes, including ACME internship. Do not treat as Yaohang PDF parse output. */
+    /** SYNTHETIC nodes, including ACME internship. Do not treat as AlexMorgan PDF parse output. */
     public static List<ResumeDocumentNode> syntheticNodesWithAcmeInternship() {
         List<ResumeDocumentNode> nodes = new ArrayList<>();
-        for (ResumeDocumentNode node : ResumeRequirementMatcherTest.yaohangNodes()) {
+        for (ResumeDocumentNode node : ResumeRequirementMatcherTest.alexMorganNodes()) {
             nodes.add(node);
             if ("p-20".equals(node.getNodeId())) {
                 nodes.add(new ResumeDocumentNode(
@@ -47,7 +48,7 @@ public class TailorV2T2BYaohangTest {
         return nodes;
     }
 
-    public static List<ResumeDocumentNode> yaohangT2bNodes() {
+    public static List<ResumeDocumentNode> alexMorganT2bNodes() {
         return syntheticNodesWithAcmeInternship();
     }
 
@@ -84,7 +85,7 @@ public class TailorV2T2BYaohangTest {
         assertFalse(json.contains("gpu"));
         assertFalse(json.contains("ram"));
         assertFalse(json.contains("c/c++"));
-        assertFalse(json.contains("yaohang@example.com"));
+        assertFalse(json.contains("alex.morgan@example.com"));
         assertTrue(packet.forbiddenClaims().stream().anyMatch(claim -> claim.contains("leadership")));
         assertTrue(packet.forbiddenClaims().stream().anyMatch(claim -> claim.contains("tools")));
         assertTrue(packet.forbiddenClaims().stream().anyMatch(claim -> claim.contains("numbers")));
@@ -121,7 +122,7 @@ public class TailorV2T2BYaohangTest {
         assertFalse(json.contains("spring boot"));
         assertFalse(json.contains("restful"));
         assertFalse(json.contains("aws"));
-        assertFalse(json.contains("yaohang@example.com"));
+        assertFalse(json.contains("alex.morgan@example.com"));
     }
 
     @Test

@@ -50,7 +50,7 @@ import static org.mockito.Mockito.when;
 class TailorAnalysisTaxonomyS1Test {
 
     private static final String EMAIL = "user@example.com";
-    private static final String YAOHANG_JAVA_JD = """
+    private static final String ALEX_MORGAN_JAVA_JD = """
             Junior Java Backend Developer
 
             Required qualifications:
@@ -115,7 +115,7 @@ class TailorAnalysisTaxonomyS1Test {
 
     @Test
     void sanitizeDrafts_correctsWrongLlmCategories() {
-        List<JobRequirementDraft> cleaned = service.sanitizeDrafts(wrongLlmDrafts(), YAOHANG_JAVA_JD);
+        List<JobRequirementDraft> cleaned = service.sanitizeDrafts(wrongLlmDrafts(), ALEX_MORGAN_JAVA_JD);
         assertEquals(RequirementCategory.HARD_SKILL, categoryOf(cleaned, "Maven"));
         assertEquals(RequirementCategory.HARD_SKILL, categoryOf(cleaned, "data structures"));
         assertEquals(RequirementCategory.RESPONSIBILITY, categoryOf(cleaned, "tested"));
@@ -129,7 +129,7 @@ class TailorAnalysisTaxonomyS1Test {
     @Test
     void pipeline_keepsDutyGroupsAndSplitsTechLists() {
         List<JobRequirementDraft> result = RequirementAtomizer.atomize(
-                service.sanitizeDrafts(wrongLlmDrafts(), YAOHANG_JAVA_JD)
+                service.sanitizeDrafts(wrongLlmDrafts(), ALEX_MORGAN_JAVA_JD)
         );
         RequirementTaxonomySanitizer.apply(result);
 
@@ -147,10 +147,10 @@ class TailorAnalysisTaxonomyS1Test {
     }
 
     @Test
-    void analyze_yaohangJavaJd_wrongExtractor_usesServerTaxonomyAndCache() throws Exception {
+    void analyze_alexmorganJavaJd_wrongExtractor_usesServerTaxonomyAndCache() throws Exception {
         Map<String, String> uploadsBefore = snapshotUploads();
         stubOwned();
-        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.yaohangNodes());
+        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.alexMorganNodes());
         when(jobRequirementExtractor.extract(any())).thenReturn(wrongLlmDrafts());
 
         TailorAnalysisResponse first = service.analyze(EMAIL, 153L, 9L);
@@ -214,7 +214,7 @@ class TailorAnalysisTaxonomyS1Test {
         job.setId(153L);
         job.setUserId(1L);
         job.setTitle("Junior Java Backend Developer");
-        job.setDescription(YAOHANG_JAVA_JD);
+        job.setDescription(ALEX_MORGAN_JAVA_JD);
         when(jobMapper.findById(153L)).thenReturn(job);
         Path file = tempDir.resolve("resume.docx");
         Files.writeString(file, "placeholder");
@@ -224,7 +224,7 @@ class TailorAnalysisTaxonomyS1Test {
         resume.setFileType("docx");
         resume.setFilePath(file.toString());
         resume.setOrigin("UPLOAD");
-        resume.setExtractedText("Yaohang Tang\nJava Spring Boot REST Maven");
+        resume.setExtractedText("Alex Morgan\nJava Spring Boot REST Maven");
         when(resumeMapper.findById(9L)).thenReturn(resume);
     }
 

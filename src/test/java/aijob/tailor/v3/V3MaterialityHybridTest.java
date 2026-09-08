@@ -344,7 +344,7 @@ class V3MaterialityHybridTest {
         for (int i = 0; i < PRIME_ORIGINAL.size(); i++) {
             nodes.add(node("p-a" + i, PRIME_ORIGINAL.get(i)));
         }
-        nodes.add(node("p-5", "SmartPC Builder | York University | Jan 2025 - Mar 2025"));
+        nodes.add(node("p-5", "SmartPC Builder | Example University | Jan 2025 - Mar 2025"));
         for (int i = 0; i < SMART_ORIGINAL.size(); i++) {
             nodes.add(node("p-b" + i, SMART_ORIGINAL.get(i)));
         }

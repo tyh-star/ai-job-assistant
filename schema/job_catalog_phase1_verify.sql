@@ -15,7 +15,8 @@ SELECT table_name AS present_table
  WHERE table_schema = DATABASE()
    AND table_name IN ('schema_migrations', 'job_sources', 'job_catalog',
                       'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs',
-                      'site_feedback')
+                      'site_feedback', 'resume_builder_drafts',
+                      'resume_builder_generation_requests')
  ORDER BY table_name;
 
 SET @tables := (
@@ -23,7 +24,8 @@ SET @tables := (
      WHERE table_schema = DATABASE()
        AND table_name IN ('schema_migrations', 'job_sources', 'job_catalog',
                           'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs',
-                          'site_feedback')
+                          'site_feedback', 'resume_builder_drafts',
+                          'resume_builder_generation_requests')
 );
 
 SET @columns := (
@@ -49,6 +51,11 @@ SET @columns := (
                 ('user_id', 'catalog_job_id', 'personal_job_id'))
          OR (table_name = 'site_feedback' AND column_name IN
                 ('user_id', 'rating', 'comment', 'created_at', 'updated_at'))
+         OR (table_name = 'resume_builder_drafts' AND column_name IN
+                ('user_id', 'title', 'template_type', 'target_role', 'locale',
+                 'schema_version', 'draft_json', 'version', 'created_at', 'updated_at'))
+         OR (table_name = 'resume_builder_generation_requests' AND column_name IN
+                ('user_id', 'draft_id', 'idempotency_key', 'resume_id', 'created_at'))
        )
 );
 
@@ -62,7 +69,10 @@ SET @indexes := (
                           'uk_job_source_records_source_external',
                           'idx_job_source_records_catalog',
                           'uk_user_saved_catalog_jobs_user_catalog',
-                          'uk_site_feedback_user')
+                          'uk_site_feedback_user',
+                          'idx_resume_builder_drafts_user',
+                          'idx_resume_builder_drafts_user_updated',
+                          'uk_resume_builder_gen_user_key')
 );
 
 SET @foreign_keys := (
@@ -127,24 +137,47 @@ SET @site_feedback_unique_correct := (
        AND table_name = 'site_feedback' AND index_name = 'uk_site_feedback_user'
 );
 
-SELECT @tables AS tables_found_of_7,
-       @columns AS columns_found_of_44,
-       @indexes AS indexes_found_of_11,
+-- Resume builder drafts (schema/resume_builder.sql), checked here for the same reason
+-- as everything else in this final gate: a release that skips it must fail here rather
+-- than start a backend whose /api/v1/resume-builder/** routes hit missing tables. The
+-- `version` column is checked for type/nullability/default specifically because
+-- ResumeBuilderServiceImpl's optimistic-concurrency UPDATE depends on it existing as a
+-- real counter, not just being present with the wrong shape.
+SET @resume_builder_version_correct := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'resume_builder_drafts' AND column_name = 'version'
+       AND data_type = 'bigint' AND is_nullable = 'NO' AND column_default = '1'
+);
+SET @resume_builder_gen_unique_correct := (
+    SELECT COUNT(DISTINCT table_name, index_name) FROM information_schema.STATISTICS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'resume_builder_generation_requests'
+       AND index_name = 'uk_resume_builder_gen_user_key'
+);
+
+SELECT @tables AS tables_found_of_9,
+       @columns AS columns_found_of_59,
+       @indexes AS indexes_found_of_14,
        @foreign_keys AS foreign_keys_found_of_6,
        @external_id_exact AS external_job_id_binary_no_pad_of_1,
        @applied_column_correct AS jobs_applied_column_correct_of_1,
        @applied_at_column_correct AS jobs_applied_at_column_correct_of_1,
        @auth_version_column_correct AS users_auth_version_column_correct_of_1,
-       @site_feedback_unique_correct AS site_feedback_unique_key_correct_of_1;
+       @site_feedback_unique_correct AS site_feedback_unique_key_correct_of_1,
+       @resume_builder_version_correct AS resume_builder_version_column_correct_of_1,
+       @resume_builder_gen_unique_correct AS resume_builder_gen_unique_key_correct_of_1;
 
 -- Fails the script (and the shell) when anything is missing. Deliberately before the
 -- schema_migrations read: on a database that never got the migration that table does
 -- not exist, and the counts above are the useful diagnostic, not a missing-table error.
-SET @gate := IF(@tables = 7 AND @columns = 44 AND @indexes = 11 AND @foreign_keys = 6
+SET @gate := IF(@tables = 9 AND @columns = 59 AND @indexes = 14 AND @foreign_keys = 6
                 AND @external_id_exact = 1
                 AND @applied_column_correct = 1 AND @applied_at_column_correct = 1
                 AND @auth_version_column_correct = 1
-                AND @site_feedback_unique_correct = 1,
+                AND @site_feedback_unique_correct = 1
+                AND @resume_builder_version_correct = 1
+                AND @resume_builder_gen_unique_correct = 1,
     'SELECT 1',
     'SELECT 1 FROM job_catalog_structure_incomplete_see_counts_above');
 PREPARE stmt FROM @gate;

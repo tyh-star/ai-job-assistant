@@ -10,12 +10,14 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** Catalog keys for the synthetic Alex Morgan fixture. {@code PROJECT:prime-deals}
+ * is the fictional Prime Deals project, not a real product. */
 class ResumeEntryCatalogTest {
 
     @Test
     void docxClaimLedgerProducesStableProjectKeys() {
         List<EntryOption> options = ResumeEntryCatalog.options(
-                ResumeRequirementMatcherTest.yaohangNodes(),
+                ResumeRequirementMatcherTest.alexMorganNodes(),
                 null
         );
         List<String> keys = options.stream().map(EntryOption::getEntryKey).toList();

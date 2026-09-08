@@ -5,7 +5,7 @@ import aijob.dto.ResumeDocumentNode;
 import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.ClaimLedger;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -51,8 +51,8 @@ class V3BasicLiveSmokeV322Test {
         Files.createDirectories(reportDir);
         Path uploadsRoot = Path.of("uploads").toAbsolutePath().normalize();
 
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("yaohang.docx"));
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("alexmorgan.docx"));
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(canonical);
         ClaimLedger ledger = ClaimLedger.from(nodes);
         V3ResumeFactGraphs graphs = V3EntryFactGraphFactory.from(ledger);

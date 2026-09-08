@@ -48,6 +48,13 @@ export const endpoints = {
     `/jobs/${jobId}/tailor-proposals/${proposalId}/confirm`,
   jobTailorContinue: (jobId: number | string, proposalId: number | string) =>
     `/jobs/${jobId}/tailor-proposals/${proposalId}/continue`,
+  resumeBuilderDrafts: '/resume-builder/drafts',
+  resumeBuilderDraft: (id: number | string) => `/resume-builder/drafts/${id}`,
+  resumeBuilderDraftDuplicate: (id: number | string) => `/resume-builder/drafts/${id}/duplicate`,
+  resumeBuilderDraftPreview: (id: number | string) => `/resume-builder/drafts/${id}/preview`,
+  resumeBuilderDraftGenerate: (id: number | string) => `/resume-builder/drafts/${id}/generate`,
+  resumeBuilderDraftCareerMaterials: (id: number | string) =>
+    `/resume-builder/drafts/${id}/career-materials`,
 } as const
 
 /** Backend routes the UI does not wrap, still joined with the same Scheme A rule. */
@@ -101,5 +108,11 @@ export function frontendRelativeEndpoints(): string[] {
     endpoints.jobEnhancedAnswers(7),
     endpoints.jobTailorConfirm(7, 42),
     endpoints.jobTailorContinue(7, 42),
+    endpoints.resumeBuilderDrafts,
+    endpoints.resumeBuilderDraft(9),
+    endpoints.resumeBuilderDraftDuplicate(9),
+    endpoints.resumeBuilderDraftPreview(9),
+    endpoints.resumeBuilderDraftGenerate(9),
+    endpoints.resumeBuilderDraftCareerMaterials(9),
   ]
 }

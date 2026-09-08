@@ -169,6 +169,9 @@ export function apiErrorKey(error: unknown): string {
     if (message.toLowerCase().includes('search page')) {
       return 'errors.jobSearchPageConflict'
     }
+    if (message.toLowerCase().includes('changed elsewhere')) {
+      return 'resumeBuilder.saveConflict'
+    }
     if (
       message.toLowerCase().includes('already saved evidence')
       || message.toLowerCase().includes('delete the existing evidence')
@@ -223,6 +226,9 @@ export function apiErrorKey(error: unknown): string {
       || lower.includes('fulldescription')
     ) {
       return 'errors.jobSearchFullDescriptionRequired'
+    }
+    if (lower.includes('add at least a name') || lower.includes('way to contact you')) {
+      return 'resumeBuilder.notReadyToGenerate'
     }
     return 'errors.badRequest'
   }

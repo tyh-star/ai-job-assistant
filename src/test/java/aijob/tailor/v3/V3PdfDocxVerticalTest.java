@@ -7,7 +7,7 @@ import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.CanonicalEntryKeyResolver;
 import aijob.util.ClaimLedger;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -34,9 +34,9 @@ class V3PdfDocxVerticalTest {
 
     @Test
     void pdfParentCanonicalChildRoundTripDoesNotTouchSources() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
+        Path pdf = GeneratedResumePdfFixture.pdf();
         String pdfHashBefore = sha256(pdf);
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(
                 pdf, tempDir.resolve("canonical.docx"));
         String canonicalHashBefore = sha256(canonical);
         roundTrip(canonical, true);
@@ -46,8 +46,8 @@ class V3PdfDocxVerticalTest {
 
     @Test
     void nativeDocxRoundTripWritesEqualCountNodes() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path nativeDocx = YaohangCanonicalDocxFixture.writeCanonicalDocx(
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path nativeDocx = GeneratedResumePdfFixture.writeCanonicalDocx(
                 pdf, tempDir.resolve("native.docx"));
         roundTrip(nativeDocx, false);
     }
@@ -98,7 +98,7 @@ class V3PdfDocxVerticalTest {
         assertTrue(rewrittenById.values().stream().anyMatch(text ->
                 text.toLowerCase(Locale.ROOT).contains("smartpc")));
         assertTrue(rewrittenById.values().stream().anyMatch(text ->
-                text.toLowerCase(Locale.ROOT).contains("york")));
+                text.toLowerCase(Locale.ROOT).contains("example")));
         String primeFinal = entryText(ledger, index, rewrittenById, "PROJECT:prime-deals");
         String smartFinal = entryText(ledger, index, rewrittenById, "PROJECT:smartpc-builder");
         assertCovers(primeFinal, "java", "spring boot", "mvc", "rest", "aws");

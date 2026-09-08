@@ -52,7 +52,7 @@ import static org.mockito.Mockito.when;
 class TailorAnalysisResponsibilityS2Test {
 
     private static final String EMAIL = "user@example.com";
-    private static final String YAOHANG_JAVA_JD = """
+    private static final String ALEX_MORGAN_JAVA_JD = """
             Junior Java Backend Developer
 
             Required qualifications:
@@ -117,7 +117,7 @@ class TailorAnalysisResponsibilityS2Test {
     }
 
     @Test
-    void analyze_yaohangJavaJd_responsibilityStatusesAndCache() throws Exception {
+    void analyze_alexmorganJavaJd_responsibilityStatusesAndCache() throws Exception {
         Map<String, String> uploadsBefore = snapshotUploads();
         stubOwned();
         when(resumeDocumentService.parseDocx(any())).thenReturn(resumeNodes());
@@ -218,7 +218,7 @@ class TailorAnalysisResponsibilityS2Test {
         job.setId(153L);
         job.setUserId(1L);
         job.setTitle("Junior Java Backend Developer");
-        job.setDescription(YAOHANG_JAVA_JD);
+        job.setDescription(ALEX_MORGAN_JAVA_JD);
         when(jobMapper.findById(153L)).thenReturn(job);
         Path file = tempDir.resolve("resume.docx");
         Files.writeString(file, "placeholder");
@@ -228,15 +228,15 @@ class TailorAnalysisResponsibilityS2Test {
         resume.setFileType("docx");
         resume.setFilePath(file.toString());
         resume.setOrigin("UPLOAD");
-        resume.setExtractedText("Yaohang Tang\nJava Spring Boot REST Maven");
+        resume.setExtractedText("Alex Morgan\nJava Spring Boot REST Maven");
         when(resumeMapper.findById(9L)).thenReturn(resume);
     }
 
     private static List<ResumeDocumentNode> resumeNodes() {
         List<ResumeDocumentNode> nodes = new ArrayList<>();
-        nodes.add(new ResumeDocumentNode("p-0", "PARAGRAPH", "Yaohang Tang"));
-        nodes.add(new ResumeDocumentNode("p-1", "PARAGRAPH", "yaohang@example.com"));
-        nodes.add(new ResumeDocumentNode("p-2", "PARAGRAPH", "https://github.com/yaohang"));
+        nodes.add(new ResumeDocumentNode("p-0", "PARAGRAPH", "Alex Morgan"));
+        nodes.add(new ResumeDocumentNode("p-1", "PARAGRAPH", "alex.morgan@example.com"));
+        nodes.add(new ResumeDocumentNode("p-2", "PARAGRAPH", "https://github.com/alexmorgan"));
         nodes.add(new ResumeDocumentNode("p-3", "PARAGRAPH", "TECHNICAL SKILLS"));
         nodes.add(new ResumeDocumentNode("p-11", "PARAGRAPH",
                 "C/C++, Java, Python, Shell Script, SQL, HTML, Vue, Javascript, CSS, Understanding of Agile"));
@@ -262,7 +262,7 @@ class TailorAnalysisResponsibilityS2Test {
         nodes.add(new ResumeDocumentNode("p-24", "PARAGRAPH",
                 "●   Developed and integrated IP rate-limiting features."));
         nodes.add(new ResumeDocumentNode("p-30", "PARAGRAPH", "EDUCATION"));
-        nodes.add(new ResumeDocumentNode("p-31", "PARAGRAPH", "York University"));
+        nodes.add(new ResumeDocumentNode("p-31", "PARAGRAPH", "Example University"));
         nodes.add(new ResumeDocumentNode("p-32", "PARAGRAPH", "Bachelor of Computer Science"));
         nodes.add(new ResumeDocumentNode("p-33", "PARAGRAPH", "Sept 2023 – Present"));
         return nodes;

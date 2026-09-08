@@ -14,7 +14,7 @@ import aijob.service.impl.JobServiceImpl;
 import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.util.ClaimLedger;
 import aijob.util.ResumeAnalysisInput;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import aijob.config.JobSearchProperties;
 import aijob.config.StoragePathResolver;
 import aijob.config.TailorEngineProperties;
@@ -94,10 +94,10 @@ class V3EnhancedAtomicJdCoverageTest {
     Path tempDir;
 
     @Test
-    void yaohangVivaMapSplitsCompoundRequirementsAndAsksSkillGaps() throws Exception {
+    void alexmorganVivaMapSplitsCompoundRequirementsAndAsksSkillGaps() throws Exception {
         Path uploads = Path.of("uploads");
         Map<String, String> before = snapshotUploads(uploads);
-        List<ResumeDocumentNode> nodes = yaohangNodes();
+        List<ResumeDocumentNode> nodes = alexMorganNodes();
         V3OpportunityMap map = new V3EnhancedOpportunityService().scan(nodes, JD_VIVA);
         assertEquals(0, map.writerCalls());
         assertEquals(0, map.openaiCalls());
@@ -177,7 +177,7 @@ class V3EnhancedAtomicJdCoverageTest {
 
     @Test
     void answerNxRejectsBareYesAndForgedKeysThenBindsChosenEntry() throws Exception {
-        List<ResumeDocumentNode> nodes = yaohangNodes();
+        List<ResumeDocumentNode> nodes = alexMorganNodes();
         Path childDocx = tempDir.resolve("canonical.docx");
         Files.writeString(childDocx, "docx");
         JobServiceImpl jobService = jobService(childDocx, nodes);
@@ -297,9 +297,9 @@ class V3EnhancedAtomicJdCoverageTest {
         return jobService;
     }
 
-    private List<ResumeDocumentNode> yaohangNodes() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("yaohang.docx"));
+    private List<ResumeDocumentNode> alexMorganNodes() throws Exception {
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("alexmorgan.docx"));
         return new ResumeDocumentServiceImpl().parseDocx(canonical);
     }
 

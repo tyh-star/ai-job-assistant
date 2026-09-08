@@ -604,6 +604,60 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    @ExceptionHandler(ResumeBuilderDraftNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResumeBuilderDraftNotFound(
+            ResumeBuilderDraftNotFoundException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+
+    @ExceptionHandler(ResumeBuilderDraftConflictException.class)
+    public ResponseEntity<ErrorResponse> handleResumeBuilderDraftConflict(
+            ResumeBuilderDraftConflictException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(error);
+    }
+
+    @ExceptionHandler(InvalidResumeBuilderDraftException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidResumeBuilderDraft(
+            InvalidResumeBuilderDraftException ex,
+            HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        );
+
+        return ResponseEntity
+                .badRequest()
+                .body(error);
+    }
+
     @ExceptionHandler(InvalidEvidenceRequestException.class)
     public ResponseEntity<ErrorResponse> handleInvalidEvidenceRequest(
             InvalidEvidenceRequestException ex,

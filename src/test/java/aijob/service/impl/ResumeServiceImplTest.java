@@ -497,14 +497,14 @@ class ResumeServiceImplTest {
     @Test
     void downloadResume_ownPdf_returnsStoredFile() throws Exception {
         byte[] payload = "%PDF-1.4 own-pdf".getBytes(StandardCharsets.UTF_8);
-        Resume resume = storedOwnedUpload(4L, "pdf", "yaohang.pdf", payload);
+        Resume resume = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", payload);
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         when(resumeMapper.findById(4L)).thenReturn(resume);
 
         ResumeFileDownload download = resumeService.downloadResume(EMAIL, 4L);
 
         assertEquals("pdf", download.getFileType());
-        assertEquals("yaohang.pdf", download.getFileName());
+        assertEquals("alex-morgan.pdf", download.getFileName());
         assertArrayEquals(payload, Files.readAllBytes(download.getPath()));
         assertTrue(download.getPath().startsWith(
                 storagePathResolver.resumeDirectory(2L).toAbsolutePath().normalize()));
@@ -513,7 +513,7 @@ class ResumeServiceImplTest {
     @Test
     void downloadResume_ownCanonicalDocx_returnsStoredFile() throws Exception {
         byte[] payload = "canonical-docx".getBytes(StandardCharsets.UTF_8);
-        Resume resume = storedOwnedUpload(41L, "docx", "Yaohang_Tang_canonical.docx", payload);
+        Resume resume = storedOwnedUpload(41L, "docx", "Alex_Morgan_canonical.docx", payload);
         resume.setOrigin(ResumeOrigin.TEMPLATE.name());
         resume.setParentResumeId(4L);
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
@@ -522,13 +522,13 @@ class ResumeServiceImplTest {
         ResumeFileDownload download = resumeService.downloadResume(EMAIL, 41L);
 
         assertEquals("docx", download.getFileType());
-        assertEquals("Yaohang_Tang_canonical.docx", download.getFileName());
+        assertEquals("Alex_Morgan_canonical.docx", download.getFileName());
         assertArrayEquals(payload, Files.readAllBytes(download.getPath()));
     }
 
     @Test
     void downloadResume_otherUser_is404() throws Exception {
-        Resume resume = storedOwnedUpload(4L, "pdf", "yaohang.pdf", "pdf".getBytes(StandardCharsets.UTF_8));
+        Resume resume = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "pdf".getBytes(StandardCharsets.UTF_8));
         User other = new User();
         other.setId(99L);
         other.setEmail(OTHER_EMAIL);
@@ -542,7 +542,7 @@ class ResumeServiceImplTest {
     void downloadResume_filePathOutsideUserUploads_is404() throws Exception {
         Path outside = tempDir.resolve("escape.pdf");
         Files.writeString(outside, "outside");
-        Resume resume = storedPdfResume(4L, "keep", yaohangStructure());
+        Resume resume = storedPdfResume(4L, "keep", alexMorganStructure());
         resume.setFilePath(outside.toAbsolutePath().toString());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         when(resumeMapper.findById(4L)).thenReturn(resume);
@@ -554,7 +554,7 @@ class ResumeServiceImplTest {
     @Test
     void downloadResume_missingFile_is404() throws Exception {
         Path missing = storagePathResolver.resumeDirectory(2L).resolve("missing.pdf");
-        Resume resume = storedPdfResume(4L, "keep", yaohangStructure());
+        Resume resume = storedPdfResume(4L, "keep", alexMorganStructure());
         resume.setFilePath(missing.toString());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         when(resumeMapper.findById(4L)).thenReturn(resume);
@@ -564,7 +564,7 @@ class ResumeServiceImplTest {
 
     @Test
     void getMyResumes_default_excludesTemplateChild() throws Exception {
-        Resume upload = storedOwnedUpload(4L, "pdf", "yaohang.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
+        Resume upload = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
         Resume child = storedOwnedUpload(41L, "docx", "hidden.docx", "docx".getBytes(StandardCharsets.UTF_8));
         child.setOrigin(ResumeOrigin.TEMPLATE.name());
         child.setParentResumeId(4L);
@@ -583,7 +583,7 @@ class ResumeServiceImplTest {
 
     @Test
     void getMyResumes_includeDerived_returnsTemplateChild() throws Exception {
-        Resume upload = storedOwnedUpload(4L, "pdf", "yaohang.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
+        Resume upload = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
         Resume child = storedOwnedUpload(41L, "docx", "hidden.docx", "docx".getBytes(StandardCharsets.UTF_8));
         child.setOrigin(ResumeOrigin.TEMPLATE.name());
         child.setParentResumeId(4L);
@@ -598,7 +598,7 @@ class ResumeServiceImplTest {
 
     @Test
     void getResume_existingFile_setsFileAvailableAndDownloadUrl() throws Exception {
-        Resume resume = storedOwnedUpload(4L, "pdf", "yaohang.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
+        Resume resume = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         when(resumeMapper.findById(4L)).thenReturn(resume);
 
@@ -611,7 +611,7 @@ class ResumeServiceImplTest {
     @Test
     void getResume_missingFile_setsUnavailableAndNullDownloadUrl() {
         Path missing = storagePathResolver.resumeDirectory(2L).resolve("missing.pdf");
-        Resume resume = storedPdfResume(4L, "keep", yaohangStructure());
+        Resume resume = storedPdfResume(4L, "keep", alexMorganStructure());
         resume.setFilePath(missing.toString());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         when(resumeMapper.findById(4L)).thenReturn(resume);
@@ -653,7 +653,7 @@ class ResumeServiceImplTest {
 
     @Test
     void deleteResumeFamily_deletesParentAndOwnedChild() throws Exception {
-        Resume parent = storedOwnedUpload(4L, "pdf", "yaohang.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
+        Resume parent = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
         Resume child = storedOwnedUpload(41L, "docx", "hidden.docx", "docx".getBytes(StandardCharsets.UTF_8));
         child.setOrigin(ResumeOrigin.TEMPLATE.name());
         child.setParentResumeId(4L);
@@ -681,7 +681,7 @@ class ResumeServiceImplTest {
 
     @Test
     void deleteResumeFamily_otherUser_is404() throws Exception {
-        Resume parent = storedOwnedUpload(4L, "pdf", "yaohang.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
+        Resume parent = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "%PDF".getBytes(StandardCharsets.UTF_8));
         User other = new User();
         other.setId(99L);
         other.setEmail(OTHER_EMAIL);
@@ -695,7 +695,7 @@ class ResumeServiceImplTest {
 
     @Test
     void canonicalize_resumeId4_createsDocxChildWithoutChangingPdf() throws Exception {
-        Resume parent = storedPdfResume(4L, "original-pdf-bytes", yaohangStructure());
+        Resume parent = storedPdfResume(4L, "original-pdf-bytes", alexMorganStructure());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         stubCanonicalLookup(parent);
         when(resumeTextExtractor.extract(any(Path.class), eq("docx")))
@@ -721,7 +721,7 @@ class ResumeServiceImplTest {
         assertEquals(SAMPLE_TEXT, parent.getExtractedText());
         assertNotNull(lastInserted.getExtractedText());
         assertFalse(lastInserted.getExtractedText().isBlank());
-        assertTrue(lastInserted.getExtractedText().contains("Yaohang Tang"));
+        assertTrue(lastInserted.getExtractedText().contains("Alex Morgan"));
         assertEquals(ResumeExtractionStatus.TEXT.name(), lastInserted.getExtractionStatus());
         assertTrue(Files.exists(Path.of(lastInserted.getFilePath())));
 
@@ -731,7 +731,7 @@ class ResumeServiceImplTest {
                     .map(paragraph -> paragraph.getText() == null ? "" : paragraph.getText())
                     .reduce((a, b) -> a + "\n" + b)
                     .orElse("");
-            assertTrue(text.contains("Yaohang Tang"), text);
+            assertTrue(text.contains("Alex Morgan"), text);
             assertTrue(text.contains("Prime Deals"), text);
             assertTrue(text.contains("Personal Project"), text);
             assertTrue(text.contains("Sept 2024 - Present"), text);
@@ -739,12 +739,12 @@ class ResumeServiceImplTest {
             assertTrue(text.contains("Bachelor of Computer Science"), text);
             assertTrue(text.contains("Relevant Courses: Algorithm, Data Structure, Advanced OOP"), text);
             assertTrue(text.contains("Strong understanding of SDLC methodologies"), text);
-            assertTrue(text.contains("http://35.183.41.31:8080/login.html"), text);
+            assertTrue(text.contains("https://atlas.example.com"), text);
         }
 
         List<ResumeDocumentNode> nodes = resumeService.getDocumentNodes(EMAIL, 41L);
         assertFalse(nodes.isEmpty());
-        assertTrue(nodes.stream().anyMatch(node -> node.getText().contains("Yaohang Tang")));
+        assertTrue(nodes.stream().anyMatch(node -> node.getText().contains("Alex Morgan")));
         verify(resumeStructureLlmService, never()).classify(any(), any());
         verify(resumeMapper).insert(any(Resume.class));
         verify(resumeMapper).updateCanonicalParent(eq(4L), eq(2L), eq(41L), eq("READY"));
@@ -754,7 +754,7 @@ class ResumeServiceImplTest {
 
     @Test
     void canonicalize_missingFullName_is400AndCreatesNothing() throws Exception {
-        ResumeStructure structure = yaohangStructure();
+        ResumeStructure structure = alexMorganStructure();
         structure.getContact().setFullName("  ");
         Resume parent = storedPdfResume(4L, "original-pdf-bytes", structure);
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
@@ -772,7 +772,7 @@ class ResumeServiceImplTest {
     @Test
     void canonicalize_emptySkillsAndNoBullets_is400AndCreatesNothing() throws Exception {
         ResumeStructure structure = ResumeStructure.empty();
-        structure.getContact().setFullName("Yaohang Tang");
+        structure.getContact().setFullName("Alex Morgan");
         ResumeProject project = new ResumeProject();
         project.normalize();
         project.setName("Prime Deals");
@@ -790,7 +790,7 @@ class ResumeServiceImplTest {
 
     @Test
     void canonicalize_nonPdf_is400() throws Exception {
-        Resume resume = storedPdfResume(4L, "original-pdf-bytes", yaohangStructure());
+        Resume resume = storedPdfResume(4L, "original-pdf-bytes", alexMorganStructure());
         resume.setFileType("docx");
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         when(resumeMapper.findById(4L)).thenReturn(resume);
@@ -802,7 +802,7 @@ class ResumeServiceImplTest {
 
     @Test
     void canonicalize_otherUser_is404() throws Exception {
-        Resume resume = storedPdfResume(4L, "original-pdf-bytes", yaohangStructure());
+        Resume resume = storedPdfResume(4L, "original-pdf-bytes", alexMorganStructure());
         User other = new User();
         other.setId(99L);
         other.setEmail(OTHER_EMAIL);
@@ -816,7 +816,7 @@ class ResumeServiceImplTest {
 
     @Test
     void canonicalize_secondCall_keepsChildIdAndDeletesOldFileAfterSuccess() throws Exception {
-        Resume parent = storedPdfResume(4L, "original-pdf-bytes", yaohangStructure());
+        Resume parent = storedPdfResume(4L, "original-pdf-bytes", alexMorganStructure());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         stubCanonicalLookup(parent);
         when(resumeTextExtractor.extract(any(Path.class), eq("docx")))
@@ -845,7 +845,7 @@ class ResumeServiceImplTest {
 
     @Test
     void canonicalize_templateWriteFailure_leavesParentAndOldChildUnchanged() throws Exception {
-        Resume parent = storedPdfResume(4L, "original-pdf-bytes", yaohangStructure());
+        Resume parent = storedPdfResume(4L, "original-pdf-bytes", alexMorganStructure());
         when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
         stubCanonicalLookup(parent);
         when(resumeTextExtractor.extract(any(Path.class), eq("docx")))
@@ -956,14 +956,14 @@ class ResumeServiceImplTest {
         return draft;
     }
 
-    private static ResumeStructure yaohangStructure() {
+    private static ResumeStructure alexMorganStructure() {
         ResumeStructure structure = ResumeStructure.empty();
         structure.setLlmClassified(Boolean.TRUE);
         structure.setStructureFormatVersion(ResumeStructure.STRUCTURE_FORMAT_VERSION);
-        structure.getContact().setFullName("Yaohang Tang");
-        structure.getContact().setEmail("yaohangtang@gmail.com");
-        structure.getContact().setPhone("(647) 853-8928");
-        structure.getContact().getLinks().add("https://github.com/tyh-star");
+        structure.getContact().setFullName("Alex Morgan");
+        structure.getContact().setEmail("alex.morgan@example.com");
+        structure.getContact().setPhone("+1 (555) 234-5678");
+        structure.getContact().getLinks().add("https://github.com/alexmorgan");
         structure.getSummaryBullets().add(summaryBullet("Strong understanding of SDLC methodologies, including Agile and Waterfall"));
         structure.getSummaryBullets().add(summaryBullet("Exceptional analytical and problem-solving skills with continuous thrive in optimizing program functionalities"));
         structure.getSummaryBullets().add(summaryBullet("Quick learner with a passion for adapting new business processes, latest technologies and concepts"));
@@ -980,17 +980,17 @@ class ResumeServiceImplTest {
         prime.setOrganizationOrType("Personal Project");
         prime.setDates("Sept 2024 - Present");
         prime.getBullets().add("Lead and collaborate with a friend to develop a shopping website");
-        prime.getLinks().add("http://35.183.41.31:8080/login.html");
+        prime.getLinks().add("https://atlas.example.com");
         structure.getProjects().add(prime);
         ResumeProject smart = new ResumeProject();
         smart.normalize();
         smart.setName("SmartPC Builder");
-        smart.setOrganizationOrType("York University");
+        smart.setOrganizationOrType("Example University");
         smart.setDates("Jan 2025 - Mar 2025");
         smart.getBullets().add("Developed a Java Maven project that helps users select optimal components within a given budget");
         structure.getProjects().add(smart);
         ResumeEducation education = new ResumeEducation();
-        education.setSchool("York University");
+        education.setSchool("Example University");
         education.setDegree("Bachelor of Computer Science");
         education.setDates("Sept 2023 – Present");
         education.setDetails("Relevant Courses: Algorithm, Data Structure, Advanced OOP");

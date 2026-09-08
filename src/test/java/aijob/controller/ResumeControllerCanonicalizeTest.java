@@ -45,7 +45,7 @@ class ResumeControllerCanonicalizeTest {
     void canonicalize_returns201WithChildResume() throws Exception {
         ResumeResponse child = new ResumeResponse();
         child.setId(41L);
-        child.setFileName("Yaohang_Tang_canonical.docx");
+        child.setFileName("Alex_Morgan_canonical.docx");
         child.setFileType("docx");
         child.setOrigin("TEMPLATE");
         child.setReviewStatus("READY");

@@ -6,7 +6,7 @@ import aijob.entity.ResumeEvidenceItem;
 import aijob.util.ActionConceptRegistry;
 import aijob.util.ClaimLedger;
 import aijob.util.ResumeEntryCatalog;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import aijob.service.impl.ResumeDocumentServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -159,8 +159,8 @@ class V3EnhancedV33aTest {
 
     @Test
     void pdfParentAndCanonicalChildShareCanonicalEntryKeys() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("child.docx"));
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("child.docx"));
         ResumeDocumentServiceImpl parser = new ResumeDocumentServiceImpl();
         List<ResumeDocumentNode> childNodes = parser.parseDocx(canonical);
         ClaimLedger childLedger = ClaimLedger.from(childNodes);

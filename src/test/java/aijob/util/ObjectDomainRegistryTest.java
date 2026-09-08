@@ -12,7 +12,7 @@ class ObjectDomainRegistryTest {
 
     @Test
     void unknownTokensAreNotAliases() {
-        assertTrue(ObjectDomainRegistry.domainsIn("Prime Deals Yaohang nodeId p-16").isEmpty());
+        assertTrue(ObjectDomainRegistry.domainsIn("Prime Deals AlexMorgan nodeId p-16").isEmpty());
         assertTrue(ObjectDomainRegistry.domainsIn("microservices event-driven graphql").isEmpty());
         assertFalse(ObjectDomainRegistry.contains("Designed and implemented a service", ObjectDomainRegistry.BACKEND));
     }

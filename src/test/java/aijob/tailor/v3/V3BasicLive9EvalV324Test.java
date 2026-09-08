@@ -6,7 +6,7 @@ import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.ActionConceptRegistry;
 import aijob.util.ClaimLedger;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -78,14 +78,14 @@ class V3BasicLive9EvalV324Test {
         Path uploadsRoot = Path.of("uploads").toAbsolutePath().normalize();
         Map<String, String> uploadsBefore = snapshotUploads(uploadsRoot);
         Map<String, String> sourceBefore = snapshotV3Sources();
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
+        Path pdf = GeneratedResumePdfFixture.pdf();
 
         List<JdSpec> jds = List.of(
                 new JdSpec("JD1", "CURRENT_JD", "Junior Java Backend Developer",
                         "TailorAnalysisServiceImplTest.CURRENT_JD",
                         V3BasicLiveQualityAcceptanceTest.JD_BACKEND),
-                new JdSpec("JD2", "YAOHANG_JAVA_JD", "Junior Java Backend Developer (intern-complete)",
-                        "TailorAnalysisTaxonomyS1Test.YAOHANG_JAVA_JD",
+                new JdSpec("JD2", "ALEX_MORGAN_JAVA_JD", "Junior Java Backend Developer (intern-complete)",
+                        "TailorAnalysisTaxonomyS1Test.ALEX_MORGAN_JAVA_JD",
                         V3BasicLiveQualityAcceptanceTest.JD_INTERN),
                 new JdSpec("JD3", "S1A_JD", "Junior Java Backend Developer (S1A AWS/testing)",
                         "TailorAnalysisS1ATest.S1A_JD",
@@ -98,7 +98,7 @@ class V3BasicLive9EvalV324Test {
         String branch = String.valueOf(freezeBefore.get("branch"));
         assumeTrue(EXPECTED_BRANCH.equals(branch), "branch must be product-reset-v1, was " + branch);
 
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("yaohang.docx"));
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("alexmorgan.docx"));
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(canonical);
         ClaimLedger ledger = ClaimLedger.from(nodes);
         V3ResumeFactGraphs graphs = V3EntryFactGraphFactory.from(ledger);
@@ -821,7 +821,7 @@ class V3BasicLive9EvalV324Test {
         freeze.put("model", model);
         freeze.put("thresholds", thresholds());
         freeze.put("engine", "V3 BASIC");
-        freeze.put("resume", "Yaohang PDF via YaohangCanonicalDocxFixture");
+        freeze.put("resume", "AlexMorgan PDF via GeneratedResumePdfFixture");
         freeze.put("pdfSha256", sha256(pdf));
         freeze.put("pdfPath", pdf.toString().replace('\\', '/'));
         Map<String, String> jdHashes = new LinkedHashMap<>();

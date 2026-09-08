@@ -5,7 +5,7 @@ import aijob.dto.ConservativeRewriteRepair;
 import aijob.dto.RejectedTailorChange;
 import aijob.dto.ResumeDocumentNode;
 import aijob.util.ConservativeTailorPlanner;
-import aijob.util.TailorV2T2BYaohangTest;
+import aijob.util.TailorV2T2BAlexMorganTest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -98,14 +98,14 @@ class OpenAiResumeServiceConstrainedTailorTest {
     @Test
     void constrainedInput_includesEvidencePacketFromPlanner() {
         List<ConservativeRewritePlan> plans = ConservativeTailorPlanner.plan(
-                TailorV2T2BYaohangTest.yaohangT2bNodes(),
+                TailorV2T2BAlexMorganTest.alexMorganT2bNodes(),
                 "Junior Java Backend Developer using Spring Boot, Maven, and REST APIs."
         );
         ConservativeRewritePlan prime = plans.stream()
                 .filter(plan -> "p-16".equals(plan.nodeId()))
                 .findFirst()
                 .orElseThrow();
-        ResumeDocumentNode node = TailorV2T2BYaohangTest.yaohangT2bNodes().stream()
+        ResumeDocumentNode node = TailorV2T2BAlexMorganTest.alexMorganT2bNodes().stream()
                 .filter(item -> "p-16".equals(item.getNodeId()))
                 .findFirst()
                 .orElseThrow();
@@ -116,7 +116,7 @@ class OpenAiResumeServiceConstrainedTailorTest {
         assertTrue(input.contains("requiredFacts:"));
         assertTrue(input.contains("supportingNodeIds:"));
         assertTrue(input.contains("forbiddenClaims:"));
-        assertFalse(input.toLowerCase().contains("yaohang@example.com"));
+        assertFalse(input.toLowerCase().contains("alex.morgan@example.com"));
         assertTrue(instructions.contains("requiredFact"));
         assertTrue(instructions.contains("forbiddenClaims"));
         assertTrue(instructions.contains("rewriteIntent="));

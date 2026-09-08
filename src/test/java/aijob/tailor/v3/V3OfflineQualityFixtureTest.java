@@ -3,7 +3,7 @@ package aijob.tailor.v3;
 import aijob.dto.ResumeDocumentNode;
 import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.util.ClaimLedger;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,9 +22,9 @@ class V3OfflineQualityFixtureTest {
     Path tempDir;
 
     @Test
-    void yaohangPdfKeepsLeadAndCanSelectTargeted() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("yaohang.docx"));
+    void alexmorganPdfKeepsLeadAndCanSelectTargeted() throws Exception {
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("alexmorgan.docx"));
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(canonical);
         V3EntryRewriteGenerator generator = request -> {
             if (request.canonicalEntryKey().contains("prime")) {
@@ -50,12 +50,12 @@ class V3OfflineQualityFixtureTest {
         assertTrue(prime.toLowerCase(Locale.ROOT).contains("java"));
         assertFalse(prime.toLowerCase(Locale.ROOT).contains("executed the deployment"));
         assertEquals(1, generatorCalls(result, "PROJECT:prime-deals"));
-        dump("yaohang-pdf", result);
+        dump("alexmorgan-pdf", result);
     }
 
     @Test
-    void nativeTestResumeDocxCanKeepOriginal() throws Exception {
-        Path docx = Path.of("src/test/resources/regression/test-resume.docx");
+    void nativeSyntheticFormattingResumeDocxCanKeepOriginal() throws Exception {
+        Path docx = Path.of("src/test/resources/regression/synthetic-formatting-resume.docx");
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(docx);
         V3BasicRunResult result = new V3BasicTailorService(
                 request -> V3EntryRewriteResult.noChange(request.canonicalEntryKey()),
@@ -64,7 +64,7 @@ class V3OfflineQualityFixtureTest {
         assertEquals(0, result.rewrittenEntryCount());
         assertTrue(result.changes().isEmpty());
         assertTrue(result.generateCalls() >= 1 || result.traces().isEmpty() || !nodes.isEmpty());
-        dump("native-test-resume", result);
+        dump("native-synthetic-formatting-resume", result);
     }
 
     @Test

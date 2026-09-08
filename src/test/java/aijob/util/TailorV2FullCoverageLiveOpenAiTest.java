@@ -81,9 +81,9 @@ class TailorV2FullCoverageLiveOpenAiTest {
         String model = System.getenv().getOrDefault("OPENAI_MODEL", "gpt-4o");
         Map<String, String> uploadsBefore = snapshotUploadsHashes();
 
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path docx = tempDir.resolve("yaohang-canonical.docx");
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, docx);
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path docx = tempDir.resolve("alexmorgan-canonical.docx");
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, docx);
         List<aijob.dto.ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(docx);
         OpenAiResumeServiceImpl ai = new OpenAiResumeServiceImpl(
                 OpenAIOkHttpClient.builder().apiKey(apiKey).build(),

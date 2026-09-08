@@ -64,7 +64,7 @@ class ResumeAnalysisInputFactoryTest {
         assertEquals(child, input.canonicalChildResume());
         assertEquals(1L, input.evidenceRootId());
         assertEquals("p-4", input.matchingNodes().get(0).getNodeId());
-        assertEquals("York University", input.structuredResume().getEducation().get(0).getSchool());
+        assertEquals("Example University", input.structuredResume().getEducation().get(0).getSchool());
         assertTrue(input.evidenceSourcesById().containsKey("p-5"));
         assertEquals(
                 AnalysisEvidenceSource.Kind.LAYOUT_BLOCK,
@@ -100,12 +100,12 @@ class ResumeAnalysisInputFactoryTest {
         Resume parent = pdfParent(1L);
         parent.setCanonicalResumeId(null);
         parent.setLayoutJson(null);
-        parent.setExtractedText("Yaohang Tang\nBachelor of Computer Science");
+        parent.setExtractedText("Alex Morgan\nBachelor of Computer Science");
 
         ResumeAnalysisInput input = factory.resolve(parent, 7L);
 
         assertEquals("t-0", input.matchingNodes().get(0).getNodeId());
-        assertEquals("Yaohang Tang", input.matchingNodes().get(0).getText());
+        assertEquals("Alex Morgan", input.matchingNodes().get(0).getText());
         assertTrue(input.evidenceSourcesById().containsKey("edu-structure-0"));
         assertFalse(input.evidenceSourcesById().keySet().stream().anyMatch(id -> id.startsWith("b-p")));
     }
@@ -166,11 +166,11 @@ class ResumeAnalysisInputFactoryTest {
         resume.setUserId(7L);
         resume.setFileType("pdf");
         resume.setOrigin("UPLOAD");
-        resume.setExtractedText("Yaohang Tang\nBachelor of Computer Science");
+        resume.setExtractedText("Alex Morgan\nBachelor of Computer Science");
         resume.setLayoutJson(objectMapper.writeValueAsString(sampleLayout()));
         ResumeStructure structure = ResumeStructure.empty();
         ResumeStructure.ResumeEducation education = new ResumeStructure.ResumeEducation();
-        education.setSchool("York University");
+        education.setSchool("Example University");
         education.setDegree("Bachelor of Computer Science");
         education.setDates("Sept 2023 – Present");
         education.setSourceBlockIds(List.of("b-p1-0"));
@@ -198,7 +198,7 @@ class ResumeAnalysisInputFactoryTest {
         ResumeTextBlock block = new ResumeTextBlock();
         block.setId("b-p1-0");
         block.setPage(1);
-        block.setText("York University Bachelor of Computer Science");
+        block.setText("Example University Bachelor of Computer Science");
         block.normalize();
         return PdfLayout.ofBlocks(612, 792, List.of(block));
     }

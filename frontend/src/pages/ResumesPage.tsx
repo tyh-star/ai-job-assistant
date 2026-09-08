@@ -98,20 +98,28 @@ export function ResumesPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-slate-900">{t('resumes.title')}</h1>
-        <label className="cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
-          {uploading ? t('resumes.uploading') : t('resumes.upload')}
-          <input
-            type="file"
-            className="hidden"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            disabled={uploading}
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              void onFile(file)
-            }}
-          />
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/resumes/builder"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-800"
+          >
+            {t('resumes.buildNew')}
+          </Link>
+          <label className="cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
+            {uploading ? t('resumes.uploading') : t('resumes.upload')}
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              disabled={uploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                void onFile(file)
+              }}
+            />
+          </label>
+        </div>
       </div>
       <p className="mt-1 text-sm text-slate-500">{t('resumes.chooseFile')}</p>
       {loading ? <div className="mt-6"><Spinner label={t('common.loading')} /></div> : null}

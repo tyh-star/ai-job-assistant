@@ -17,7 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class TailorV2T2B2YaohangRealPdfTest {
+/** Fixtures: Alex Morgan / Example University / Example Company -- a deterministically
+ * PDFBox-generated fictional PDF (see {@link GeneratedResumePdfFixture}), never a real
+ * person's data, run through the REAL PdfLayoutExtractor -> ResumeStructureGrounder ->
+ * ResumeTemplateDocxServiceImpl -> ResumeDocumentServiceImpl.parseDocx pipeline -- the
+ * same real pipeline a real uploaded PDF goes through, just with fictional content. */
+class TailorV2T2B2GeneratedPdfTest {
 
     private static final String JD =
             "Junior Java Backend Developer using Spring Boot, Maven, and REST APIs.";
@@ -29,17 +34,17 @@ class TailorV2T2B2YaohangRealPdfTest {
     private ClaimLedger ledger;
 
     @BeforeEach
-    void parseRealCanonicalDocx() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path docx = tempDir.resolve("yaohang-canonical.docx");
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, docx);
+    void parseGeneratedCanonicalDocx() throws Exception {
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path docx = tempDir.resolve("generated-canonical.docx");
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, docx);
         nodes = new ResumeDocumentServiceImpl().parseDocx(docx);
         ledger = ClaimLedger.from(nodes);
-        System.out.println("T2B.2 REAL parseDocx nodes");
+        System.out.println("T2B.2 GENERATED parseDocx nodes");
         for (ResumeDocumentNode node : nodes) {
             System.out.println(node.getNodeId() + "\t" + node.getText());
         }
-        System.out.println("T2B.2 REAL ClaimLedger entries");
+        System.out.println("T2B.2 GENERATED ClaimLedger entries");
         for (ClaimLedger.Entry entry : ledger.entries()) {
             System.out.println("ENTRY id=" + entry.entryId() + " role=" + entry.sectionRole());
             for (ResumeDocumentNode node : entry.nodes()) {
@@ -49,7 +54,7 @@ class TailorV2T2B2YaohangRealPdfTest {
     }
 
     @Test
-    void realPdf_findsRequiredBulletsByOriginalTextNotFixedNodeIds() {
+    void generatedPdf_findsRequiredBulletsByOriginalTextNotFixedNodeIds() {
         ResumeDocumentNode springBoot = requireNode(
                 "Design and implement", "Java Spring Boot", "MVC");
         ResumeDocumentNode rest = requireNode("Integrated RESTful APIs");
@@ -72,7 +77,7 @@ class TailorV2T2B2YaohangRealPdfTest {
     }
 
     @Test
-    void realPdf_claimLedgerGroupsPrimeDealsAndSmartPcWithoutCrossEntryFacts() {
+    void generatedPdf_claimLedgerGroupsPrimeDealsAndSmartPcWithoutCrossEntryFacts() {
         ResumeDocumentNode springBoot = requireNode("Design and implement", "Spring Boot", "MVC");
         ResumeDocumentNode maven = requireNode("Developed a Java Maven project");
         ClaimLedger.Entry prime = ledger.entryOf(springBoot.getNodeId());
@@ -80,15 +85,15 @@ class TailorV2T2B2YaohangRealPdfTest {
         String primeText = joined(prime);
         String smartText = joined(smart);
 
-        System.out.println("T2B.2 REAL Prime Deals entryKey via packet="
+        System.out.println("T2B.2 GENERATED Prime Deals entryKey via packet="
                 + ConservativeEvidencePacket.build(springBoot.getNodeId(), ledger).entryKey());
-        System.out.println("T2B.2 REAL SmartPC entryKey via packet="
+        System.out.println("T2B.2 GENERATED SmartPC entryKey via packet="
                 + ConservativeEvidencePacket.build(maven.getNodeId(), ledger).entryKey());
 
         assertTrue(primeText.contains("Spring Boot") || primeText.contains("MVC"), primeText);
         assertTrue(primeText.toLowerCase(Locale.ROOT).contains("restful"), primeText);
         assertTrue(primeText.toLowerCase(Locale.ROOT).contains("aws"), primeText);
-        assertTrue(primeText.contains("http://") || primeText.contains("35.183"), primeText);
+        assertTrue(primeText.contains("https://") || primeText.contains("example.com"), primeText);
         assertTrue(smartText.toLowerCase(Locale.ROOT).contains("maven"), smartText);
         assertTrue(smartText.toLowerCase(Locale.ROOT).contains("oop"), smartText);
         assertTrue(smartText.toLowerCase(Locale.ROOT).contains("algorithm"), smartText);
@@ -113,7 +118,7 @@ class TailorV2T2B2YaohangRealPdfTest {
     }
 
     @Test
-    void realPdf_evidencePacketsStayInsideTheirProject() {
+    void generatedPdf_evidencePacketsStayInsideTheirProject() {
         ResumeDocumentNode springBoot = requireNode("Design and implement", "Spring Boot", "MVC");
         ResumeDocumentNode maven = requireNode("Developed a Java Maven project");
         ConservativeEvidencePacket primePacket = ConservativeEvidencePacket.build(springBoot.getNodeId(), ledger);
@@ -121,8 +126,8 @@ class TailorV2T2B2YaohangRealPdfTest {
         String primeJson = primePacket.toJson().toLowerCase(Locale.ROOT);
         String mavenJson = mavenPacket.toJson().toLowerCase(Locale.ROOT);
 
-        System.out.println("T2B.2 REAL Prime Deals Packet\n" + primePacket.toJson());
-        System.out.println("T2B.2 REAL SmartPC Packet\n" + mavenPacket.toJson());
+        System.out.println("T2B.2 GENERATED Prime Deals Packet\n" + primePacket.toJson());
+        System.out.println("T2B.2 GENERATED SmartPC Packet\n" + mavenPacket.toJson());
 
         assertEquals(springBoot.getNodeId(), primePacket.targetNodeId());
         assertEquals(maven.getNodeId(), mavenPacket.targetNodeId());
@@ -156,7 +161,7 @@ class TailorV2T2B2YaohangRealPdfTest {
     }
 
     @Test
-    void realPdf_plannerTopFiveCoversJdProjectsAndSkipsSoftOrMetadataNodes() {
+    void generatedPdf_plannerTopFiveCoversJdProjectsAndSkipsSoftOrMetadataNodes() {
         List<ConservativeRewritePlan> plans = ConservativeTailorPlanner.plan(nodes, JD);
         ResumeDocumentNode springBoot = requireNode("Design and implement", "Spring Boot", "MVC");
         ResumeDocumentNode rest = requireNode("Integrated RESTful APIs");
@@ -166,7 +171,7 @@ class TailorV2T2B2YaohangRealPdfTest {
         ResumeDocumentNode documentation = requireNode("well-documented");
         ResumeDocumentNode communication = requireNode("Communicated effectively");
 
-        System.out.println("T2B.2 REAL Planner top " + plans.size() + " (no synthetic ACME nodes)");
+        System.out.println("T2B.2 GENERATED Planner top " + plans.size() + " (no synthetic ACME nodes)");
         for (int i = 0; i < plans.size(); i++) {
             ConservativeRewritePlan plan = plans.get(i);
             ResumeDocumentNode node = node(plan.nodeId());
@@ -190,7 +195,7 @@ class TailorV2T2B2YaohangRealPdfTest {
             assertFalse(lower.contains("http://") || lower.contains("https://"), text);
             assertFalse(lower.contains("acme"), text);
             assertFalse(isHeading(text), text);
-            assertFalse(lower.contains("yaohang tang") && !lower.contains("design"), text);
+            assertFalse(lower.contains("alex morgan") && !lower.contains("design"), text);
         }
         List<String> top3 = texts.subList(0, Math.min(3, texts.size()));
         String top3Joined = String.join("\n", top3).toLowerCase(Locale.ROOT);
@@ -235,7 +240,7 @@ class TailorV2T2B2YaohangRealPdfTest {
                 return node;
             }
         }
-        throw new AssertionError("Missing real node containing " + String.join(" + ", needles)
+        throw new AssertionError("Missing generated node containing " + String.join(" + ", needles)
                 + " in:\n" + joined());
     }
 

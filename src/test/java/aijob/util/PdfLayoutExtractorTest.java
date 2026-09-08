@@ -7,10 +7,8 @@ import aijob.enums.ResumeExtractionStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,8 +23,8 @@ class PdfLayoutExtractorTest {
     Path tempDir;
 
     @Test
-    void yaohangTangPdf_summaryHeadingIsNotLocation_andContactIsPrefillOnly() throws Exception {
-        Path pdf = fixture("resumes/yaohang-tang.pdf");
+    void generatedResumePdf_summaryHeadingIsNotLocation_andContactIsPrefillOnly() throws Exception {
+        Path pdf = GeneratedResumePdfFixture.pdf();
         PdfLayout layout = extractor.extract(pdf);
         ResumeStructure structure = draftBuilder.build(layout);
 
@@ -35,8 +33,8 @@ class PdfLayoutExtractorTest {
         assertTrue(unassignedText(structure).contains("SUMMARY OF QUALIFICATIONS"), unassignedText(structure));
         assertFalse(containsIgnoreCase(structure.getContact().getLocation(), "QUALIFICATIONS"));
         assertFalse(containsIgnoreCase(structure.getContact().getFullName(), "QUALIFICATIONS"));
-        assertTrue(containsIgnoreCase(structure.getContact().getFullName(), "Tang")
-                || containsIgnoreCase(structure.getContact().getFullName(), "Yaohang"));
+        assertTrue(containsIgnoreCase(structure.getContact().getFullName(), "Morgan")
+                || containsIgnoreCase(structure.getContact().getFullName(), "Alex"));
         assertTrue(structure.getContact().getEmail().contains("@"));
         assertFalse(structure.getContact().getPhone().isBlank());
         assertFalse(structure.getContact().getLinks().isEmpty());
@@ -120,10 +118,6 @@ class PdfLayoutExtractorTest {
         assertTrue(structure.getUnassigned().isEmpty());
         assertEquals("", structure.getContact().getFullName());
         assertEquals("", structure.getContact().getEmail());
-    }
-
-    private Path fixture(String classpath) throws URISyntaxException {
-        return Path.of(Objects.requireNonNull(getClass().getClassLoader().getResource(classpath)).toURI());
     }
 
     private static String unassignedText(ResumeStructure structure) {

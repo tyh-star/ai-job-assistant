@@ -51,9 +51,9 @@ class TailorV2T2D2A2CoherenceTest {
 
     @BeforeEach
     void parseCanonical() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path docx = tempDir.resolve("yaohang-canonical.docx");
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, docx);
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path docx = tempDir.resolve("alexmorgan-canonical.docx");
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, docx);
         nodes = new ResumeDocumentServiceImpl().parseDocx(docx);
         ledger = ClaimLedger.from(nodes);
         p16 = require("Design and implement", "Spring Boot", "MVC");

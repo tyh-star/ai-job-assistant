@@ -55,7 +55,7 @@ class TailorAnalysisScorerTest {
                 List.of("Java")
         );
         java.setEvidenceNodeIds(List.of("p-16"));
-        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.yaohangNodes();
+        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.alexMorganNodes();
         TailorAnalysisDimensions dimensions = TailorAnalysisScorer.scoreDimensions(List.of(java), nodes);
 
         assertEquals(100, dimensions.getHardSkills());
@@ -142,7 +142,7 @@ class TailorAnalysisScorerTest {
         );
         withProject.setEvidenceNodeIds(List.of("p-16"));
 
-        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.yaohangNodes();
+        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.alexMorganNodes();
         int skillsScore = TailorAnalysisScorer.scoreDimensions(List.of(skillsOnly), nodes).getEvidenceStrength();
         int projectScore = TailorAnalysisScorer.scoreDimensions(List.of(withProject), nodes).getEvidenceStrength();
         assertEquals(40, skillsScore);

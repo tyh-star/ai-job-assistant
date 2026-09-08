@@ -164,7 +164,7 @@ class V3EntryRewriteValidatorTest {
     private static V3ResumeFactGraphs graphsForCommunication() {
         ClaimLedger ledger = ClaimLedger.from(List.of(
                 V3CanonicalEntryKeyTest.node("p-0", "RELEVANT PROJECTS"),
-                V3CanonicalEntryKeyTest.node("p-5", "SmartPC Builder | York University | Jan 2025 - Mar 2025"),
+                V3CanonicalEntryKeyTest.node("p-5", "SmartPC Builder | Example University | Jan 2025 - Mar 2025"),
                 V3CanonicalEntryKeyTest.node("p-6", "Developed a Java Maven project that helps users select optimal components within a given budget"),
                 V3CanonicalEntryKeyTest.node("p-7", "● Communicated effectively with TA and Professor to clarify requirements.")
         ));

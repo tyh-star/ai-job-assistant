@@ -23,7 +23,7 @@ import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.ResumeAnalysisInput;
 import aijob.util.ResumeAnalysisInputFactory;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.jupiter.api.Test;
@@ -82,10 +82,10 @@ class V3DQuickOptimizeVerticalTest {
     void quickOptimizePdfParentUsesFrozenV3BasicAndWritesOnce() throws Exception {
         Path uploadsRoot = Path.of("uploads");
         Map<String, String> uploadsBefore = snapshot(uploadsRoot);
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(
                 pdf, tempDir.resolve("canonical-child.docx"));
-        Path parentPdf = tempDir.resolve("yaohang-parent.pdf");
+        Path parentPdf = tempDir.resolve("alexmorgan-parent.pdf");
         Files.copy(pdf, parentPdf);
 
         ResumeDocumentServiceImpl parser = new ResumeDocumentServiceImpl();

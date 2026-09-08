@@ -1,4 +1,4 @@
-export type ResumeOrigin = 'UPLOAD' | 'TEMPLATE'
+export type ResumeOrigin = 'UPLOAD' | 'TEMPLATE' | 'GENERATED'
 export type ResumeReviewStatus = 'READY' | 'PENDING_REVIEW'
 export type TailorMode = 'CONSERVATIVE' | 'AGGRESSIVE'
 export type PdfExportStatus = 'SUCCESS' | 'FAILED'
@@ -728,4 +728,252 @@ export interface SaveResumeEvidenceRequest {
   result: string
   metric: string
   confirmed: boolean
+}
+
+// ---------------------------------------------------------------------------
+// 通用简历生成器 (resume builder)
+// ---------------------------------------------------------------------------
+
+export type ResumeBuilderTemplateType =
+  | 'STUDENT'
+  | 'INTERNSHIP'
+  | 'EXPERIENCED'
+  | 'CAREER_CHANGE'
+  | 'TECHNICAL'
+  | 'GENERIC_ATS'
+
+export type ResumeBuilderLocale = 'en' | 'zh-CN'
+
+export interface ResumeBuilderBasicInfo {
+  fullName: string
+  city: string
+  country: string
+  phone: string
+  email: string
+  linkedin: string
+  github: string
+  website: string
+  /** Null = not stated. Deliberately the ONLY "eligibility" style field -- age,
+   * gender, photo, and marital status are never collected by this form. */
+  legallyEligibleToWork: boolean | null
+}
+
+export interface ResumeBuilderJobTarget {
+  targetTitle: string
+  jobLevel: string
+  targetIndustry: string
+  workMode: string
+  targetCity: string
+  careerSummary: string
+}
+
+export interface ResumeBuilderEducationEntry {
+  school: string
+  degree: string
+  major: string
+  startDate: string
+  endDate: string
+  gpa: string
+  honors: string
+  courses: string[]
+}
+
+export interface ResumeBuilderSkillCategory {
+  id: string
+  name: string
+  skills: string[]
+}
+
+export interface ResumeBuilderWorkExperienceEntry {
+  company: string
+  title: string
+  location: string
+  startDate: string
+  endDate: string
+  current: boolean
+  responsibilities: string[]
+  toolsUsed: string[]
+  outcomes: string[]
+}
+
+export interface ResumeBuilderProjectEntry {
+  name: string
+  purpose: string
+  startDate: string
+  endDate: string
+  actualDuration: string
+  techStack: string[]
+  role: string
+  teamSize: number | null
+  features: string[]
+  challenges: string[]
+  solutions: string[]
+  userCount: number | null
+  outcomes: string[]
+  githubUrl: string
+  demoUrl: string
+}
+
+export interface ResumeBuilderVolunteerEntry {
+  organization: string
+  role: string
+  location: string
+  startDate: string
+  endDate: string
+  serviceHours: number | null
+  workContent: string[]
+  impact: string[]
+}
+
+export interface ResumeBuilderCertification {
+  name: string
+  issuer: string
+  issueDate: string
+  expiryDate: string
+  credentialId: string
+  credentialUrl: string
+}
+
+export interface ResumeBuilderLanguageEntry {
+  language: string
+  proficiency: string
+}
+
+export interface ResumeBuilderLeadershipEntry {
+  organization: string
+  role: string
+  startDate: string
+  endDate: string
+  description: string[]
+}
+
+export interface ResumeBuilderPublication {
+  title: string
+  venue: string
+  date: string
+  url: string
+  authors: string
+}
+
+export interface ResumeBuilderCustomSection {
+  id: string
+  title: string
+  items: string[]
+}
+
+export interface ResumeBuilderCareerMaterials {
+  selfIntroFacts: string[]
+  aiUsageScenarios: string[]
+  aiStrengths: string[]
+  aiRisks: string[]
+  aiVerificationApproach: string[]
+  oneYearGoal: string
+  threeYearGoal: string
+  skillsToImprove: string[]
+}
+
+export interface ResumeBuilderDraftContent {
+  schemaVersion: number
+  basicInfo: ResumeBuilderBasicInfo
+  jobTarget: ResumeBuilderJobTarget
+  education: ResumeBuilderEducationEntry[]
+  skillCategories: ResumeBuilderSkillCategory[]
+  experience: ResumeBuilderWorkExperienceEntry[]
+  projects: ResumeBuilderProjectEntry[]
+  volunteer: ResumeBuilderVolunteerEntry[]
+  certifications: ResumeBuilderCertification[]
+  languages: ResumeBuilderLanguageEntry[]
+  leadership: ResumeBuilderLeadershipEntry[]
+  publications: ResumeBuilderPublication[]
+  hobbies: string[]
+  customSections: ResumeBuilderCustomSection[]
+  sectionOrder: string[]
+  sectionEnabled: Record<string, boolean>
+  careerMaterials: ResumeBuilderCareerMaterials
+}
+
+export interface ResumeBuilderDraftSummary {
+  id: number
+  title: string
+  templateType: ResumeBuilderTemplateType | string
+  targetRole: string | null
+  locale: ResumeBuilderLocale | string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ResumeBuilderDraftResponse {
+  id: number
+  title: string
+  templateType: ResumeBuilderTemplateType | string
+  targetRole: string | null
+  locale: ResumeBuilderLocale | string
+  schemaVersion: number
+  version: number
+  content: ResumeBuilderDraftContent
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateResumeBuilderDraftRequest {
+  title: string
+  templateType: ResumeBuilderTemplateType | string
+  locale: ResumeBuilderLocale | string
+}
+
+export interface UpdateResumeBuilderDraftRequest {
+  title: string
+  templateType: ResumeBuilderTemplateType | string
+  targetRole: string | null
+  locale: ResumeBuilderLocale | string
+  content: ResumeBuilderDraftContent
+  version: number
+}
+
+export interface GenerateResumeBuilderDraftRequest {
+  idempotencyKey: string
+}
+
+export interface NormalizedResumeHeader {
+  fullName: string
+  location: string
+  phone: string
+  email: string
+  links: string[]
+  targetTitle: string
+}
+
+export interface NormalizedResumeBlock {
+  heading: string
+  meta: string
+  lines: string[]
+  bulletedLines: boolean
+}
+
+export interface NormalizedResumeSection {
+  id: string
+  title: string
+  blocks: NormalizedResumeBlock[]
+}
+
+/** The SAME normalized model the backend's DOCX writer renders from -- see the
+ * backend's NormalizedResume javadoc. Preview and the generated file can never
+ * disagree. */
+export interface NormalizedResume {
+  header: NormalizedResumeHeader
+  summary: string | null
+  sections: NormalizedResumeSection[]
+  omittedSectionIds: string[]
+  warnings: string[]
+  missingKeyFacts: string[]
+  readyToGenerate: boolean
+}
+
+export interface CareerMaterialsResponse {
+  positioningSummary: string
+  selfIntroduction: string
+  aiReflection: string
+  strengthsAndWeaknesses: string
+  developmentPlan: string
 }

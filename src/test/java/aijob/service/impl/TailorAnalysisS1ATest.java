@@ -21,6 +21,7 @@ import aijob.mapper.ResumeMapper;
 import aijob.mapper.UserMapper;
 import aijob.service.JobRequirementExtractor;
 import aijob.service.ResumeDocumentService;
+import aijob.util.GeneratedResumePdfFixture;
 import aijob.util.PdfLayoutExtractor;
 import aijob.util.QualificationMatcher;
 import aijob.util.ResumeAnalysisInput;
@@ -34,11 +35,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -241,8 +240,8 @@ class TailorAnalysisS1ATest {
     }
 
     private void fixtureResumes() throws Exception {
-        Path sourcePdf = fixture("resumes/yaohang-tang.pdf");
-        Path parentPdf = tempDir.resolve("yaohang-tang.pdf");
+        Path sourcePdf = GeneratedResumePdfFixture.pdf();
+        Path parentPdf = tempDir.resolve("generated-resume.pdf");
         Files.copy(sourcePdf, parentPdf);
         PdfLayout layout = layoutExtractor.extract(sourcePdf);
         ResumeTextBlock csBlock = layout.getBlocks().stream()
@@ -288,8 +287,8 @@ class TailorAnalysisS1ATest {
 
     private static ResumeStructure canonicalStructure(List<String> educationSourceBlockIds) {
         ResumeStructure structure = ResumeStructure.empty();
-        structure.getContact().setFullName("Yaohang Tang");
-        structure.getContact().setEmail("yaohangtang@gmail.com");
+        structure.getContact().setFullName("Alex Morgan");
+        structure.getContact().setEmail("alex.morgan@example.com");
         structure.getSummaryBullets().add(bullet(
                 "Exceptional analytical and problem-solving skills with continuous thrive in optimizing program functionalities"
         ));
@@ -302,7 +301,7 @@ class TailorAnalysisS1ATest {
         project.getBullets().add("Successfully deployed onto AWS");
         structure.getProjects().add(project);
         ResumeStructure.ResumeEducation education = new ResumeStructure.ResumeEducation();
-        education.setSchool("York University");
+        education.setSchool("Example University");
         education.setDegree("Bachelor of Computer Science");
         education.setDates("Sept 2023 – Present");
         education.setSourceBlockIds(educationSourceBlockIds);
@@ -382,13 +381,4 @@ class TailorAnalysisS1ATest {
         );
     }
 
-    private static Path fixture(String name) {
-        try {
-            return Path.of(Objects.requireNonNull(
-                    TailorAnalysisS1ATest.class.getClassLoader().getResource(name)
-            ).toURI());
-        } catch (URISyntaxException ex) {
-            throw new IllegalStateException(ex);
-        }
-    }
 }

@@ -121,7 +121,7 @@ final class PdfLayoutTestDocuments {
                 cs.moveTo(72, 506);
                 cs.lineTo(540, 506);
                 cs.stroke();
-                show(cs, bold, 11, 72, 488, "York University");
+                show(cs, bold, 11, 72, 488, "Example University");
                 show(cs, plain, 11, 420, 488, "Sept 2023 - Present");
             }
             document.save(path.toFile());

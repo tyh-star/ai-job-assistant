@@ -56,7 +56,7 @@ aijob:
   job-catalog:
     provider: ${JOB_CATALOG_PROVIDER:freehire}
   freehire:
-    user-agent: ${FREEHIRE_USER_AGENT:ai-job-assistant/1.0 (+https://github.com/tyh-star/ai-job-assistant)}
+    user-agent: ${FREEHIRE_USER_AGENT:ai-job-assistant/1.0}
     connect-timeout-seconds: ${FREEHIRE_CONNECT_TIMEOUT_SECONDS:5}
     read-timeout-seconds: ${FREEHIRE_READ_TIMEOUT_SECONDS:10}
     # A page of full-description search results, generously bounded -- never large

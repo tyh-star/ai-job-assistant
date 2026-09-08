@@ -3,7 +3,7 @@ package aijob.tailor.v3;
 import aijob.dto.ResumeDocumentNode;
 import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.util.ResumeTailorNodeGuard;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -16,15 +16,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class V3YaohangSkillsSectionTest {
+class V3AlexMorganSkillsSectionTest {
 
     @TempDir
     Path tempDir;
 
     @Test
     void canonicalDocxSkillsAreExistingWritableParagraphsNotANewSection() throws Exception {
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(
-                YaohangCanonicalDocxFixture.pdf(), tempDir.resolve("child.docx"));
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(
+                GeneratedResumePdfFixture.pdf(), tempDir.resolve("child.docx"));
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(canonical);
         Set<String> allowed = ResumeTailorNodeGuard.allowedNodeIds(nodes);
 

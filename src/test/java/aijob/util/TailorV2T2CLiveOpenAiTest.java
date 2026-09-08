@@ -46,9 +46,9 @@ class TailorV2T2CLiveOpenAiTest {
                 "OPENAI_API_KEY is a placeholder");
         String model = System.getenv().getOrDefault("OPENAI_MODEL", "gpt-4o");
 
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path docx = tempDir.resolve("yaohang-canonical.docx");
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, docx);
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path docx = tempDir.resolve("alexmorgan-canonical.docx");
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, docx);
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(docx);
         ClaimLedger ledger = ClaimLedger.from(nodes);
         List<ConservativeRewritePlan> plans = ConservativeTailorPlanner.plan(nodes, JD).stream()

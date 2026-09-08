@@ -5,7 +5,7 @@ import aijob.dto.ResumeDocumentNode;
 import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.ClaimLedger;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -46,7 +46,7 @@ class V3BasicLiveJd2VerifyV324Test {
     @Test
     @Timeout(value = 40, unit = TimeUnit.MINUTES)
     @EnabledIfEnvironmentVariable(named = "AIJOB_V3_24_JD2", matches = "true")
-    void threeYaohangJdRunsKeepProvenanceWithoutTouchingUploads() throws Exception {
+    void threeAlexMorganJdRunsKeepProvenanceWithoutTouchingUploads() throws Exception {
         String apiKey = System.getenv("OPENAI_API_KEY");
         assumeTrue(apiKey != null && !apiKey.isBlank(), "OPENAI_API_KEY is required");
         assumeTrue(!apiKey.toLowerCase(Locale.ROOT).contains("placeholder"), "placeholder key");
@@ -60,8 +60,8 @@ class V3BasicLiveJd2VerifyV324Test {
 
         Path uploadsRoot = Path.of("uploads").toAbsolutePath().normalize();
         Map<String, String> uploadsBefore = snapshotUploads(uploadsRoot);
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("yaohang.docx"));
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("alexmorgan.docx"));
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(canonical);
         V3ResumeFactGraphs graphs = V3EntryFactGraphFactory.from(ClaimLedger.from(nodes));
         String jd = V3BasicLiveQualityAcceptanceTest.JD_INTERN;
@@ -96,7 +96,7 @@ class V3BasicLiveJd2VerifyV324Test {
 
             Map<String, Object> run = new LinkedHashMap<>();
             run.put("runId", runId);
-            run.put("jdName", "YAOHANG_JAVA_JD");
+            run.put("jdName", "ALEX_MORGAN_JAVA_JD");
             run.put("promptVersion", V3GenerationTelemetry.PROMPT_VERSION);
             run.put("model", model);
             run.put("wallLatencyMs", elapsed);

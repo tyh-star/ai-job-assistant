@@ -320,7 +320,7 @@ Add the printed **public** key to GitHub → repo **Settings → Deploy keys →
 
 ```bash
 export GIT_SSH_COMMAND='ssh -i ~/.ssh/ai-job-assistant-deploy -o IdentitiesOnly=yes'
-git clone -b deploy/aws-ec2-public git@github.com:tyh-star/ai-job-assistant.git /opt/ai-job-assistant
+git clone -b deploy/aws-ec2-public git@github.com:<github-owner>/ai-job-assistant.git /opt/ai-job-assistant
 cd /opt/ai-job-assistant
 cp infra/aws/.env.aws.example infra/aws/.env.aws
 nano infra/aws/.env.aws

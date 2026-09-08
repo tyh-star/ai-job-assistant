@@ -55,4 +55,4 @@ cat "${DEPLOY_KEY}.pub"
 echo
 echo "Clone with:"
 echo "  export GIT_SSH_COMMAND='ssh -i ${DEPLOY_KEY} -o IdentitiesOnly=yes'"
-echo "  git clone -b deploy/aws-ec2-public git@github.com:tyh-star/ai-job-assistant.git ${APP_ROOT}"
+echo "  git clone -b deploy/aws-ec2-public git@github.com:<github-owner>/ai-job-assistant.git ${APP_ROOT}"

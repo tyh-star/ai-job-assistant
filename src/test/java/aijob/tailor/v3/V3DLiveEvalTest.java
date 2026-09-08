@@ -32,7 +32,7 @@ import aijob.util.CanonicalEntryKeyResolver;
 import aijob.util.ClaimLedger;
 import aijob.util.ResumeAnalysisInput;
 import aijob.util.ResumeAnalysisInputFactory;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -167,8 +167,8 @@ class V3DLiveEvalTest {
             Map<String, String> uploadsBefore) throws Exception {
         Path caseDir = reportDir.resolve("case-a");
         Files.createDirectories(caseDir);
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("case-a.docx"));
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("case-a.docx"));
         ResumeDocumentServiceImpl parser = new ResumeDocumentServiceImpl();
         List<ResumeDocumentNode> original = parser.parseDocx(canonical);
         CountingWriter writer = new CountingWriter(parser, tempDir.resolve("writer-a"));
@@ -182,9 +182,9 @@ class V3DLiveEvalTest {
         List<String> failures = new ArrayList<>();
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("case", "A");
-        report.put("label", "Yaohang CONFIRMED_NOT_USED maintain");
-        report.put("resume", "real yaohang-tang.pdf + canonical DOCX child");
-        report.put("jd", "YAOHANG_JAVA_JD / JD_INTERN");
+        report.put("label", "AlexMorgan CONFIRMED_NOT_USED maintain");
+        report.put("resume", "real generated-resume.pdf + canonical DOCX child");
+        report.put("jd", "ALEX_MORGAN_JAVA_JD / JD_INTERN");
         report.put("productMode", "ENHANCED");
 
         int filesBefore = countGenerated(writer.root);
@@ -329,7 +329,7 @@ class V3DLiveEvalTest {
         report.put("pass", pass);
         report.put("verdict", pass ? (empty ? "PASS_EMPTY_PROPOSAL" : "PASS") : "FAIL");
         writeJson(caseDir.resolve("technical.json"), report);
-        writeHumanMarkdown(caseDir, "A", "Yaohang CONFIRMED_NOT_USED", proposal, rewritten, original);
+        writeHumanMarkdown(caseDir, "A", "AlexMorgan CONFIRMED_NOT_USED", proposal, rewritten, original);
         writeJson(reportDir.resolve("case-a-opportunity.json"), opportunityView(map));
         writeJson(reportDir.resolve("case-a-questions.json"), questionView(map));
         writeJson(reportDir.resolve("case-a-entryReviews.json"),
@@ -380,7 +380,7 @@ class V3DLiveEvalTest {
         report.put("syntheticKey", syntheticKey);
         report.put("otherKey", otherKey);
         report.put("confirmedText", CONFIRMED_USED_TEXT);
-        report.put("note", "Synthetic facts were never written to Yaohang resume or production DB.");
+        report.put("note", "Synthetic facts were never written to AlexMorgan resume or production DB.");
 
         V3OpportunityMap map = jobService.scanEnhancedOpportunity(EMAIL, 11L, 77L, List.of());
         report.put("opportunityMap", opportunityView(map));
@@ -671,7 +671,7 @@ class V3DLiveEvalTest {
                     "Dataset Cleaner | Personal Project | 2023",
                     "Wrote a Python script to clean CSV files.",
                     "EDUCATION",
-                    "York University, BSc Computer Science, 2021 - 2025")) {
+                    "Example University, BSc Computer Science, 2021 - 2025")) {
                 XWPFParagraph paragraph = document.createParagraph();
                 paragraph.createRun().setText(line);
             }
@@ -877,7 +877,7 @@ class V3DLiveEvalTest {
                     || (lower.contains("prime deals") && !lower.contains("java"))
                     || (lower.contains("smartpc") && !lower.contains("java"))
                     || (lower.contains("cloud inventory") && !lower.contains("java"))
-                    || (lower.contains("york university"))
+                    || (lower.contains("example university"))
                     || looksLikeDateOnly(text);
             if (protectedNode && !text.equals(after.getOrDefault(node.getNodeId(), ""))) {
                 failures.add(caseId + " protected node changed: " + node.getNodeId());

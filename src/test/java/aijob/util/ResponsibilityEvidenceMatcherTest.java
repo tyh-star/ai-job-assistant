@@ -168,10 +168,10 @@ class ResponsibilityEvidenceMatcherTest {
     }
 
     @Test
-    void yaohangPrimeDealsBackendDomainCanSupportDesignAndImplement() {
+    void alexmorganPrimeDealsBackendDomainCanSupportDesignAndImplement() {
         TailorAnalysisRequirement result = match(
                 responsibility("Design and implement backend services", List.of("Design", "implement")),
-                ResumeRequirementMatcherTest.yaohangNodes()
+                ResumeRequirementMatcherTest.alexMorganNodes()
         );
         System.out.println("S2.1 Prime Deals evidenceNodeIds=" + result.getEvidenceNodeIds());
         System.out.println("S2.1 Prime Deals evidenceQuotes=" + result.getEvidenceQuotes());
@@ -182,17 +182,17 @@ class ResponsibilityEvidenceMatcherTest {
         assertTrue(result.getEvidenceQuotes().stream().anyMatch(quote -> quote.contains("Spring Boot")));
         assertTrue(result.getEvidenceQuotes().stream().anyMatch(quote ->
                 quote.contains("RESTful APIs") || quote.contains("MVC")));
-        assertTrue(ClaimLedger.from(ResumeRequirementMatcherTest.yaohangNodes()).sameEntry("p-16", "p-17"));
-        assertFalse(ClaimLedger.from(ResumeRequirementMatcherTest.yaohangNodes()).sameEntry("p-16", "p-11"));
+        assertTrue(ClaimLedger.from(ResumeRequirementMatcherTest.alexMorganNodes()).sameEntry("p-16", "p-17"));
+        assertFalse(ClaimLedger.from(ResumeRequirementMatcherTest.alexMorganNodes()).sameEntry("p-16", "p-11"));
     }
 
     @Test
     void supportedEvidenceNodeIdsStayInsideTheSameEntryAndNeverUseSkills() {
         TailorAnalysisRequirement result = match(
                 responsibility("Design and implement backend services", List.of("Design", "implement")),
-                ResumeRequirementMatcherTest.yaohangNodes()
+                ResumeRequirementMatcherTest.alexMorganNodes()
         );
-        ClaimLedger ledger = ClaimLedger.from(ResumeRequirementMatcherTest.yaohangNodes());
+        ClaimLedger ledger = ClaimLedger.from(ResumeRequirementMatcherTest.alexMorganNodes());
         assertEquals(CoverageStatus.SUPPORTED, result.getStatus());
         assertFalse(result.getEvidenceNodeIds().isEmpty());
         for (String nodeId : result.getEvidenceNodeIds()) {

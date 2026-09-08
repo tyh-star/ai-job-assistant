@@ -24,7 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class V3YaohangFactGraphGoldenTest {
+/**
+ * Golden keys for the synthetic Alex Morgan PDF fixture.
+ * "Prime Deals" and "SmartPC Builder" are fictional project names of that fixture,
+ * not real products; they exist so {@code PROJECT:prime-deals} /
+ * {@code PROJECT:smartpc-builder} stay stable.
+ */
+class V3AlexMorganFactGraphGoldenTest {
 
     static final String PRIME_KEY = "PROJECT:prime-deals";
     static final String SMART_KEY = "PROJECT:smartpc-builder";
@@ -38,10 +44,10 @@ class V3YaohangFactGraphGoldenTest {
 
     @BeforeEach
     void parseRealPdfAndCanonicalChild() throws Exception {
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        structure = YaohangCanonicalDocxFixture.structureFromPdf(pdf);
-        Path docx = tempDir.resolve("yaohang-canonical.docx");
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, docx);
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        structure = GeneratedResumePdfFixture.structureFromPdf(pdf);
+        Path docx = tempDir.resolve("alexmorgan-canonical.docx");
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, docx);
         childNodes = new ResumeDocumentServiceImpl().parseDocx(docx);
         childLedger = ClaimLedger.from(childNodes);
     }

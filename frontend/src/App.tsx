@@ -8,6 +8,8 @@ import { JobsPage } from './pages/JobsPage'
 import { LoginPage } from './pages/LoginPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ResumeBuilderEditorPage } from './pages/ResumeBuilderEditorPage'
+import { ResumeBuilderListPage } from './pages/ResumeBuilderListPage'
 import { ResumeQualityScorePage } from './pages/ResumeQualityScorePage'
 import { ResumeStructurePage } from './pages/ResumeStructurePage'
 import { ResumesPage } from './pages/ResumesPage'
@@ -47,6 +49,8 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/resumes" element={<ResumesPage />} />
+          <Route path="/resumes/builder" element={<ResumeBuilderListPage />} />
+          <Route path="/resumes/builder/:id" element={<ResumeBuilderEditorPage />} />
           <Route path="/resumes/:id/structure" element={<ResumeStructurePage />} />
           <Route path="/resumes/:id/quality-score" element={<ResumeQualityScorePage />} />
           <Route path="/tailor" element={<TailorPage />} />

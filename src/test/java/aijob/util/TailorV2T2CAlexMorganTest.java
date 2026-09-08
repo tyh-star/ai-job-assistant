@@ -52,7 +52,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class TailorV2T2CYaohangRealPdfTest {
+class TailorV2T2CAlexMorganTest {
 
     private static final String EMAIL = "user@example.com";
     private static final String JD =
@@ -90,8 +90,8 @@ class TailorV2T2CYaohangRealPdfTest {
     @BeforeEach
     void setUp() throws Exception {
         resumeFile = tempDir.resolve("resume.docx");
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, resumeFile);
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, resumeFile);
         nodes = new ResumeDocumentServiceImpl().parseDocx(resumeFile);
         ledger = ClaimLedger.from(nodes);
         jobService = new JobServiceImpl(

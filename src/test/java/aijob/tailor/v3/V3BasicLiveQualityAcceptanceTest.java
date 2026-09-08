@@ -6,7 +6,7 @@ import aijob.service.impl.ResumeDocumentServiceImpl;
 import aijob.service.impl.ResumeDocxTailorServiceImpl;
 import aijob.util.ClaimLedger;
 import aijob.util.ConservativeEvidencePacket;
-import aijob.util.YaohangCanonicalDocxFixture;
+import aijob.util.GeneratedResumePdfFixture;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -63,7 +63,7 @@ public class V3BasicLiveQualityAcceptanceTest {
             - Agile
             """;
 
-    /** Saved fixture: TailorAnalysisTaxonomyS1Test.YAOHANG_JAVA_JD */
+    /** Saved fixture: TailorAnalysisTaxonomyS1Test.ALEX_MORGAN_JAVA_JD */
     public static final String JD_INTERN = """
             Junior Java Backend Developer
 
@@ -120,8 +120,8 @@ public class V3BasicLiveQualityAcceptanceTest {
         Files.createDirectories(reportDir);
         Path uploadsRoot = Path.of("uploads").toAbsolutePath().normalize();
 
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        Path canonical = YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, tempDir.resolve("yaohang.docx"));
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        Path canonical = GeneratedResumePdfFixture.writeCanonicalDocx(pdf, tempDir.resolve("alexmorgan.docx"));
         List<ResumeDocumentNode> nodes = new ResumeDocumentServiceImpl().parseDocx(canonical);
         ClaimLedger ledger = ClaimLedger.from(nodes);
         V3ResumeFactGraphs graphs = V3EntryFactGraphFactory.from(ledger);
@@ -130,7 +130,7 @@ public class V3BasicLiveQualityAcceptanceTest {
                 new JdSpec("JD1_JUNIOR_JAVA_BACKEND", "Junior Java Backend Developer",
                         "TailorAnalysisServiceImplTest.CURRENT_JD", JD_BACKEND, sha256(JD_BACKEND)),
                 new JdSpec("JD2_SOFTWARE_INTERN", "Junior Java Backend Developer (intern-complete fixture)",
-                        "TailorAnalysisTaxonomyS1Test.YAOHANG_JAVA_JD", JD_INTERN, sha256(JD_INTERN)),
+                        "TailorAnalysisTaxonomyS1Test.ALEX_MORGAN_JAVA_JD", JD_INTERN, sha256(JD_INTERN)),
                 new JdSpec("JD3_BACKEND_CLOUD", "Junior Java Backend Developer (S1A AWS/testing fixture)",
                         "TailorAnalysisS1ATest.S1A_JD", JD_CLOUD, sha256(JD_CLOUD))
         );

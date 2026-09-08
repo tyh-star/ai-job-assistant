@@ -76,8 +76,8 @@ class TailorV2FullCoverageTest {
     @BeforeEach
     void setUp() throws Exception {
         resumeFile = tempDir.resolve("resume.docx");
-        Path pdf = YaohangCanonicalDocxFixture.pdf();
-        YaohangCanonicalDocxFixture.writeCanonicalDocx(pdf, resumeFile);
+        Path pdf = GeneratedResumePdfFixture.pdf();
+        GeneratedResumePdfFixture.writeCanonicalDocx(pdf, resumeFile);
         nodes = new ResumeDocumentServiceImpl().parseDocx(resumeFile);
         jobService = new JobServiceImpl(
                 jobMapper, userMapper, resumeMapper, tailorProposalMapper, aiResumeService,

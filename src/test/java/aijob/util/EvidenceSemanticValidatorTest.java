@@ -150,8 +150,8 @@ class EvidenceSemanticValidatorTest {
                 ResumeEntryCatalog.GENERAL,
                 List.of(),
                 ResumeEntryCatalog.generalOption(),
-                ClaimLedger.from(ResumeRequirementMatcherTest.yaohangNodes()),
-                ResumeAnalysisInputFactory.matchingNodeSources(ResumeRequirementMatcherTest.yaohangNodes())
+                ClaimLedger.from(ResumeRequirementMatcherTest.alexMorganNodes()),
+                ResumeAnalysisInputFactory.matchingNodeSources(ResumeRequirementMatcherTest.alexMorganNodes())
         ));
         assertTrue(ok.valid());
         EvidenceSemanticValidator.Result bad = EvidenceSemanticValidator.validate(new EvidenceSemanticValidator.Input(
@@ -166,8 +166,8 @@ class EvidenceSemanticValidatorTest {
                 ResumeEntryCatalog.GENERAL,
                 List.of(),
                 ResumeEntryCatalog.generalOption(),
-                ClaimLedger.from(ResumeRequirementMatcherTest.yaohangNodes()),
-                ResumeAnalysisInputFactory.matchingNodeSources(ResumeRequirementMatcherTest.yaohangNodes())
+                ClaimLedger.from(ResumeRequirementMatcherTest.alexMorganNodes()),
+                ResumeAnalysisInputFactory.matchingNodeSources(ResumeRequirementMatcherTest.alexMorganNodes())
         ));
         assertFalse(bad.valid());
         assertEquals(EvidenceReasonCode.EVIDENCE_TOPIC_MISMATCH, bad.reasonCode());
@@ -175,7 +175,7 @@ class EvidenceSemanticValidatorTest {
 
     @Test
     void crossEntryNodesAreRejected() {
-        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.yaohangNodes();
+        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.alexMorganNodes();
         ClaimLedger ledger = ClaimLedger.from(nodes);
         Map<String, AnalysisEvidenceSource> registry = ResumeAnalysisInputFactory.matchingNodeSources(nodes);
         EntryOption prime = ResumeEntryCatalog.options(nodes, null).stream()
@@ -194,7 +194,7 @@ class EvidenceSemanticValidatorTest {
 
     @Test
     void unknownPrefixedNodesAreRejected() {
-        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.yaohangNodes();
+        List<ResumeDocumentNode> nodes = ResumeRequirementMatcherTest.alexMorganNodes();
         EvidenceSemanticValidator.Result result = EvidenceSemanticValidator.validateNodes(
                 new EvidenceSemanticValidator.Input(
                         "Docker", RequirementCategory.HARD_SKILL, "Docker", AnswerStatus.CONFIRMED_USED,

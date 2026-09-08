@@ -188,7 +188,7 @@ class ResumeEvidenceServiceImplTest {
         child.setParentResumeId(9L);
         when(resumeMapper.findById(20L)).thenReturn(child);
         when(resumeMapper.findById(9L)).thenReturn(parent);
-        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.yaohangNodes());
+        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.alexMorganNodes());
         when(resumeEvidenceMapper.findByTopicAndEntry(1L, 9L, "docker", "PROJECT:prime-deals"))
                 .thenReturn(null);
 
@@ -293,7 +293,7 @@ class ResumeEvidenceServiceImplTest {
 
     private void stubOwnedDocx() {
         stubUserAndResume();
-        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.yaohangNodes());
+        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.alexMorganNodes());
     }
 
     private void stubUserAndResume() {
@@ -488,7 +488,7 @@ class ResumeEvidenceServiceImplTest {
         Resume child = templateChild(parent);
         when(resumeMapper.findById(21L)).thenReturn(parent);
         when(resumeMapper.findById(22L)).thenReturn(child);
-        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.yaohangNodes());
+        when(resumeDocumentService.parseDocx(any())).thenReturn(ResumeRequirementMatcherTest.alexMorganNodes());
         when(resumeEvidenceMapper.findByTopicAndEntry(1L, 21L, "docker", "PROJECT:prime-deals"))
                 .thenReturn(null);
 
@@ -574,7 +574,7 @@ class ResumeEvidenceServiceImplTest {
         parent.setFileType("pdf");
         parent.setOrigin("UPLOAD");
         parent.setCanonicalResumeId(22L);
-        parent.setExtractedText("Yaohang Tang\nJava Spring Boot");
+        parent.setExtractedText("Alex Morgan\nJava Spring Boot");
         return parent;
     }
 
@@ -607,7 +607,7 @@ class ResumeEvidenceServiceImplTest {
             resume.setFileType("docx");
             resume.setFilePath(file.toString());
             resume.setOrigin("UPLOAD");
-            resume.setExtractedText("Yaohang Tang\nJava Spring Boot");
+            resume.setExtractedText("Alex Morgan\nJava Spring Boot");
             return resume;
         } catch (Exception ex) {
             throw new IllegalStateException(ex);

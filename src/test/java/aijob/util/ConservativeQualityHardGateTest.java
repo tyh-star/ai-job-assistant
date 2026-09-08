@@ -11,7 +11,7 @@ class ConservativeQualityHardGateTest {
 
     private static final String JD =
             "Junior Java Backend Developer using Spring Boot, Maven, REST APIs, Docker and Kubernetes.";
-    private static final String YAOHANG_P23 =
+    private static final String ALEX_MORGAN_P23 =
             "●   Developed and integrated IP rate-limiting and black/white list management features to strengthen access control and mitigate potential attack traffic.";
 
     @Test
@@ -164,9 +164,9 @@ class ConservativeQualityHardGateTest {
     }
 
     @Test
-    void g12_yaohangDevelopedMustNotBecomeDirected() {
+    void g12_alexmorganDevelopedMustNotBecomeDirected() {
         assertRejected(
-                YAOHANG_P23,
+                ALEX_MORGAN_P23,
                 "●   Directed and integrated IP rate-limiting and black/white list management features to strengthen access control and mitigate potential attack traffic.",
                 RejectedTailorChange.ROLE_SEMANTIC_ESCALATION);
     }

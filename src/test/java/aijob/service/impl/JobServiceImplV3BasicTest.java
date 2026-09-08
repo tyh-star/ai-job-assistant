@@ -82,7 +82,7 @@ class JobServiceImplV3BasicTest {
     @BeforeEach
     void setUp() throws Exception {
         childDocx = tempDir.resolve("canonical.docx");
-        parentPdf = tempDir.resolve("yaohang.pdf");
+        parentPdf = tempDir.resolve("alex-morgan.pdf");
         generatedDocx = tempDir.resolve("out.docx");
         generatedPdf = tempDir.resolve("out.pdf");
         Files.writeString(childDocx, "docx");

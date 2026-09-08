@@ -37,9 +37,9 @@ class ResumeTemplateDocxServiceImplTest {
     Path tempDir;
 
     @Test
-    void write_yaohangStructure_keepsOriginalFactsOnLetterPage() throws Exception {
+    void write_alexMorganStructure_keepsOriginalFactsOnLetterPage() throws Exception {
         Path output = tempDir.resolve("canonical.docx");
-        writer.write(yaohangStructure(), output);
+        writer.write(alexMorganStructure(), output);
 
         assertTrue(Files.exists(output));
         try (InputStream inputStream = Files.newInputStream(output);
@@ -51,7 +51,7 @@ class ResumeTemplateDocxServiceImplTest {
                     .map(paragraph -> paragraph.getText() == null ? "" : paragraph.getText())
                     .reduce((a, b) -> a + "\n" + b)
                     .orElse("");
-            assertTrue(text.contains("Yaohang Tang"), text);
+            assertTrue(text.contains("Alex Morgan"), text);
             assertTrue(text.contains("SUMMARY"), text);
             assertTrue(text.contains("Strong understanding of SDLC methodologies"), text);
             assertTrue(text.contains("Experience with Git flow and version control"), text);
@@ -62,9 +62,9 @@ class ResumeTemplateDocxServiceImplTest {
             assertTrue(text.contains("Prime Deals"), text);
             assertTrue(text.contains("Personal Project"), text);
             assertTrue(text.contains("Sept 2024 - Present"), text);
-            assertTrue(text.contains("http://35.183.41.31:8080/login.html"), text);
+            assertTrue(text.contains("https://atlas.example.com"), text);
             assertTrue(text.contains("SmartPC Builder"), text);
-            assertTrue(text.contains("York University"), text);
+            assertTrue(text.contains("Example University"), text);
             assertTrue(text.contains("EDUCATION"), text);
             assertTrue(text.contains("Bachelor of Computer Science"), text);
             assertTrue(text.contains("Relevant Courses: Algorithm, Data Structure, Advanced OOP"), text);
@@ -75,21 +75,21 @@ class ResumeTemplateDocxServiceImplTest {
         List<ResumeDocumentNode> nodes = documentService.parseDocx(output);
         assertFalse(nodes.isEmpty());
         String joined = nodes.stream().map(ResumeDocumentNode::getText).reduce((a, b) -> a + "\n" + b).orElse("");
-        assertTrue(joined.contains("Yaohang Tang"), joined);
+        assertTrue(joined.contains("Alex Morgan"), joined);
         assertTrue(joined.contains("Prime Deals"), joined);
         assertTrue(nodes.stream().anyMatch(node -> node.getNodeId() != null && node.getNodeId().startsWith("p-")));
     }
 
     @Test
-    void write_highYaohangLikeProfile_usesLeftRuleUnderlineGroupedRightDates() throws Exception {
-        ResumeStructure structure = yaohangStructure();
-        structure.setLayoutProfile(yaohangLikeProfile());
+    void write_highAlexMorganLikeProfile_usesLeftRuleUnderlineGroupedRightDates() throws Exception {
+        ResumeStructure structure = alexMorganStructure();
+        structure.setLayoutProfile(alexMorganLikeProfile());
         structure.getSkills().clear();
         structure.getSkills().add(skill("Java", "Programming Languages: C/C++, Java, Python"));
         structure.getSkills().add(skill("Python", "Programming Languages: C/C++, Java, Python"));
         structure.getSkills().add(skill("HTML", "Web Technologies: HTML, CSS"));
 
-        Path output = tempDir.resolve("yaohang-like.docx");
+        Path output = tempDir.resolve("alexmorgan-like.docx");
         writer.write(structure, output);
 
         try (InputStream inputStream = Files.newInputStream(output);
@@ -114,8 +114,8 @@ class ResumeTemplateDocxServiceImplTest {
     }
 
     @Test
-    void write_centeredSansProfile_doesNotEmitYaohangStyle() throws Exception {
-        ResumeStructure structure = yaohangStructure();
+    void write_centeredSansProfile_doesNotEmitAlexMorganStyle() throws Exception {
+        ResumeStructure structure = alexMorganStructure();
         structure.getContact().setFullName("Alex Chen");
         structure.setLayoutProfile(centeredSansProfile());
         structure.getSkills().clear();
@@ -147,7 +147,7 @@ class ResumeTemplateDocxServiceImplTest {
 
     @Test
     void write_lowConfidenceProfile_fallsBackToAtsWithoutCrashing() throws Exception {
-        ResumeStructure structure = yaohangStructure();
+        ResumeStructure structure = alexMorganStructure();
         structure.setLayoutProfile(LayoutProfile.lowConfidence());
 
         Path output = tempDir.resolve("fallback.docx");
@@ -161,7 +161,7 @@ class ResumeTemplateDocxServiceImplTest {
             assertEquals("Calibri", name.getRuns().get(0).getFontFamily());
             assertFalse(hasHeaderRule(document));
             String text = paragraphText(document);
-            assertTrue(text.contains("Yaohang Tang"), text);
+            assertTrue(text.contains("Alex Morgan"), text);
             assertTrue(text.contains("Prime Deals | Personal Project | Sept 2024 - Present"), text);
             assertTrue(text.contains("Java"), text);
         }
@@ -170,12 +170,12 @@ class ResumeTemplateDocxServiceImplTest {
         assertTrue(nodes.stream().anyMatch(node -> "p-0".equals(node.getNodeId())));
     }
 
-    private static ResumeStructure yaohangStructure() {
+    private static ResumeStructure alexMorganStructure() {
         ResumeStructure structure = ResumeStructure.empty();
-        structure.getContact().setFullName("Yaohang Tang");
-        structure.getContact().setEmail("yaohangtang@gmail.com");
-        structure.getContact().setPhone("(647) 853-8928");
-        structure.getContact().getLinks().add("https://github.com/tyh-star");
+        structure.getContact().setFullName("Alex Morgan");
+        structure.getContact().setEmail("alex.morgan@example.com");
+        structure.getContact().setPhone("+1 (555) 234-5678");
+        structure.getContact().getLinks().add("https://github.com/alexmorgan");
         structure.getSummaryBullets().add(bullet("Strong understanding of SDLC methodologies, including Agile and Waterfall"));
         structure.getSummaryBullets().add(bullet("Exceptional analytical and problem-solving skills with continuous thrive in optimizing program functionalities"));
         structure.getSummaryBullets().add(bullet("Quick learner with a passion for adapting new business processes, latest technologies and concepts"));
@@ -192,17 +192,17 @@ class ResumeTemplateDocxServiceImplTest {
         prime.setOrganizationOrType("Personal Project");
         prime.setDates("Sept 2024 - Present");
         prime.getBullets().add("Lead and collaborate with a friend to develop a shopping website");
-        prime.getLinks().add("http://35.183.41.31:8080/login.html");
+        prime.getLinks().add("https://atlas.example.com");
         structure.getProjects().add(prime);
         ResumeProject smart = new ResumeProject();
         smart.normalize();
         smart.setName("SmartPC Builder");
-        smart.setOrganizationOrType("York University");
+        smart.setOrganizationOrType("Example University");
         smart.setDates("Jan 2025 - Mar 2025");
         smart.getBullets().add("Developed a Java Maven project that helps users select optimal components within a given budget");
         structure.getProjects().add(smart);
         ResumeEducation education = new ResumeEducation();
-        education.setSchool("York University");
+        education.setSchool("Example University");
         education.setDegree("Bachelor of Computer Science");
         education.setDates("Sept 2023 – Present");
         education.setDetails("Relevant Courses: Algorithm, Data Structure, Advanced OOP");
@@ -223,7 +223,7 @@ class ResumeTemplateDocxServiceImplTest {
         return skill;
     }
 
-    private static LayoutProfile yaohangLikeProfile() {
+    private static LayoutProfile alexMorganLikeProfile() {
         LayoutProfile profile = new LayoutProfile();
         profile.normalize();
         profile.setVersion(1);

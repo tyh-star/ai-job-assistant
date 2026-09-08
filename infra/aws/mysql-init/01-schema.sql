@@ -271,5 +271,38 @@ CREATE TABLE IF NOT EXISTS site_feedback (
     CONSTRAINT fk_site_feedback_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS resume_builder_drafts (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    template_type VARCHAR(40) NOT NULL,
+    target_role VARCHAR(200) NULL,
+    locale VARCHAR(10) NOT NULL DEFAULT 'en',
+    schema_version INT NOT NULL DEFAULT 1,
+    draft_json LONGTEXT NOT NULL,
+    version BIGINT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_resume_builder_drafts_user (user_id),
+    KEY idx_resume_builder_drafts_user_updated (user_id, updated_at),
+    CONSTRAINT fk_resume_builder_drafts_user
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS resume_builder_generation_requests (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    draft_id BIGINT NOT NULL,
+    idempotency_key VARCHAR(100) NOT NULL,
+    resume_id BIGINT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_resume_builder_gen_user_key (user_id, idempotency_key),
+    KEY idx_resume_builder_gen_draft (draft_id),
+    CONSTRAINT fk_resume_builder_gen_user
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO schema_migrations (version)
 VALUES ('2026-08-31-job-catalog-phase1');

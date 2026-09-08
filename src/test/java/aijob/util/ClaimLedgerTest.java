@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** ClaimLedger grouping tests. Project names such as "Prime Deals" below are
+ * synthetic fixture labels, not real products. */
 class ClaimLedgerTest {
 
     @Test
@@ -92,15 +94,15 @@ class ClaimLedgerTest {
                         "Define project scope, clarify requirements and utilized UML Class Diagram for planning"),
                 new ResumeDocumentNode("p-3", "PARAGRAPH",
                         "Design and implement the application using Java Spring Boot with an MVC pattern."),
-                new ResumeDocumentNode("p-4", "PARAGRAPH", "http://35.183.41.31:8080/login.html"),
+                new ResumeDocumentNode("p-4", "PARAGRAPH", "https://atlas.example.com"),
                 new ResumeDocumentNode("p-5", "PARAGRAPH", "EDUCATION"),
-                new ResumeDocumentNode("p-6", "PARAGRAPH", "York University")
+                new ResumeDocumentNode("p-6", "PARAGRAPH", "Example University")
         );
         ClaimLedger ledger = ClaimLedger.from(nodes);
         assertTrue(ledger.sameEntry("p-1", "p-2"));
         assertTrue(ledger.sameEntry("p-2", "p-3"));
         assertTrue(ledger.sameEntry("p-3", "p-4"));
-        assertTrue(ledger.entryText("p-3").contains("http://"));
+        assertTrue(ledger.entryText("p-3").contains("https://"));
         assertTrue(ledger.entryOf("p-6") == null || !"PROJECT".equals(ledger.entryOf("p-6").sectionRole()));
         assertTrue(ledger.isOngoing("p-3"));
         assertFalse(ledger.isEnded("p-3"));

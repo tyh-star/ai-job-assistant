@@ -269,7 +269,7 @@ class V3EnhancedFinalAttributionTest {
         nodes.add(node("p-4", "Designed and implemented the application using Java and Spring Boot in an MVC pattern."));
         nodes.add(node("p-5", "Integrated RESTful APIs for user authentication, product updates, and shopping cart management."));
         nodes.add(node("p-6", "Deployed the initial version of the project to AWS."));
-        nodes.add(node("p-7", "SmartPC Builder | York University | Jan 2025 - Mar 2025"));
+        nodes.add(node("p-7", "SmartPC Builder | Example University | Jan 2025 - Mar 2025"));
         nodes.add(node("p-8", "Developed a Java Maven project that helps users select optimal components within a given budget"));
         nodes.add(node("p-9", "Implemented an algorithm that dynamically suggests components (CPU, GPU & RAM)"));
         return nodes;

@@ -48,7 +48,7 @@ public class FreeHireApiConfig {
      * on every request regardless of who is searching.
      */
     static final String DEFAULT_USER_AGENT =
-            "ai-job-assistant/1.0 (+https://github.com/tyh-star/ai-job-assistant)";
+            "ai-job-assistant/1.0";
 
     @Bean
     public RestClient freeHireRestClient(RestClient.Builder builder, Environment environment) {

@@ -65,7 +65,7 @@ class ResumeControllerDownloadTest {
         byte[] payload = "%PDF-1.4".getBytes(StandardCharsets.UTF_8);
         Files.write(file, payload);
         when(resumeService.downloadResume(EMAIL, 4L))
-                .thenReturn(new ResumeFileDownload(file, "yaohang.pdf", "pdf"));
+                .thenReturn(new ResumeFileDownload(file, "alex-morgan.pdf", "pdf"));
 
         ResponseEntity<Resource> response = controller.downloadResume(authentication, 4L);
 
@@ -73,7 +73,7 @@ class ResumeControllerDownloadTest {
         assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
         ContentDisposition disposition = response.getHeaders().getContentDisposition();
         assertEquals("attachment", disposition.getType());
-        assertEquals("yaohang.pdf", disposition.getFilename());
+        assertEquals("alex-morgan.pdf", disposition.getFilename());
         assertArrayEquals(payload, response.getBody().getContentAsByteArray());
     }
 
@@ -83,7 +83,7 @@ class ResumeControllerDownloadTest {
         byte[] payload = "canonical-docx".getBytes(StandardCharsets.UTF_8);
         Files.write(file, payload);
         when(resumeService.downloadResume(EMAIL, 41L))
-                .thenReturn(new ResumeFileDownload(file, "Yaohang_Tang_canonical.docx", "docx"));
+                .thenReturn(new ResumeFileDownload(file, "Alex_Morgan_canonical.docx", "docx"));
 
         ResponseEntity<Resource> response = controller.downloadResume(authentication, 41L);
 
@@ -91,7 +91,7 @@ class ResumeControllerDownloadTest {
         assertEquals(MediaType.parseMediaType(DOCX_TYPE), response.getHeaders().getContentType());
         ContentDisposition disposition = response.getHeaders().getContentDisposition();
         assertEquals("attachment", disposition.getType());
-        assertEquals("Yaohang_Tang_canonical.docx", disposition.getFilename());
+        assertEquals("Alex_Morgan_canonical.docx", disposition.getFilename());
         assertArrayEquals(payload, response.getBody().getContentAsByteArray());
     }
 

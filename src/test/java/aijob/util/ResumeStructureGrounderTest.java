@@ -14,18 +14,20 @@ import aijob.dto.ResumeStructureLlmText;
 import aijob.dto.ResumeTextBlock;
 import org.junit.jupiter.api.Test;
 
-import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * Structure grounding tests. {@code generatedResumePdf_*} uses
+ * {@link GeneratedResumePdfFixture}: Prime Deals / SmartPC Builder are fictional
+ * project names of that synthetic fixture, not real products.
+ */
 class ResumeStructureGrounderTest {
 
     private final ResumeStructureGrounder grounder = new ResumeStructureGrounder();
@@ -46,7 +48,7 @@ class ResumeStructureGrounderTest {
                 provenanced("Spring Boot", "b-p1-3", 1, "Spring Boot", "HIGH")
         );
         llm.projects = List.of(project("Job Tracker", List.of("Parsed job descriptions"), "b-p1-4", 1));
-        llm.education = List.of(education("York University", "B.S. Computer Science", "b-p1-5", 1));
+        llm.education = List.of(education("Example University", "B.S. Computer Science", "b-p1-5", 1));
 
         ResumeStructure merged = grounder.merge(layout, draft, llm);
 
@@ -61,7 +63,7 @@ class ResumeStructureGrounderTest {
         assertTrue(hasSkill(merged, "Java"));
         assertTrue(hasSkill(merged, "Spring Boot"));
         assertEquals("Job Tracker", merged.getProjects().get(0).getName());
-        assertEquals("York University", merged.getEducation().get(0).getSchool());
+        assertEquals("Example University", merged.getEducation().get(0).getSchool());
         assertTrue(Boolean.TRUE.equals(merged.getLlmClassified()));
         assertNotNull(draft.getLayoutProfile());
         assertNotNull(merged.getLayoutProfile());
@@ -122,15 +124,15 @@ class ResumeStructureGrounderTest {
     }
 
     @Test
-    void yaohangTangPdf_keepsCopiedFactsAndDropsInventions() throws Exception {
-        PdfLayout layout = extractor.extract(fixture("resumes/yaohang-tang.pdf"));
+    void generatedResumePdf_keepsCopiedFactsAndDropsInventions() throws Exception {
+        PdfLayout layout = extractor.extract(GeneratedResumePdfFixture.pdf());
         ResumeStructure draft = draftBuilder.build(layout);
 
         ResumeTextBlock summaryBlock = findBlock(layout, "SDLC");
         ResumeTextBlock skillBlock = findBlock(layout, "Programming Languages");
         ResumeTextBlock prime = findBlock(layout, "Prime Deals");
         ResumeTextBlock smartPc = findBlock(layout, "SmartPC Builder");
-        ResumeTextBlock york = findBlock(layout, "Bachelor of Computer Science");
+        ResumeTextBlock school = findBlock(layout, "Bachelor of Computer Science");
         ResumeTextBlock courses = findBlock(layout, "Relevant Courses");
 
         List<ResumeStructureLlmText> summaryBullets = copiedSummaryBullets(summaryBlock);
@@ -152,7 +154,7 @@ class ResumeStructureGrounderTest {
                 ),
                 project(
                         "SmartPC Builder",
-                        copiedIfPresent(smartPc, "York University"),
+                        copiedIfPresent(smartPc, "Example University"),
                         copiedBetween(smartPc, "Jan 2025", "Mar 2025"),
                         copiedBullets(smartPc),
                         copiedUrls(smartPc),
@@ -161,12 +163,12 @@ class ResumeStructureGrounderTest {
                 )
         );
         llm.education = List.of(education(
-                "York University",
-                copiedDegree(york),
-                copiedBetween(york, "Sept 2023", "Present"),
+                "Example University",
+                copiedDegree(school),
+                copiedBetween(school, "Sept 2023", "Present"),
                 ResumeStructureGrounder.normalize(courses.getText()),
-                List.of(york.getId(), courses.getId()),
-                york.getPage()
+                List.of(school.getId(), courses.getId()),
+                school.getPage()
         ));
         llm.experience = List.of(experience(
                 "Internship",
@@ -178,8 +180,8 @@ class ResumeStructureGrounderTest {
 
         ResumeStructure merged = grounder.merge(layout, draft, llm);
 
-        assertTrue(merged.getContact().getFullName().toLowerCase(Locale.ROOT).contains("tang")
-                || merged.getContact().getFullName().toLowerCase(Locale.ROOT).contains("yaohang"));
+        assertTrue(merged.getContact().getFullName().toLowerCase(Locale.ROOT).contains("morgan")
+                || merged.getContact().getFullName().toLowerCase(Locale.ROOT).contains("alex"));
         assertTrue(merged.getContact().getEmail().contains("@"));
         assertTrue(merged.getSummary() == null || merged.getSummary().isBlank());
         assertEquals(7, merged.getSummaryBullets().size(), summaryBlock.getText());
@@ -200,23 +202,23 @@ class ResumeStructureGrounderTest {
         assertEquals("Personal Project", primeProject.getOrganizationOrType());
         assertTrue(primeProject.getDates().contains("Sept 2024"));
         assertTrue(primeProject.getDates().contains("Present"));
-        assertTrue(primeProject.getLinks().stream().anyMatch(link -> link.contains("35.183.41.31")));
+        assertTrue(primeProject.getLinks().stream().anyMatch(link -> link.contains("atlas.example.com")));
         assertFalse(primeProject.getBullets().stream().anyMatch(bullet ->
                 bullet.toLowerCase(Locale.ROOT).contains("project link")
                         || bullet.contains("http://")
                         || bullet.contains("https://")));
         ResumeProject smartProject = projectNamed(merged, "SmartPC Builder");
-        assertEquals("York University", smartProject.getOrganizationOrType());
+        assertEquals("Example University", smartProject.getOrganizationOrType());
         assertTrue(smartProject.getDates().contains("Jan 2025"));
         assertTrue(smartProject.getDates().contains("Mar 2025"));
         ResumeEducation education = merged.getEducation().get(0);
-        assertEquals("York University", education.getSchool());
+        assertEquals("Example University", education.getSchool());
         assertEquals("Bachelor of Computer Science", education.getDegree());
         assertTrue(education.getDates().contains("Sept 2023"));
         assertTrue(education.getDates().contains("Present"));
         assertTrue(education.getDetails().contains("Relevant Courses"));
         assertTrue(education.getDetails().contains("Algorithm"));
-        assertTrue(education.getSourceBlockIds().contains(york.getId()));
+        assertTrue(education.getSourceBlockIds().contains(school.getId()));
         assertTrue(education.getSourceBlockIds().contains(courses.getId()));
         assertEquals(ResumeTextBlock.PROVENANCE_LLM, education.getProvenance());
         assertTrue(merged.getExperience().isEmpty());
@@ -235,7 +237,7 @@ class ResumeStructureGrounderTest {
                 block("b-p1-2", 1, 120, 13, "SUMMARY OF QUALIFICATIONS", List.of(ResumeTextBlock.FEATURE_ALL_CAPS)),
                 block("b-p1-3", 1, 150, 11, "Java, Spring Boot", List.of(ResumeTextBlock.FEATURE_COMMA_LIST)),
                 block("b-p1-4", 1, 200, 11, "Job Tracker\nParsed job descriptions", List.of(ResumeTextBlock.FEATURE_BULLET)),
-                block("b-p1-5", 1, 260, 11, "York University\nB.S. Computer Science", List.of())
+                block("b-p1-5", 1, 260, 11, "Example University\nB.S. Computer Science", List.of())
         ));
     }
 
@@ -509,10 +511,6 @@ class ResumeStructureGrounderTest {
                 .filter(block -> block.getText() != null && block.getText().contains(needle))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Missing block containing: " + needle));
-    }
-
-    private Path fixture(String classpath) throws URISyntaxException {
-        return Path.of(Objects.requireNonNull(getClass().getClassLoader().getResource(classpath)).toURI());
     }
 
     private static boolean hasSkill(ResumeStructure structure, String name) {

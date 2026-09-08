@@ -5,9 +5,7 @@ import aijob.dto.PdfLayout;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.net.URISyntaxException;
 import java.nio.file.Path;
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -22,14 +20,14 @@ class LayoutProfileBuilderTest {
     Path tempDir;
 
     @Test
-    void yaohangTangPdf_extractsLeftRuleUnderlineGroupedRightDates() throws Exception {
-        PdfLayout layout = extractor.extract(fixture("resumes/yaohang-tang.pdf"));
+    void generatedResumePdf_extractsLeftRuleUnderlineGroupedRightDates() throws Exception {
+        PdfLayout layout = extractor.extract(GeneratedResumePdfFixture.pdf());
         LayoutProfile profile = LayoutProfileBuilder.from(layout);
 
         assertEquals(LayoutProfile.PAGE_LETTER, profile.getPageSize());
         assertEquals(LayoutProfile.ALIGN_LEFT, profile.getHeaderAlignment());
         assertEquals(LayoutProfile.ALIGN_LEFT, profile.getContactAlignment());
-        assertTrue(profile.isHasHeaderRule(), "expected a header rule on the Yaohang fixture");
+        assertTrue(profile.isHasHeaderRule(), "expected a header rule on the generated resume fixture");
         assertTrue(profile.getSectionHeading().isAllCaps());
         assertTrue(profile.getSectionHeading().isUnderline(), "expected underlined section headings");
         assertEquals(LayoutProfile.SKILL_GROUPED, profile.getSectionLayout().getSkillPresentation());
@@ -43,7 +41,7 @@ class LayoutProfileBuilderTest {
     }
 
     @Test
-    void centeredSansFixture_isNotYaohangStyle() throws Exception {
+    void centeredSansFixture_isNotAlexMorganStyle() throws Exception {
         Path pdf = tempDir.resolve("centered-sans.pdf");
         PdfLayoutTestDocuments.writeCenteredSansResume(pdf);
 
@@ -93,7 +91,4 @@ class LayoutProfileBuilderTest {
         assertEquals(1, profile.getSectionLayout().getColumnCount());
     }
 
-    private Path fixture(String classpath) throws URISyntaxException {
-        return Path.of(Objects.requireNonNull(getClass().getClassLoader().getResource(classpath)).toURI());
-    }
 }

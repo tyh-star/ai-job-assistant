@@ -168,7 +168,7 @@ public class ResumeServiceImpl implements ResumeService {
 
         return resumeMapper.findByUserId(user.getId())
                 .stream()
-                .filter(resume -> includeDerived || isUploadOrigin(resume))
+                .filter(resume -> includeDerived || isVisibleByDefault(resume))
                 .map(this::toResumeResponse)
                 .toList();
     }
@@ -960,6 +960,14 @@ public class ResumeServiceImpl implements ResumeService {
 
     private boolean isUploadOrigin(Resume resume) {
         return resume.getOrigin() == null || ResumeOrigin.UPLOAD.name().equals(resume.getOrigin());
+    }
+
+    /** UPLOAD and GENERATED are real, standalone resumes and always show in "我的简历"
+     * by default. TEMPLATE is the internal canonical-DOCX working copy of a PDF and
+     * stays hidden unless {@code includeDerived} is requested -- see ResumeOrigin's
+     * javadoc. */
+    private boolean isVisibleByDefault(Resume resume) {
+        return isUploadOrigin(resume) || ResumeOrigin.GENERATED.name().equals(resume.getOrigin());
     }
 
     private String sanitizeDownloadFileName(String fileName, String fileType) {

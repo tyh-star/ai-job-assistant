@@ -21,7 +21,7 @@ import aijob.service.PdfExportService;
 import aijob.service.ResumeDocumentService;
 import aijob.service.ResumeDocxTailorService;
 import aijob.util.ConservativeLanguageJudge;
-import aijob.util.TailorV2T2BYaohangTest;
+import aijob.util.TailorV2T2BAlexMorganTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +52,7 @@ import static org.mockito.Mockito.when;
 class JobServiceImplQualityHardGateTest {
 
     private static final String EMAIL = "user@example.com";
-    private static final String YAOHANG_P23 =
+    private static final String ALEX_MORGAN_P23 =
             "●   Developed and integrated IP rate-limiting and black/white list management features to strengthen access control and mitigate potential attack traffic.";
     private static final String DIRECTED_P23 =
             "●   Directed and integrated IP rate-limiting and black/white list management features to strengthen access control and mitigate potential attack traffic.";
@@ -242,7 +242,7 @@ class JobServiceImplQualityHardGateTest {
         stubInsertProposal(42L);
         when(resumeDocumentService.parseDocx(any())).thenReturn(List.of(
                 new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"),
-                new ResumeDocumentNode("p-23", "PARAGRAPH", YAOHANG_P23)
+                new ResumeDocumentNode("p-23", "PARAGRAPH", ALEX_MORGAN_P23)
         ));
         when(aiResumeService.generateConstrainedTailorCandidates(any(), any(), any(), isNull()))
                 .thenReturn(candidates(candidate(DIRECTED_P23)));
@@ -303,7 +303,7 @@ class JobServiceImplQualityHardGateTest {
         job.setDescription("Junior Java Backend Developer using Spring Boot, Maven, and REST APIs.");
         when(jobMapper.findById(10L)).thenReturn(job);
         stubInsertProposal(42L);
-        when(resumeDocumentService.parseDocx(any())).thenReturn(TailorV2T2BYaohangTest.yaohangT2bNodes());
+        when(resumeDocumentService.parseDocx(any())).thenReturn(TailorV2T2BAlexMorganTest.alexMorganT2bNodes());
         when(aiResumeService.generateConstrainedTailorCandidates(any(), any(), any(), isNull()))
                 .thenAnswer(invocation -> {
                     ResumeDocumentNode node = invocation.getArgument(0);
@@ -340,7 +340,7 @@ class JobServiceImplQualityHardGateTest {
         stubInsertProposal(42L);
         when(resumeDocumentService.parseDocx(any())).thenReturn(List.of(
                 new ResumeDocumentNode("p-0", "PARAGRAPH", "EXPERIENCE"),
-                new ResumeDocumentNode("p-23", "PARAGRAPH", YAOHANG_P23)
+                new ResumeDocumentNode("p-23", "PARAGRAPH", ALEX_MORGAN_P23)
         ));
         when(aiResumeService.generateConstrainedTailorCandidates(any(), any(), any(), isNull()))
                 .thenReturn(candidates(candidate(DIRECTED_P23)));
