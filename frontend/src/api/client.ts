@@ -190,6 +190,10 @@ export function apiErrorKey(error: unknown): string {
     return 'errors.conflict'
   }
   if (status === 400) {
+    const code = axiosError.response.data?.code
+    if (code === 'WEAK_PASSWORD') {
+      return 'errors.weakPassword'
+    }
     const lower = message.toLowerCase()
     if (lower.includes('current password is incorrect')) {
       return 'errors.incorrectPassword'

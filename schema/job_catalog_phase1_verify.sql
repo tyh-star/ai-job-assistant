@@ -16,7 +16,7 @@ SELECT table_name AS present_table
    AND table_name IN ('schema_migrations', 'job_sources', 'job_catalog',
                       'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs',
                       'site_feedback', 'resume_builder_drafts',
-                      'resume_builder_generation_requests')
+                      'resume_builder_generation_requests', 'job_search_history')
  ORDER BY table_name;
 
 SET @tables := (
@@ -25,7 +25,7 @@ SET @tables := (
        AND table_name IN ('schema_migrations', 'job_sources', 'job_catalog',
                           'job_source_records', 'job_ingest_runs', 'user_saved_catalog_jobs',
                           'site_feedback', 'resume_builder_drafts',
-                          'resume_builder_generation_requests')
+                          'resume_builder_generation_requests', 'job_search_history')
 );
 
 SET @columns := (
@@ -56,6 +56,10 @@ SET @columns := (
                  'schema_version', 'draft_json', 'version', 'created_at', 'updated_at'))
          OR (table_name = 'resume_builder_generation_requests' AND column_name IN
                 ('user_id', 'draft_id', 'idempotency_key', 'resume_id', 'created_at'))
+         OR (table_name = 'job_search_history' AND column_name IN
+                ('user_id', 'keywords', 'city', 'city_country', 'country', 'work_mode',
+                 'employment_type', 'posted_within', 'sort_by', 'criteria_hash',
+                 'search_count', 'created_at', 'last_searched_at'))
        )
 );
 
@@ -72,7 +76,10 @@ SET @indexes := (
                           'uk_site_feedback_user',
                           'idx_resume_builder_drafts_user',
                           'idx_resume_builder_drafts_user_updated',
-                          'uk_resume_builder_gen_user_key')
+                          'uk_resume_builder_gen_user_key',
+                          'uk_job_search_history_user_criteria',
+                          'idx_job_search_history_user',
+                          'idx_job_search_history_last_searched')
 );
 
 SET @foreign_keys := (
@@ -82,7 +89,8 @@ SET @foreign_keys := (
        AND constraint_name IN ('fk_job_source_records_source', 'fk_job_source_records_catalog',
                                'fk_job_ingest_runs_source', 'fk_user_saved_catalog_jobs_user',
                                'fk_user_saved_catalog_jobs_catalog',
-                               'fk_user_saved_catalog_jobs_personal')
+                               'fk_user_saved_catalog_jobs_personal',
+                               'fk_job_search_history_user')
 );
 
 -- A posting's external id must compare exactly. Counted here and not only in the
@@ -156,28 +164,37 @@ SET @resume_builder_gen_unique_correct := (
        AND index_name = 'uk_resume_builder_gen_user_key'
 );
 
-SELECT @tables AS tables_found_of_9,
-       @columns AS columns_found_of_59,
-       @indexes AS indexes_found_of_14,
-       @foreign_keys AS foreign_keys_found_of_6,
+SET @job_search_history_unique_correct := (
+    SELECT COUNT(DISTINCT table_name, index_name) FROM information_schema.STATISTICS
+     WHERE table_schema = DATABASE()
+       AND table_name = 'job_search_history'
+       AND index_name = 'uk_job_search_history_user_criteria'
+);
+
+SELECT @tables AS tables_found_of_10,
+       @columns AS columns_found_of_72,
+       @indexes AS indexes_found_of_17,
+       @foreign_keys AS foreign_keys_found_of_7,
        @external_id_exact AS external_job_id_binary_no_pad_of_1,
        @applied_column_correct AS jobs_applied_column_correct_of_1,
        @applied_at_column_correct AS jobs_applied_at_column_correct_of_1,
        @auth_version_column_correct AS users_auth_version_column_correct_of_1,
        @site_feedback_unique_correct AS site_feedback_unique_key_correct_of_1,
        @resume_builder_version_correct AS resume_builder_version_column_correct_of_1,
-       @resume_builder_gen_unique_correct AS resume_builder_gen_unique_key_correct_of_1;
+       @resume_builder_gen_unique_correct AS resume_builder_gen_unique_key_correct_of_1,
+       @job_search_history_unique_correct AS job_search_history_unique_key_correct_of_1;
 
 -- Fails the script (and the shell) when anything is missing. Deliberately before the
 -- schema_migrations read: on a database that never got the migration that table does
 -- not exist, and the counts above are the useful diagnostic, not a missing-table error.
-SET @gate := IF(@tables = 9 AND @columns = 59 AND @indexes = 14 AND @foreign_keys = 6
+SET @gate := IF(@tables = 10 AND @columns = 72 AND @indexes = 17 AND @foreign_keys = 7
                 AND @external_id_exact = 1
                 AND @applied_column_correct = 1 AND @applied_at_column_correct = 1
                 AND @auth_version_column_correct = 1
                 AND @site_feedback_unique_correct = 1
                 AND @resume_builder_version_correct = 1
-                AND @resume_builder_gen_unique_correct = 1,
+                AND @resume_builder_gen_unique_correct = 1
+                AND @job_search_history_unique_correct = 1,
     'SELECT 1',
     'SELECT 1 FROM job_catalog_structure_incomplete_see_counts_above');
 PREPARE stmt FROM @gate;

@@ -10,6 +10,7 @@ import aijob.dto.ImportGreenhouseJobsRequest;
 import aijob.dto.ImportJobsResponse;
 import aijob.dto.JobMatchResponse;
 import aijob.dto.JobResponse;
+import aijob.dto.JobApplicationStatsResponse;
 import aijob.dto.JobSearchRequest;
 import aijob.dto.JobSearchResponse;
 import aijob.dto.JobSearchNextPageRequest;
@@ -19,6 +20,7 @@ import aijob.dto.TailorAnalysisResponse;
 import aijob.dto.TailoredResumeResponse;
 import aijob.dto.UpdateJobRequest;
 import aijob.enums.TailorMode;
+import aijob.service.JobApplicationStatsService;
 import aijob.service.JobService;
 import aijob.service.TailorAnalysisService;
 import jakarta.validation.Valid;
@@ -45,10 +47,15 @@ public class JobController {
 
     private final JobService jobService;
     private final TailorAnalysisService tailorAnalysisService;
+    private final JobApplicationStatsService jobApplicationStatsService;
 
-    public JobController(JobService jobService, TailorAnalysisService tailorAnalysisService) {
+    public JobController(
+            JobService jobService,
+            TailorAnalysisService tailorAnalysisService,
+            JobApplicationStatsService jobApplicationStatsService) {
         this.jobService = jobService;
         this.tailorAnalysisService = tailorAnalysisService;
+        this.jobApplicationStatsService = jobApplicationStatsService;
     }
 
     @PostMapping
@@ -157,6 +164,19 @@ public class JobController {
                 );
 
         return ResponseEntity.ok(deleted);
+    }
+
+    /**
+     * Snapshot of jobs this caller currently has marked applied, bucketed in the
+     * browser's IANA timezone. Literal path so it never collides with {@code /{id}}.
+     */
+    @GetMapping("/application-stats")
+    public ResponseEntity<JobApplicationStatsResponse> applicationStats(
+            Authentication authentication,
+            @RequestParam(required = false) Integer days,
+            @RequestParam String timeZone) {
+        return ResponseEntity.ok(
+                jobApplicationStatsService.getStats(authentication.getName(), days, timeZone));
     }
 
     @GetMapping("/{id}")

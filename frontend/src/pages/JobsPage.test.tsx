@@ -9,6 +9,7 @@ import {
   analyzeTailorFit,
   clearJobApplied,
   createTailorProposal,
+  getJobApplicationStats,
   importSearchResults,
   listJobs,
   markJobApplied,
@@ -23,6 +24,10 @@ import {
   searchCatalogCities,
   searchJobCatalog,
 } from '../api/jobCatalog'
+import {
+  listJobSearchHistory,
+  recordJobSearchHistory,
+} from '../api/jobSearchHistory'
 import type { JobCatalogSummary } from '../api/types'
 import { AuthProvider } from '../auth/AuthContext'
 import { saveSession } from '../auth/session'
@@ -44,6 +49,14 @@ vi.mock('../api/jobs', () => ({
   analyzeTailorFit: vi.fn(),
   createTailorProposal: vi.fn(),
   refreshJobRequirementProfile: vi.fn(),
+  getJobApplicationStats: vi.fn(),
+}))
+
+vi.mock('../api/jobSearchHistory', () => ({
+  listJobSearchHistory: vi.fn(),
+  recordJobSearchHistory: vi.fn(),
+  deleteJobSearchHistory: vi.fn(),
+  clearJobSearchHistory: vi.fn(),
 }))
 
 vi.mock('../api/jobCatalog', () => ({
@@ -164,6 +177,17 @@ describe('JobsPage catalog search', () => {
     } as never)
     vi.mocked(searchCatalogCities).mockResolvedValue({
       data: [{ value: 'Toronto', countryCode: 'ca' }],
+    } as never)
+    vi.mocked(listJobSearchHistory).mockResolvedValue({ data: [] } as never)
+    vi.mocked(recordJobSearchHistory).mockResolvedValue({} as never)
+    vi.mocked(getJobApplicationStats).mockResolvedValue({
+      data: {
+        todayCount: 0,
+        last7DaysCount: 0,
+        last30DaysCount: 0,
+        daily: [],
+        totalApplied: 0,
+      },
     } as never)
   })
 
@@ -400,8 +424,8 @@ describe('JobsPage catalog search', () => {
 
     await user.click(catalog().getByRole('button', { name: '撤销已投递标记' }))
     await waitFor(() => expect(clearJobCatalogApplied).toHaveBeenCalledWith('501'))
-    // Moves back to 已保存职位.
-    expect(await screen.findByRole('tab', { name: /已保存/ })).toHaveAttribute('aria-selected', 'true')
+    // Moves back to 已收藏职位.
+    expect(await screen.findByRole('tab', { name: /已收藏/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('declining the confirm prompt marks nothing', async () => {
@@ -644,15 +668,15 @@ describe('JobsPage catalog search', () => {
     const user = userEvent.setup()
     await renderAndSettle()
 
-    await user.click(await catalog().findByRole('button', { name: '保存职位' }))
+    await user.click(await catalog().findByRole('button', { name: '收藏职位' }))
 
     await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith('501'))
-    // Moves to 已保存职位 immediately, no page reload needed.
-    expect(await screen.findByRole('tab', { name: /已保存/ })).toHaveAttribute('aria-selected', 'true')
+    // Moves to 已收藏职位 immediately, no page reload needed.
+    expect(await screen.findByRole('tab', { name: /已收藏/ })).toHaveAttribute('aria-selected', 'true')
     await user.click(screen.getByRole('tab', { name: '查找职位' }))
 
-    expect(await catalog().findByText('已保存')).toBeInTheDocument()
-    expect(catalog().queryByRole('button', { name: '保存职位' })).not.toBeInTheDocument()
+    expect(await catalog().findByText('已收藏')).toBeInTheDocument()
+    expect(catalog().queryByRole('button', { name: '收藏职位' })).not.toBeInTheDocument()
     expect(catalog().getByRole('link', { name: '分析职位匹配' })).toHaveAttribute(
       'href',
       '/tailor?jobId=101',
@@ -669,7 +693,7 @@ describe('JobsPage catalog search', () => {
   it('a posting whose upstream detail 404s never shows the generic save-failed message', async () => {
     // The real scenario (confirmed live against freehire.me): a posting still shown in
     // search results, but its own detail lookup 404s by the time save is clicked. Must
-    // never say "保存职位失败，请重试" -- retrying can never help a genuinely gone
+    // never say "收藏职位失败，请重试" -- retrying can never help a genuinely gone
     // posting -- and the card must be marked so the user can't keep trying.
     vi.mocked(saveJobCatalogJob).mockRejectedValue({
       response: { status: 404, data: { message: 'JOB_DETAIL_NO_LONGER_AVAILABLE' } },
@@ -677,13 +701,13 @@ describe('JobsPage catalog search', () => {
     const user = userEvent.setup()
     await renderAndSettle()
 
-    await user.click(await catalog().findByRole('button', { name: '保存职位' }))
+    await user.click(await catalog().findByRole('button', { name: '收藏职位' }))
     await waitFor(() => expect(saveJobCatalogJob).toHaveBeenCalledWith('501'))
 
     expect(await catalog().findByText('详情不可用')).toBeInTheDocument()
-    expect(catalog().queryByText('保存职位失败，请重试。')).not.toBeInTheDocument()
+    expect(catalog().queryByText('收藏职位失败，请重试。')).not.toBeInTheDocument()
     expect(await catalog().findByText(/该职位的详情已经失效/)).toBeInTheDocument()
-    expect(catalog().getByRole('button', { name: '保存职位' })).toBeDisabled()
+    expect(catalog().getByRole('button', { name: '收藏职位' })).toBeDisabled()
     // A safe original-listing link, if there is one, must still be usable.
     expect(catalog().getByRole('link', { name: '查看原始职位' })).toBeInTheDocument()
   })
@@ -710,8 +734,8 @@ describe('JobsPage catalog search', () => {
     )
     await renderAndSettle()
 
-    expect(await catalog().findByText('已保存')).toBeInTheDocument()
-    expect(catalog().queryByRole('button', { name: '保存职位' })).not.toBeInTheDocument()
+    expect(await catalog().findByText('已收藏')).toBeInTheDocument()
+    expect(catalog().queryByRole('button', { name: '收藏职位' })).not.toBeInTheDocument()
     expect(catalog().getByRole('link', { name: '分析职位匹配' })).toHaveAttribute(
       'href',
       '/tailor?jobId=77',
@@ -753,16 +777,16 @@ describe('JobsPage catalog search', () => {
   it('renders the three tabs correctly in both Chinese and English', async () => {
     await renderAndSettle()
     expect(screen.getByRole('tab', { name: '查找职位' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /已保存/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /已收藏/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /已投递/ })).toBeInTheDocument()
 
     await i18n.changeLanguage('en')
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Find Jobs' })).toBeInTheDocument())
-    expect(screen.getByRole('tab', { name: /Saved/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Favorites/ })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Applied/ })).toBeInTheDocument()
   })
 
-  it('the manual-add-job form only ever appears on the 已保存 tab', async () => {
+  it('the manual-add-job form only ever appears on the 已收藏 tab', async () => {
     const user = userEvent.setup()
     await renderAndSettle()
 
@@ -772,7 +796,7 @@ describe('JobsPage catalog search', () => {
     await user.click(screen.getByRole('tab', { name: /已投递/ }))
     expect(screen.queryByRole('button', { name: '手动添加职位' })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('tab', { name: /已保存/ }))
+    await user.click(screen.getByRole('tab', { name: /已收藏/ }))
     expect(await screen.findByRole('button', { name: '手动添加职位' })).toBeInTheDocument()
     // Collapsed by default -- the form itself is not shown until toggled.
     expect(screen.queryByRole('heading', { name: '添加职位' })).not.toBeInTheDocument()
@@ -834,7 +858,7 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     expect(listJobs).not.toHaveBeenCalled()
   })
 
-  it('clicking 已保存/已投递 as an anonymous visitor never fetches personal jobs', async () => {
+  it('clicking 已收藏/已投递 as an anonymous visitor never fetches personal jobs', async () => {
     // Both tabs redirect toward /login instead of ever switching -- see onTabClick.
     // Because renderAnonymous() mounts no <Routes>, navigate('/login') here is a
     // silent no-op on screen (same precedent as "clicking save redirects toward
@@ -845,7 +869,7 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     renderAnonymous()
     await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
 
-    await user.click(screen.getByRole('tab', { name: /已保存/ }))
+    await user.click(screen.getByRole('tab', { name: /已收藏/ }))
     expect(listJobs).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: '手动添加职位' })).not.toBeInTheDocument()
 
@@ -857,7 +881,7 @@ describe('JobsPage for an anonymous visitor (not logged in)', () => {
     const user = userEvent.setup()
     renderAnonymous()
     await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
-    await user.click(await screen.findByRole('button', { name: '保存职位' }))
+    await user.click(await screen.findByRole('button', { name: '收藏职位' }))
     expect(saveJobCatalogJob).not.toHaveBeenCalled()
   })
 
@@ -907,7 +931,7 @@ describe('personal jobs saved from the catalog', () => {
 
   it('lists a catalog-sourced job among the user’s own jobs', async () => {
     await renderAndSettle()
-    await userEvent.click(screen.getByRole('tab', { name: /已保存/ }))
+    await userEvent.click(screen.getByRole('tab', { name: /已收藏/ }))
 
     const row = (await screen.findByText('Java Developer')).closest('tr')
     expect(row).not.toBeNull()
@@ -921,7 +945,7 @@ describe('personal jobs saved from the catalog', () => {
       data: [{ ...savedFromCatalog, source: 'SOME_FUTURE_SOURCE' }],
     } as never)
     await renderAndSettle()
-    await userEvent.click(screen.getByRole('tab', { name: /已保存/ }))
+    await userEvent.click(screen.getByRole('tab', { name: /已收藏/ }))
 
     // The i18n lookup falls back to the raw value. This is what makes a rollback to a
     // release that has never heard of JOB_CATALOG safe rather than a crash.
@@ -931,7 +955,7 @@ describe('personal jobs saved from the catalog', () => {
 
   it('can filter the personal list down to catalog-sourced jobs', async () => {
     await renderAndSettle()
-    await userEvent.click(screen.getByRole('tab', { name: /已保存/ }))
+    await userEvent.click(screen.getByRole('tab', { name: /已收藏/ }))
 
     await userEvent.selectOptions(
       screen.getByLabelText('来源'),
@@ -941,7 +965,7 @@ describe('personal jobs saved from the catalog', () => {
     expect(await screen.findByText('Java Developer')).toBeInTheDocument()
   })
 
-  it('a job already applied=true from the backend shows in 已投递, not 已保存, on a fresh render', async () => {
+  it('a job already applied=true from the backend shows in 已投递, not 已收藏, on a fresh render', async () => {
     // Simulates a page refresh: no client-only memory of what happened in a prior
     // render, only what listJobs (backed by the real jobs.applied/applied_at columns)
     // returns this time.
@@ -956,17 +980,17 @@ describe('personal jobs saved from the catalog', () => {
     expect(within(row as HTMLElement).getByText('已投递')).toBeInTheDocument()
     expect(within(row as HTMLElement).getByText(/2026-09-06/)).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('tab', { name: /已保存/ }))
+    await userEvent.click(screen.getByRole('tab', { name: /已收藏/ }))
     expect(screen.queryByText('Java Developer')).not.toBeInTheDocument()
   })
 
-  it('confirming applied from the 已保存 table moves the row to 已投递', async () => {
+  it('confirming applied from the 已收藏 table moves the row to 已投递', async () => {
     vi.mocked(markJobApplied).mockResolvedValue({
       data: { ...savedFromCatalog, applied: true, appliedAt: '2026-09-06T12:00:00' },
     } as never)
     const user = userEvent.setup()
     await renderAndSettle()
-    await user.click(screen.getByRole('tab', { name: /已保存/ }))
+    await user.click(screen.getByRole('tab', { name: /已收藏/ }))
 
     await user.click(await screen.findByRole('button', { name: '确认已投递' }))
     await waitFor(() => expect(markJobApplied).toHaveBeenCalledWith(101))
@@ -979,7 +1003,7 @@ describe('personal jobs saved from the catalog', () => {
     expect(await screen.findByRole('tab', { name: /已投递/ })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('revoking applied from the 已投递 table moves the row back to 已保存', async () => {
+  it('revoking applied from the 已投递 table moves the row back to 已收藏', async () => {
     vi.mocked(listJobs).mockResolvedValue({
       data: [{ ...savedFromCatalog, applied: true, appliedAt: '2026-09-06T12:00:00' }],
     } as never)
@@ -996,31 +1020,31 @@ describe('personal jobs saved from the catalog', () => {
     vi.mocked(listJobs).mockResolvedValue({
       data: [{ ...savedFromCatalog, applied: false, appliedAt: null }],
     } as never)
-    expect(await screen.findByRole('tab', { name: /已保存/ })).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByRole('tab', { name: /已收藏/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('shows a clear empty state for each tab when there is nothing in it', async () => {
     vi.mocked(listJobs).mockResolvedValue({ data: [] } as never)
     await renderAndSettle()
 
-    await userEvent.click(screen.getByRole('tab', { name: /已保存/ }))
-    expect(await screen.findByText('还没有保存职位')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('tab', { name: /已收藏/ }))
+    expect(await screen.findByText('还没有收藏职位')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('tab', { name: /已投递/ }))
     expect(await screen.findByText('还没有标记为已投递的职位')).toBeInTheDocument()
   })
 
-  it('a failed confirm-applied request never moves the row out of 已保存', async () => {
+  it('a failed confirm-applied request never moves the row out of 已收藏', async () => {
     vi.mocked(markJobApplied).mockRejectedValue(new Error('boom'))
     const user = userEvent.setup()
     await renderAndSettle()
-    await user.click(screen.getByRole('tab', { name: /已保存/ }))
+    await user.click(screen.getByRole('tab', { name: /已收藏/ }))
 
     await user.click(await screen.findByRole('button', { name: '确认已投递' }))
     await waitFor(() => expect(markJobApplied).toHaveBeenCalledWith(101))
 
-    // Still on 已保存 -- a failed request must never switch tabs or move the row.
-    expect(screen.getByRole('tab', { name: /已保存/ })).toHaveAttribute('aria-selected', 'true')
+    // Still on 已收藏 -- a failed request must never switch tabs or move the row.
+    expect(screen.getByRole('tab', { name: /已收藏/ })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByText('Java Developer')).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toBeInTheDocument()
   })
@@ -1040,5 +1064,40 @@ describe('personal jobs saved from the catalog', () => {
     expect(screen.getByRole('tab', { name: /已投递/ })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByText('Java Developer')).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('English tabs are Find Jobs / Favorites / Applied', async () => {
+    await i18n.changeLanguage('en')
+    await renderAndSettle()
+    expect(screen.getByRole('tab', { name: /Find Jobs/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Favorites/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Applied/ })).toBeInTheDocument()
+  })
+
+  it('does not record search history on initial load or pagination, only on Search', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(
+      pageOf([activeJob], { totalPages: 2, hasMore: true, totalCount: 12 }),
+    )
+    const user = userEvent.setup()
+    await renderAndSettle()
+    expect(recordJobSearchHistory).not.toHaveBeenCalled()
+
+    await user.type(catalog().getByRole('textbox', { name: '关键词' }), 'java')
+    await user.click(catalog().getByRole('button', { name: '搜索' }))
+    await waitFor(() => expect(recordJobSearchHistory).toHaveBeenCalledTimes(1))
+
+    await user.click(catalog().getByRole('button', { name: '下一页' }))
+    await waitFor(() => expect(searchJobCatalog).toHaveBeenCalled())
+    expect(recordJobSearchHistory).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps search results when recording history fails', async () => {
+    vi.mocked(searchJobCatalog).mockResolvedValue(pageOf([activeJob]))
+    vi.mocked(recordJobSearchHistory).mockRejectedValue(new Error('history down'))
+    const user = userEvent.setup()
+    await renderAndSettle()
+    await user.type(catalog().getByRole('textbox', { name: '关键词' }), 'java')
+    await user.click(catalog().getByRole('button', { name: '搜索' }))
+    expect(await catalog().findByText('Java Developer')).toBeInTheDocument()
   })
 })

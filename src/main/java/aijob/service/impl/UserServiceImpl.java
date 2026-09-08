@@ -11,6 +11,7 @@ import aijob.exception.IncorrectPasswordException;
 import aijob.exception.UserNotFoundException;
 import aijob.mapper.UserMapper;
 import aijob.security.JwtUtil;
+import aijob.security.PasswordStrength;
 import aijob.service.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -123,6 +124,9 @@ public class UserServiceImpl implements UserService {
             ChangePasswordRequest request) {
 
         User user = getUserByEmail(email);
+
+        // Strength first, on the raw new password -- never trim, never log.
+        PasswordStrength.requireStrong(request.getNewPassword());
 
         if (!passwordEncoder.matches(
                 request.getCurrentPassword(),

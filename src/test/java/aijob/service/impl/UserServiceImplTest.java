@@ -8,6 +8,7 @@ import aijob.dto.UserResponse;
 import aijob.entity.User;
 import aijob.exception.EmailAlreadyExistsException;
 import aijob.exception.IncorrectPasswordException;
+import aijob.exception.WeakPasswordException;
 import aijob.exception.UserNotFoundException;
 import aijob.mapper.UserMapper;
 import aijob.security.JwtUtil;
@@ -189,9 +190,20 @@ class UserServiceImplTest {
         when(userMapper.findByEmail(EMAIL)).thenReturn(user(1L, EMAIL, "Password123", "Alice"));
         ChangePasswordRequest request = new ChangePasswordRequest();
         request.setCurrentPassword("wrong");
-        request.setNewPassword("NewPassword456");
+        request.setNewPassword("NewPassword456!");
 
         assertThrows(IncorrectPasswordException.class, () -> service.changePassword(EMAIL, request));
+        verify(userMapper, never()).changePasswordAndBumpAuthVersion(any(), any());
+    }
+
+    @Test
+    void changePasswordRejectsAWeakNewPasswordWithoutWriting() {
+        when(userMapper.findByEmail(EMAIL)).thenReturn(user(1L, EMAIL, "Password123", "Alice"));
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("Password123");
+        request.setNewPassword("Password1234");
+
+        assertThrows(WeakPasswordException.class, () -> service.changePassword(EMAIL, request));
         verify(userMapper, never()).changePasswordAndBumpAuthVersion(any(), any());
     }
 
@@ -201,7 +213,7 @@ class UserServiceImplTest {
         when(userMapper.findByEmail(EMAIL)).thenReturn(existing);
         ChangePasswordRequest request = new ChangePasswordRequest();
         request.setCurrentPassword("Password123");
-        request.setNewPassword("NewPassword456");
+        request.setNewPassword("NewPassword456!");
 
         service.changePassword(EMAIL, request);
 
@@ -213,8 +225,8 @@ class UserServiceImplTest {
         // encoded password.
         verify(userMapper).changePasswordAndBumpAuthVersion(eq(1L), passwordCaptor.capture());
         String stored = passwordCaptor.getValue();
-        assertNotEquals("NewPassword456", stored, "must never store the raw new password");
-        assertTrue(passwordEncoder.matches("NewPassword456", stored));
+        assertNotEquals("NewPassword456!", stored, "must never store the raw new password");
+        assertTrue(passwordEncoder.matches("NewPassword456!", stored));
     }
 
     // ---------------------------------------------------------------------------

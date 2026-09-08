@@ -182,7 +182,20 @@ describe('ProfilePage', () => {
     await user.type(passwordField.getByLabelText('Current password'), 'correct-password')
     await user.type(passwordField.getByLabelText('New password'), 'short')
     await user.click(passwordField.getByRole('button', { name: 'Save password' }))
-    expect(await screen.findByText('Password must be at least 8 characters')).toBeInTheDocument()
+    expect(await screen.findByText('This password does not meet the requirements shown.')).toBeInTheDocument()
+    expect(changePassword).not.toHaveBeenCalled()
+  })
+
+  it('shows the Chinese weak-password message', async () => {
+    await i18n.changeLanguage('zh-CN')
+    renderProfile()
+    await screen.findByText('alice@example.com')
+    const user = userEvent.setup()
+    const passwordField = section('修改密码')
+    await user.type(passwordField.getByLabelText('当前密码'), 'correct-password')
+    await user.type(passwordField.getByLabelText('新密码'), 'short')
+    await user.click(passwordField.getByRole('button', { name: '保存密码' }))
+    expect(await screen.findByText('密码不符合强度要求。')).toBeInTheDocument()
     expect(changePassword).not.toHaveBeenCalled()
   })
 
@@ -193,7 +206,7 @@ describe('ProfilePage', () => {
     const user = userEvent.setup()
     const passwordField = section('Change password')
     await user.type(passwordField.getByLabelText('Current password'), 'wrong-password')
-    await user.type(passwordField.getByLabelText('New password'), 'NewPassword456')
+    await user.type(passwordField.getByLabelText('New password'), 'NewPassword456!')
     await user.click(passwordField.getByRole('button', { name: 'Save password' }))
     expect(await screen.findByText('Current password is incorrect.')).toBeInTheDocument()
     expect(getToken()).toBe('original-token')
@@ -206,12 +219,12 @@ describe('ProfilePage', () => {
     const user = userEvent.setup()
     const passwordField = section('Change password')
     await user.type(passwordField.getByLabelText('Current password'), 'correct-password')
-    await user.type(passwordField.getByLabelText('New password'), 'NewPassword456')
+    await user.type(passwordField.getByLabelText('New password'), 'NewPassword456!')
     await user.click(passwordField.getByRole('button', { name: 'Save password' }))
 
     const successMessage = await screen.findByText(/Password updated\./)
     expect(successMessage.textContent).not.toMatch(/all devices/i)
-    expect(changePassword).toHaveBeenCalledWith({ currentPassword: 'correct-password', newPassword: 'NewPassword456' })
+    expect(changePassword).toHaveBeenCalledWith({ currentPassword: 'correct-password', newPassword: 'NewPassword456!' })
 
     // After the brief honest-notice delay, this browser's session is actually cleared
     // and the user is sent to /login -- not just told that it happened.

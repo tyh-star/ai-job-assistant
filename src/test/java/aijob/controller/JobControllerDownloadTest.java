@@ -55,7 +55,7 @@ class JobControllerDownloadTest {
 
     @BeforeEach
     void setUp() {
-        controller = new JobController(jobService, null);
+        controller = new JobController(jobService, null, null);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter())

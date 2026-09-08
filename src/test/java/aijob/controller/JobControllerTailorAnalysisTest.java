@@ -41,7 +41,7 @@ class JobControllerTailorAnalysisTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new JobController(jobService, tailorAnalysisService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new JobController(jobService, tailorAnalysisService, null))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter())
                 .build();

@@ -55,6 +55,9 @@ export const endpoints = {
   resumeBuilderDraftGenerate: (id: number | string) => `/resume-builder/drafts/${id}/generate`,
   resumeBuilderDraftCareerMaterials: (id: number | string) =>
     `/resume-builder/drafts/${id}/career-materials`,
+  jobsApplicationStats: '/jobs/application-stats',
+  jobSearchHistory: '/job-search-history',
+  jobSearchHistoryItem: (id: number | string) => `/job-search-history/${id}`,
 } as const
 
 /** Backend routes the UI does not wrap, still joined with the same Scheme A rule. */
@@ -114,5 +117,8 @@ export function frontendRelativeEndpoints(): string[] {
     endpoints.resumeBuilderDraftPreview(9),
     endpoints.resumeBuilderDraftGenerate(9),
     endpoints.resumeBuilderDraftCareerMaterials(9),
+    endpoints.jobsApplicationStats,
+    endpoints.jobSearchHistory,
+    endpoints.jobSearchHistoryItem(3),
   ]
 }

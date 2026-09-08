@@ -126,7 +126,7 @@ class UserControllerSecurityTest {
     void anonymousChangePasswordIsRejected() throws Exception {
         int status = mockMvc.perform(put("/api/v1/users/me/password")
                         .contentType("application/json")
-                        .content("{\"currentPassword\":\"x\",\"newPassword\":\"NewPassword456\"}"))
+                        .content("{\"currentPassword\":\"x\",\"newPassword\":\"NewPassword456!\"}"))
                 .andReturn().getResponse().getStatus();
         assertRejected(status);
     }
@@ -230,7 +230,7 @@ class UserControllerSecurityTest {
         mockMvc.perform(put("/api/v1/users/me/password")
                         .header("Authorization", auth)
                         .contentType("application/json")
-                        .content("{\"currentPassword\":\"wrong\",\"newPassword\":\"NewPassword456\"}"))
+                        .content("{\"currentPassword\":\"wrong\",\"newPassword\":\"NewPassword456!\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -242,12 +242,12 @@ class UserControllerSecurityTest {
         mockMvc.perform(put("/api/v1/users/me/password")
                         .header("Authorization", auth)
                         .contentType("application/json")
-                        .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword456\"}"))
+                        .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword456!\"}"))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/auth/login")
                         .contentType("application/json")
-                        .content("{\"email\":\"" + email + "\",\"password\":\"NewPassword456\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"NewPassword456!\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/auth/login")
@@ -276,7 +276,7 @@ class UserControllerSecurityTest {
         mockMvc.perform(put("/api/v1/users/me/password")
                         .header("Authorization", deviceA)
                         .contentType("application/json")
-                        .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword456\"}"))
+                        .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword456!\"}"))
                 .andExpect(status().isNoContent());
 
         // Both tokens issued before the change -- including the one that DIDN'T make
@@ -294,7 +294,7 @@ class UserControllerSecurityTest {
                 .andExpect(status().isUnauthorized());
         String loginBody = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/auth/login")
                         .contentType("application/json")
-                        .content("{\"email\":\"" + email + "\",\"password\":\"NewPassword456\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"NewPassword456!\"}"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
@@ -322,13 +322,13 @@ class UserControllerSecurityTest {
         mockMvc.perform(put("/api/v1/users/me/password")
                         .header("Authorization", staleToken)
                         .contentType("application/json")
-                        .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword456\"}"))
+                        .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"NewPassword456!\"}"))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/auth/login")
                         .header("Authorization", staleToken) // now-revoked, attached anyway
                         .contentType("application/json")
-                        .content("{\"email\":\"" + email + "\",\"password\":\"NewPassword456\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"NewPassword456!\"}"))
                 .andExpect(status().isOk());
     }
 

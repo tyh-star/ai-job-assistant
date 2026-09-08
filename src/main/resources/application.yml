@@ -10,6 +10,11 @@ spring:
       # Explicit so the collector container can be given a smaller share of the
       # MySQL connections than the API. 10 is Hikari's own default.
       maximum-pool-size: ${AIJOB_DB_POOL_MAX:10}
+      data-source-properties:
+        # TIMESTAMP columns are instants. Pin the session to UTC so LocalDateTime
+        # written as UTC wall time round-trips as the same instant after JDBC.
+        connectionTimeZone: UTC
+        forceConnectionTimeZoneToSession: true
 
   servlet:
     multipart:

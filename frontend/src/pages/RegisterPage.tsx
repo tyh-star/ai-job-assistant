@@ -3,8 +3,10 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { evaluatePassword } from '../auth/passwordStrength'
 import { sanitizeReturnTo } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
+import { PasswordChecklist } from '../components/PasswordChecklist'
 import { Spinner } from '../components/Spinner'
 import {
   AUTH_FOOTER_CLASS,
@@ -44,8 +46,8 @@ export function RegisterPage() {
       setError(t('auth.emailInvalid'))
       return
     }
-    if (password.length < 8) {
-      setError(t('auth.passwordMin'))
+    if (!evaluatePassword(password).strong) {
+      setError(t('errors.weakPassword'))
       return
     }
     setLoading(true)
@@ -93,6 +95,7 @@ export function RegisterPage() {
             autoComplete="new-password"
           />
         </label>
+        <PasswordChecklist password={password} />
         <button
           type="submit"
           disabled={loading}

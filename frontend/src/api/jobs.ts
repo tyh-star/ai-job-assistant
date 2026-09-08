@@ -21,10 +21,17 @@ import type {
   ScanEnhancedOpportunityRequest,
   AnswerEnhancedQuestionRequest,
   AnswerEnhancedQuestionResponse,
+  JobApplicationStatsResponse,
 } from './types'
 
 export function listJobs() {
   return api.get<JobResponse[]>(endpoints.jobs)
+}
+
+export function getJobApplicationStats(days: 7 | 30 | 90, timeZone: string) {
+  return api.get<JobApplicationStatsResponse>(endpoints.jobsApplicationStats, {
+    params: { days, timeZone },
+  })
 }
 
 export function createJob(body: JobForm) {

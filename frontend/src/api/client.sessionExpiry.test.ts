@@ -131,7 +131,7 @@ describe('handleResponseError (the 401 side of the axios interceptor)', () => {
     expect(window.location.assign).toHaveBeenCalledWith('/login?returnTo=%2Fjobs&reason=session_expired')
   })
 
-  it('rule 3: viewing 已保存/已投递 (GET /jobs) from /jobs also redirects', async () => {
+  it('rule 3: viewing 已收藏/已投递 (GET /jobs) from /jobs also redirects', async () => {
     setLocation('/jobs')
     await expect(handleResponseError(axios401('/jobs'))).rejects.toBeTruthy()
     expect(window.location.assign).toHaveBeenCalledWith('/login?returnTo=%2Fjobs&reason=session_expired')

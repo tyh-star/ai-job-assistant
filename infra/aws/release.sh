@@ -137,6 +137,10 @@ step "7/10 Apply the migrations and verify the structure"
 # tables above, chained here for the same reason the migrations before it
 # are: re-runnable, self-verifying, schema_migrations-gated.
 ./infra/aws/db-apply.sh schema/resume_builder.sql
+# Explicit catalog-search history for signed-in users. Typed columns, unique
+# (user_id, criteria_hash), cascaded on user delete. Anonymous history is
+# browser-only and is never written here.
+./infra/aws/db-apply.sh schema/job_search_history.sql
 ./infra/aws/db-apply.sh schema/job_catalog_phase1_verify.sql
 echo "Schema structure verified."
 

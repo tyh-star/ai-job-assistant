@@ -9,14 +9,29 @@ import {
   searchCatalogCities,
   searchJobCatalog,
 } from '../api/jobCatalog'
+import {
+  clearJobSearchHistory,
+  deleteJobSearchHistory,
+  listJobSearchHistory,
+  recordJobSearchHistory,
+} from '../api/jobSearchHistory'
 import type {
   CatalogEmploymentType,
   CatalogRemoteType,
   CitySuggestion,
   JobCatalogSummary,
+  JobSearchHistoryItem,
+  RecordJobSearchHistoryRequest,
 } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { loginPathWithReturnTo } from '../auth/returnTo'
+import {
+  clearAnonymousHistory,
+  deleteAnonymousHistory,
+  isEmptySearchCriteria,
+  loadAnonymousHistory,
+  recordAnonymousHistory,
+} from '../jobSearchHistory/anonymousHistory'
 
 const POSTED_WITHIN_DAYS = [1, 3, 7, 14, 30] as const
 // Fixed at 10 -- not user-configurable -- so the page count stays predictable and
@@ -147,39 +162,75 @@ export function JobCatalogSearch(
   const [confirmApplyId, setConfirmApplyId] = useState<string | null>(null)
   const [applyBusyId, setApplyBusyId] = useState<string | null>(null)
   const [applyErrorId, setApplyErrorId] = useState<string | null>(null)
+  const [history, setHistory] = useState<JobSearchHistoryItem[]>([])
+
+  async function refreshHistory() {
+    try {
+      if (isAuthenticated) {
+        const response = await listJobSearchHistory()
+        setHistory(response.data)
+      } else {
+        setHistory(loadAnonymousHistory())
+      }
+    } catch {
+      setHistory(isAuthenticated ? [] : loadAnonymousHistory())
+    }
+  }
+
+  async function persistHistory(payload: RecordJobSearchHistoryRequest) {
+    try {
+      if (isAuthenticated) {
+        await recordJobSearchHistory(payload)
+        await refreshHistory()
+      } else {
+        setHistory(recordAnonymousHistory(payload))
+      }
+    } catch {
+      // History writes must never fail a search that already succeeded.
+    }
+  }
 
   // Only Next/Previous pass scrollToResultsOnSuccess=true -- the initial on-mount load
   // and a brand-new keyword/filter search must never auto-scroll the page, only a
-  // pagination change on an already-visible results list.
+  // pagination change on an already-visible results list. recordHistory is true only
+  // for an explicit Search click / Enter -- never mount or pagination.
   const runSearch = useCallback(
-    async (targetPage: number, options: { scrollToResultsOnSuccess?: boolean } = {}) => {
+    async (
+      targetPage: number,
+      options: { scrollToResultsOnSuccess?: boolean; recordHistory?: boolean; criteria?: RecordJobSearchHistoryRequest } = {},
+    ) => {
       setLoading(true)
       setErrorKey(null)
+      const historyPayload: RecordJobSearchHistoryRequest = options.criteria ?? {
+        keywords: keywords || undefined,
+        city: city || undefined,
+        cityCountry: city ? country || undefined : undefined,
+        country: city ? undefined : country || undefined,
+        remoteType: remoteType || undefined,
+        employmentType: employmentType || undefined,
+        postedWithinDays: postedWithinDays ? Number(postedWithinDays) : undefined,
+        sort: sort || undefined,
+      }
       try {
         const response = await searchJobCatalog({
-          q: keywords,
-          city,
-          // Sent ONLY alongside city, as display/validation metadata the backend never
-          // forwards to FreeHire as a country filter -- see cityMatch below and
-          // JobCatalogSearchRequest#cityCountry's javadoc. `country` here, while a city
-          // is selected, only ever holds that suggestion's OWN country (see the
-          // `country` state comment above).
-          cityCountry: city ? country || undefined : undefined,
-          // Never sent alongside city -- see the `country` state comment above. When a
-          // city is selected, `country` here only ever holds that suggestion's OWN
-          // country for display, which must not reach the backend as a real filter.
-          country: city ? undefined : country,
-          remoteType,
-          employmentType,
-          postedWithinDays: postedWithinDays ? Number(postedWithinDays) : undefined,
+          q: historyPayload.keywords ?? '',
+          city: historyPayload.city ?? '',
+          cityCountry: historyPayload.city ? historyPayload.cityCountry : undefined,
+          country: historyPayload.city ? undefined : historyPayload.country,
+          remoteType: historyPayload.remoteType ?? '',
+          employmentType: historyPayload.employmentType ?? '',
+          postedWithinDays: historyPayload.postedWithinDays,
           page: targetPage,
           size: PAGE_SIZE,
-          sort,
+          sort: historyPayload.sort ?? '',
         })
         setResults(response.data.results)
         setPage(response.data.page)
         setTotalPages(response.data.totalPages)
         setTotalCount(response.data.totalCount)
+        if (options.recordHistory && !isEmptySearchCriteria(historyPayload)) {
+          void persistHistory(historyPayload)
+        }
         // Results updated above BEFORE scrolling -- a failed load (catch below) never
         // reaches this line at all, so the page stays exactly where it was.
         if (options.scrollToResultsOnSuccess) {
@@ -201,7 +252,7 @@ export function JobCatalogSearch(
         setHasSearched(true)
       }
     },
-    [keywords, city, country, remoteType, employmentType, postedWithinDays, sort],
+    [keywords, city, country, remoteType, employmentType, postedWithinDays, sort, isAuthenticated],
   )
 
   useEffect(() => {
@@ -209,6 +260,11 @@ export function JobCatalogSearch(
     // Loads the newest indexed jobs once on mount; later runs are user-driven.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    void refreshHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated])
 
   // Prompts for confirmation the moment the user comes back to this tab after
   // following an apply link -- not on a timer, not automatically.
@@ -409,7 +465,7 @@ export function JobCatalogSearch(
         className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
         onSubmit={(event) => {
           event.preventDefault()
-          void runSearch(1)
+          void runSearch(1, { recordHistory: true })
         }}
       >
         <label className={LABEL_CLASS}>
@@ -571,6 +627,55 @@ export function JobCatalogSearch(
           </button>
         </div>
       </form>
+
+      <RecentSearches
+        items={history}
+        onReplay={(item) => {
+          const criteria: RecordJobSearchHistoryRequest = {
+            keywords: item.keywords ?? undefined,
+            city: item.city ?? undefined,
+            cityCountry: item.cityCountry ?? undefined,
+            country: item.country ?? undefined,
+            remoteType: item.workMode ?? undefined,
+            employmentType: item.employmentType ?? undefined,
+            postedWithinDays: item.postedWithinDays ?? undefined,
+            sort: item.sortBy === 'POSTED_AT' ? 'POSTED_AT' : undefined,
+          }
+          setKeywords(criteria.keywords ?? '')
+          setCity(criteria.city ?? '')
+          setCityQuery(criteria.city ?? '')
+          setCountry((criteria.cityCountry ?? criteria.country ?? '').toUpperCase())
+          setRemoteType(criteria.remoteType ?? '')
+          setEmploymentType(criteria.employmentType ?? '')
+          setPostedWithinDays(criteria.postedWithinDays ? String(criteria.postedWithinDays) : '')
+          setSort(criteria.sort === 'POSTED_AT' ? 'POSTED_AT' : '')
+          void runSearch(1, { recordHistory: true, criteria })
+        }}
+        onDelete={async (id) => {
+          try {
+            if (isAuthenticated) {
+              await deleteJobSearchHistory(id)
+              await refreshHistory()
+            } else {
+              setHistory(deleteAnonymousHistory(id))
+            }
+          } catch {
+            /* ignore */
+          }
+        }}
+        onClear={async () => {
+          try {
+            if (isAuthenticated) {
+              await clearJobSearchHistory()
+              await refreshHistory()
+            } else {
+              setHistory(clearAnonymousHistory())
+            }
+          } catch {
+            /* ignore */
+          }
+        }}
+      />
 
       {loading ? (
         <p className="mt-4 text-sm text-slate-600">{t('jobCatalog.loading')}</p>
@@ -775,5 +880,67 @@ export function JobCatalogSearch(
         </>
       ) : null}
     </section>
+  )
+}
+
+function RecentSearches({
+  items,
+  onReplay,
+  onDelete,
+  onClear,
+}: {
+  items: JobSearchHistoryItem[]
+  onReplay: (item: JobSearchHistoryItem) => void
+  onDelete: (id: number) => void
+  onClear: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="mt-4 min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-medium text-slate-800">{t('jobCatalog.recentSearches')}</h3>
+        {items.length > 0 ? (
+          <button type="button" className="text-xs text-slate-600 underline" onClick={onClear}>
+            {t('jobCatalog.recentSearchClear')}
+          </button>
+        ) : null}
+      </div>
+      {items.length === 0 ? (
+        <p className="mt-2 text-xs text-slate-500">{t('jobCatalog.recentSearchEmpty')}</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {items.map((item) => (
+            <li key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2">
+              <p className="truncate text-sm font-medium text-slate-900">
+                {item.keywords || t('jobCatalog.recentSearchKeywordsFallback')}
+              </p>
+              <p className="mt-0.5 break-words text-xs text-slate-500">
+                {[item.city, item.country || item.cityCountry, item.workMode, item.employmentType,
+                  item.postedWithinDays ? `${item.postedWithinDays}d` : null,
+                  item.sortBy === 'POSTED_AT' ? item.sortBy : null]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                  onClick={() => onReplay(item)}
+                >
+                  {t('jobCatalog.recentSearchReplay')}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                  onClick={() => onDelete(item.id)}
+                >
+                  {t('jobCatalog.recentSearchDelete')}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

@@ -304,5 +304,28 @@ CREATE TABLE IF NOT EXISTS resume_builder_generation_requests (
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS job_search_history (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    keywords VARCHAR(500) NULL,
+    city VARCHAR(190) NULL,
+    city_country VARCHAR(8) NULL,
+    country VARCHAR(8) NULL,
+    work_mode VARCHAR(16) NULL,
+    employment_type VARCHAR(24) NULL,
+    posted_within INT NULL,
+    sort_by VARCHAR(32) NULL,
+    criteria_hash CHAR(64) NOT NULL,
+    search_count INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_searched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_job_search_history_user_criteria (user_id, criteria_hash),
+    KEY idx_job_search_history_user (user_id),
+    KEY idx_job_search_history_last_searched (last_searched_at),
+    CONSTRAINT fk_job_search_history_user
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 INSERT IGNORE INTO schema_migrations (version)
 VALUES ('2026-08-31-job-catalog-phase1');

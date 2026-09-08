@@ -115,6 +115,12 @@ describe('apiErrorKey status mapping', () => {
     expect(apiErrorKey(axiosError(401))).toBe('errors.unauthorized')
     expect(apiErrorKey(axiosError(403))).toBe('errors.forbidden')
   })
+
+  it('maps WEAK_PASSWORD to the stable frontend key', () => {
+    expect(apiErrorKey({
+      response: { status: 400, data: { code: 'WEAK_PASSWORD', message: 'Password does not meet strength requirements' } },
+    })).toBe('errors.weakPassword')
+  })
 })
 
 describe('frontend API modules', () => {
@@ -128,6 +134,7 @@ describe('frontend API modules', () => {
       'url.ts',
       'feedback.ts',
       'resumeBuilder.ts',
+      'jobSearchHistory.ts',
     ]
     for (const file of files) {
       const source = readFileSync(join(srcDir, file), 'utf8')

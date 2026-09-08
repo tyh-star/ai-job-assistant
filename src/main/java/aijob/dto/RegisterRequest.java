@@ -16,8 +16,11 @@ public class RegisterRequest {
     @Email(message = "Invalid email format")
     private String email;
 
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, max = 72,
-            message = "Password must be between 8 and 72 characters")
+    /**
+     * Strength is enforced by {@link aijob.security.PasswordStrength} on the raw value
+     * -- this field is not {@code @Size}/regex-validated here, so the two write paths
+     * cannot drift, and Bean Validation cannot {@code trim} a spaces-only password into
+     * a blank-field error.
+     */
     private String password;
 }

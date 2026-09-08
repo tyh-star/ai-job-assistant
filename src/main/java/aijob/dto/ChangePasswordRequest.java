@@ -1,7 +1,6 @@
 package aijob.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
@@ -10,8 +9,9 @@ public class ChangePasswordRequest {
     @NotBlank(message = "Current password is required")
     private String currentPassword;
 
-    @NotBlank(message = "New password is required")
-    @Size(min = 8, max = 72,
-            message = "New password must be between 8 and 72 characters")
+    /**
+     * Strength is enforced by {@link aijob.security.PasswordStrength} on the raw value.
+     * Do not add a second regex or {@code @Size} here -- see {@link RegisterRequest}.
+     */
     private String newPassword;
 }

@@ -15,6 +15,7 @@ import type { JobForm, JobResponse } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { loginPathWithReturnTo } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
+import { ApplicationStatsPanel } from '../components/ApplicationStatsPanel'
 import { EmptyState } from '../components/EmptyState'
 import { JobCatalogSearch } from '../components/JobCatalogSearch'
 import { Spinner } from '../components/Spinner'
@@ -527,6 +528,7 @@ export function JobsPage() {
 
       {activeTab === 'APPLIED' && isAuthenticated ? (
         <>
+          <ApplicationStatsPanel />
           {renderSourceFilterAndBulkActions()}
 
           {!loading && appliedJobs.length === 0 && !error ? (

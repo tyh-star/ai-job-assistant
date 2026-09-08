@@ -258,6 +258,46 @@ export interface JobCatalogSearchParams {
   sort?: string
 }
 
+export interface RecordJobSearchHistoryRequest {
+  keywords?: string
+  city?: string
+  cityCountry?: string
+  country?: string
+  remoteType?: string
+  employmentType?: string
+  postedWithinDays?: number
+  sort?: string
+}
+
+export interface JobSearchHistoryItem {
+  id: number
+  keywords: string | null
+  city: string | null
+  cityCountry: string | null
+  country: string | null
+  workMode: string | null
+  employmentType: string | null
+  postedWithinDays: number | null
+  sortBy: string | null
+  searchCount: number
+  lastSearchedAt: string
+  /** Browser-only identity for anonymous localStorage rows. */
+  criteriaKey?: string
+}
+
+export interface JobApplicationDailyCount {
+  date: string
+  count: number
+}
+
+export interface JobApplicationStatsResponse {
+  todayCount: number
+  last7DaysCount: number
+  last30DaysCount: number
+  daily: JobApplicationDailyCount[]
+  totalApplied: number
+}
+
 /**
  * One city suggestion for the search form's city facet. `value` is opaque and must be
  * sent back verbatim as `JobCatalogSearchParams.city` -- never reformatted or re-cased.
@@ -667,6 +707,7 @@ export interface ApiErrorBody {
   status?: number
   error?: string
   message?: string
+  code?: string
 }
 
 export type AnswerStatus = 'CONFIRMED_USED' | 'CONFIRMED_NOT_USED' | 'SKIPPED'

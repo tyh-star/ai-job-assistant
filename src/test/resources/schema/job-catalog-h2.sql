@@ -3,6 +3,7 @@
 -- (FULLTEXT, prefix indexes, storage clauses) are dropped because H2 rejects them
 -- and SqlDialect already routes keyword search to LIKE outside MySQL.
 
+DROP TABLE IF EXISTS job_search_history;
 DROP TABLE IF EXISTS user_saved_catalog_jobs;
 DROP TABLE IF EXISTS job_ingest_runs;
 DROP TABLE IF EXISTS job_source_records;
@@ -152,3 +153,25 @@ CREATE TABLE user_saved_catalog_jobs (
     CONSTRAINT fk_user_saved_catalog_jobs_personal
         FOREIGN KEY (personal_job_id) REFERENCES jobs (id) ON DELETE CASCADE
 );
+
+CREATE TABLE job_search_history (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    keywords VARCHAR(500) NULL,
+    city VARCHAR(190) NULL,
+    city_country VARCHAR(8) NULL,
+    country VARCHAR(8) NULL,
+    work_mode VARCHAR(16) NULL,
+    employment_type VARCHAR(24) NULL,
+    posted_within INT NULL,
+    sort_by VARCHAR(32) NULL,
+    criteria_hash CHAR(64) NOT NULL,
+    search_count INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_searched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_job_search_history_user_criteria UNIQUE (user_id, criteria_hash),
+    CONSTRAINT fk_job_search_history_user
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+CREATE INDEX idx_job_search_history_user ON job_search_history (user_id);
+CREATE INDEX idx_job_search_history_last_searched ON job_search_history (last_searched_at);

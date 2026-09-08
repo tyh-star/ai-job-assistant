@@ -9,6 +9,7 @@ import aijob.exception.EmailAlreadyExistsException;
 import aijob.exception.InvalidCredentialsException;
 import aijob.mapper.UserMapper;
 import aijob.security.JwtUtil;
+import aijob.security.PasswordStrength;
 import aijob.service.AuthService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,10 @@ public class AuthServiceImpl implements AuthService {
         if (existingUser != null) {
             throw new EmailAlreadyExistsException("Email already registered");
         }
+
+        // Raw input -- never trim. Login does not use this gate, so existing hashes
+        // that would fail it still authenticate.
+        PasswordStrength.requireStrong(request.getPassword());
 
         User user = new User();
 

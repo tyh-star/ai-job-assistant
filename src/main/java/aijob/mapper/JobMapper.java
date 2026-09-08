@@ -109,7 +109,7 @@ public interface JobMapper {
     @Update("""
             UPDATE jobs
             SET applied = TRUE,
-                applied_at = COALESCE(applied_at, #{appliedAt}),
+                applied_at = COALESCE(applied_at, #{appliedAt, typeHandler=aijob.mapper.UtcLocalDateTimeTypeHandler}),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = #{id}
               AND user_id = #{userId}
@@ -146,4 +146,20 @@ public interface JobMapper {
               AND user_id = #{userId}
             """)
     int deleteByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * Currently-applied personal jobs for this user. {@code applied_at} is written as
+     * UTC wall time by {@link #markApplied}; callers that bucket by a browser timezone
+     * must treat that value as UTC, never as the JVM or MySQL session zone.
+     */
+    @Select("""
+            SELECT * FROM jobs
+            WHERE user_id = #{userId}
+              AND applied = TRUE
+            """)
+    @Results({
+            @Result(column = "applied_at", property = "appliedAt",
+                    typeHandler = UtcLocalDateTimeTypeHandler.class)
+    })
+    List<Job> findCurrentlyAppliedByUserId(@Param("userId") Long userId);
 }

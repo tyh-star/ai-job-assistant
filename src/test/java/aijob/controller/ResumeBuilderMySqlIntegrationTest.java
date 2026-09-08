@@ -101,7 +101,7 @@ class ResumeBuilderMySqlIntegrationTest {
             "users", "resumes", "jobs", "tailor_proposals", "resume_evidence_items",
             "job_requirement_profiles", "schema_migrations", "job_sources", "job_catalog",
             "job_source_records", "job_ingest_runs", "user_saved_catalog_jobs", "site_feedback",
-            "resume_builder_drafts", "resume_builder_generation_requests");
+            "resume_builder_drafts", "resume_builder_generation_requests", "job_search_history");
 
     @Autowired
     private DataSource dataSource;
@@ -188,6 +188,7 @@ class ResumeBuilderMySqlIntegrationTest {
             ScriptUtils.executeSqlScript(connection, new FileSystemResource("schema/users_auth_version.sql"));
             ScriptUtils.executeSqlScript(connection, new FileSystemResource("schema/site_feedback.sql"));
             ScriptUtils.executeSqlScript(connection, new FileSystemResource("schema/resume_builder.sql"));
+            ScriptUtils.executeSqlScript(connection, new FileSystemResource("schema/job_search_history.sql"));
             ScriptUtils.executeSqlScript(connection, new FileSystemResource("schema/job_catalog_phase1_verify.sql"));
         }
     }

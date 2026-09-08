@@ -4,8 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { changePassword as changePasswordApi, getMe } from '../api/auth'
 import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { evaluatePassword } from '../auth/passwordStrength'
 import { Alert } from '../components/Alert'
 import { FeedbackForm } from '../components/FeedbackForm'
+import { PasswordChecklist } from '../components/PasswordChecklist'
 import { Spinner } from '../components/Spinner'
 
 const SECTION_CLASS = 'rounded-xl border border-slate-200 bg-white p-6'
@@ -236,8 +238,8 @@ function PasswordSection() {
       setSuccess(false)
       return
     }
-    if (newPassword.length < 8) {
-      setError(t('auth.passwordMin'))
+    if (!evaluatePassword(newPassword).strong) {
+      setError(t('errors.weakPassword'))
       setSuccess(false)
       return
     }
@@ -251,10 +253,9 @@ function PasswordSection() {
       setCurrentPassword('')
       setNewPassword('')
       setSuccess(true)
-      // There is no server-side way to invalidate tokens already issued to other
-      // devices/browsers (see JwtUtil's javadoc) -- this can only guarantee THIS
-      // browser's session ends. Show the honest success message for a moment before
-      // signing out and redirecting, rather than yanking the page away instantly.
+      // auth_version bump invalidates every previously issued JWT, including other
+      // devices. This browser still needs an explicit logout because the token is
+      // already stored in localStorage.
       setSaving(false)
       window.setTimeout(() => {
         logout()
@@ -295,6 +296,7 @@ function PasswordSection() {
             disabled={success}
           />
         </label>
+        <PasswordChecklist password={newPassword} />
         <button type="submit" className={SUBMIT_CLASS} disabled={saving || success}>
           {saving ? t('common.saving') : t('profile.savePassword')}
         </button>
