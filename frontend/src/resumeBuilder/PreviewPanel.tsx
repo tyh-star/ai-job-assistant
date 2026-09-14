@@ -6,14 +6,13 @@ interface PreviewPanelProps {
   loading: boolean
 }
 
-/** Renders the backend's normalized preview VERBATIM -- the same model the DOCX writer
- * renders from (see NormalizedResume's javadoc on the backend). Never re-derives
- * section content from the raw draft itself, so it can never disagree with the
- * generated file. */
+/** Renders a NormalizedResume as-is. The editor overlays live header/readiness from the
+ * form onto the last server preview before passing it here -- section bodies stay
+ * server-normalized so this panel never invents section content. */
 export function PreviewPanel({ preview, loading }: PreviewPanelProps) {
   const { t } = useTranslation()
 
-  if (loading) {
+  if (loading && !preview) {
     return <p className="text-sm text-slate-500">{t('common.loading')}</p>
   }
   if (!preview) {

@@ -158,6 +158,48 @@ class PublicAuthRoutingSecurityTest {
     }
 
     @Test
+    void protectedPersonalJobsAndStatsWithoutJwt_are401Or403() throws Exception {
+        assertAnonymousDenied("/api/v1/jobs");
+        assertAnonymousDenied("/api/v1/jobs/application-stats");
+        assertAnonymousDenied("/api/v1/resume-builder/drafts");
+        assertAnonymousDenied("/api/v1/job-search-history");
+    }
+
+    @Test
+    void protectedCatalogWriteWithoutJwt_is401Or403() throws Exception {
+        int saveStatus = mockMvc.perform(post("/api/v1/job-catalog/501/save"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertTrue(saveStatus == 401 || saveStatus == 403, "save status=" + saveStatus);
+
+        int appliedStatus = mockMvc.perform(post("/api/v1/job-catalog/501/applied"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertTrue(appliedStatus == 401 || appliedStatus == 403, "applied status=" + appliedStatus);
+    }
+
+    @Test
+    void publicCatalogSearchWithoutJwt_isNot401Or403() throws Exception {
+        int status = mockMvc.perform(get("/api/v1/job-catalog/search"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertNotEquals(401, status);
+        assertNotEquals(403, status);
+    }
+
+    private void assertAnonymousDenied(String path) throws Exception {
+        int status = mockMvc.perform(get(path))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertNotEquals(200, status, path);
+        assertTrue(status == 401 || status == 403, path + " status=" + status);
+    }
+
+    @Test
     void corsConfiguration_allowsConfiguredOriginsOnly() {
         SecurityConfig config = new SecurityConfig(
                 mock(JwtAuthenticationFilter.class),

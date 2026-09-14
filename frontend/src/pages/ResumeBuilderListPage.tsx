@@ -23,6 +23,15 @@ const TEMPLATE_LABEL_KEY: Record<ResumeBuilderTemplateType, string> = {
   TECHNICAL: 'resumeBuilder.templates.technical',
 }
 
+const TEMPLATE_SUGGESTION_KEY: Record<ResumeBuilderTemplateType, string> = {
+  GENERIC_ATS: 'resumeBuilder.templates.suggestGenericAts',
+  STUDENT: 'resumeBuilder.templates.suggestStudent',
+  INTERNSHIP: 'resumeBuilder.templates.suggestInternship',
+  EXPERIENCED: 'resumeBuilder.templates.suggestExperienced',
+  CAREER_CHANGE: 'resumeBuilder.templates.suggestCareerChange',
+  TECHNICAL: 'resumeBuilder.templates.suggestTechnical',
+}
+
 export function ResumeBuilderListPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -93,7 +102,7 @@ export function ResumeBuilderListPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-slate-900">{t('resumeBuilder.list.title')}</h1>
+        <h1 className="page-title">{t('resumeBuilder.list.title')}</h1>
         <Link to="/resumes" className="text-sm text-slate-600 underline">
           {t('resumeBuilder.list.backToResumes')}
         </Link>
@@ -114,6 +123,9 @@ export function ResumeBuilderListPage() {
               </option>
             ))}
           </select>
+          <span className="text-meta mt-1 block max-w-md text-slate-500">
+            {t(TEMPLATE_SUGGESTION_KEY[templateType])}
+          </span>
         </label>
         <button
           type="button"

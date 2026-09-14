@@ -528,6 +528,10 @@ class JobServiceImplTest {
     void createTailorProposal_doesNotTouchRealUploads() throws Exception {
         Path realUploads = Path.of("C:\\ai job\\ai job\\uploads");
         Set<String> before = snapshotFiles(realUploads);
+        // The working directory's uploads is only the real one when tests run from the
+        // project root, so it gets its own before-snapshot.
+        Path workingDirUploads = Path.of("uploads").toAbsolutePath().normalize();
+        Set<String> workingDirBefore = snapshotFiles(workingDirUploads);
         stubOwnedResources();
         stubInsertProposal(42L);
         when(resumeDocumentService.parseDocx(any())).thenReturn(singleExperienceNode());
@@ -536,7 +540,7 @@ class JobServiceImplTest {
         jobService.createTailorProposal(EMAIL, 10L, 3L);
 
         assertEquals(before, snapshotFiles(realUploads));
-        assertEquals(before, snapshotFiles(Path.of("uploads").toAbsolutePath().normalize()));
+        assertEquals(workingDirBefore, snapshotFiles(workingDirUploads));
     }
 
     @Test
@@ -1106,6 +1110,10 @@ class JobServiceImplTest {
     void tailorResume_doesNotTouchRealUploads() throws Exception {
         Path realUploads = Path.of("C:\\ai job\\ai job\\uploads");
         java.util.Set<String> before = snapshotFiles(realUploads);
+        // The working directory's uploads is only the real one when tests run from the
+        // project root, so it gets its own before-snapshot.
+        Path workingDirUploads = Path.of("uploads").toAbsolutePath().normalize();
+        java.util.Set<String> workingDirBefore = snapshotFiles(workingDirUploads);
         stubOwnedResources();
         when(resumeDocumentService.parseDocx(any())).thenReturn(singleExperienceNode());
         when(aiResumeService.generateConstrainedTailorCandidates(any(), any(), any(), isNull()))
@@ -1116,7 +1124,7 @@ class JobServiceImplTest {
         jobService.tailorResume(EMAIL, 10L, 3L, TailorMode.CONSERVATIVE);
 
         assertEquals(before, snapshotFiles(realUploads));
-        assertEquals(before, snapshotFiles(Path.of("uploads").toAbsolutePath().normalize()));
+        assertEquals(workingDirBefore, snapshotFiles(workingDirUploads));
     }
 
     @Test

@@ -199,6 +199,16 @@ class ResumeBuilderMySqlIntegrationTest {
                 "INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, 'USER')",
                 email, "not-a-real-hash", "MySQL Resume Builder Test User");
         Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
+        // Counts below are per user_id. If an earlier TRUNCATE of users left child rows
+        // behind, a reused id would inherit them and those counts would be wrong -- fail
+        // loudly instead of miscounting. Checked before registering the id, so cleanUp()
+        // never deletes rows this test did not create.
+        for (String table : List.of("resumes", "jobs", "resume_builder_drafts", "resume_builder_generation_requests")) {
+            Long stale = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM " + table + " WHERE user_id = ?", Long.class, userId);
+            assertEquals(0L, stale, "new user id " + userId + " already owns rows in " + table
+                    + " left by an earlier TRUNCATE of users; the database is not isolated");
+        }
         createdUserIds.add(userId);
         return userId;
     }
@@ -406,7 +416,7 @@ class ResumeBuilderMySqlIntegrationTest {
         JsonNode preview = objectMapper.readTree(previewBody);
         List<String> previewSectionTitles = new ArrayList<>();
         preview.get("sections").forEach(s -> previewSectionTitles.add(s.get("title").asText()));
-        assertTrue(previewSectionTitles.contains("Experience"));
+        assertTrue(previewSectionTitles.contains("Work experience"));
         assertTrue(previewSectionTitles.contains("Projects"));
         assertTrue(preview.get("omittedSectionIds").toString().contains("EDUCATION"));
 
@@ -439,6 +449,68 @@ class ResumeBuilderMySqlIntegrationTest {
         assertFalse(docxText.toUpperCase(Locale.ROOT).contains("EDUCATION"));
 
         jdbcTemplate.update("DELETE FROM resumes WHERE id = ?", resumeId);
+    }
+
+    // ---------------------------------------------------------------------------
+    // regression: a template never hides a section the user fills in; a section the
+    // user turns off stays off
+    // ---------------------------------------------------------------------------
+
+    @Test
+    void genericAtsProjectsSurviveSaveRereadPreviewAndDocxUntilTheUserHidesThem() throws Exception {
+        long userId = createUser();
+        String auth = bearerFor(userId);
+        long draftId = createDraft(auth); // GENERIC_ATS: PROJECTS is not one of its suggested sections
+        assertTrue(getDraft(auth, draftId).at("/content/sectionEnabled/PROJECTS").asBoolean(false),
+                "a new GENERIC_ATS draft must not start with PROJECTS hidden");
+
+        fillWithFictionalFacts(auth, draftId);
+        JsonNode reread = getDraft(auth, draftId);
+        assertEquals("Project Atlas", reread.at("/content/projects/0/name").asText());
+        assertTrue(reread.at("/content/sectionEnabled/PROJECTS").asBoolean(false));
+        assertTrue(previewSectionTitles(auth, draftId).contains("Projects"));
+        assertTrue(generatedDocxText(auth, draftId).contains("Project Atlas"));
+
+        var content = (com.fasterxml.jackson.databind.node.ObjectNode) reread.get("content");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) content.get("sectionEnabled")).put("PROJECTS", false);
+        var body = objectMapper.createObjectNode();
+        body.put("title", "MySQL Test Draft");
+        body.put("templateType", "GENERIC_ATS");
+        body.putNull("targetRole");
+        body.put("locale", "en");
+        body.set("content", content);
+        body.put("version", reread.get("version").asLong());
+        mockMvc.perform(put("/api/v1/resume-builder/drafts/" + draftId)
+                        .header("Authorization", auth)
+                        .contentType("application/json")
+                        .content(body.toString()))
+                .andExpect(status().isOk());
+
+        JsonNode hidden = getDraft(auth, draftId);
+        assertFalse(hidden.at("/content/sectionEnabled/PROJECTS").asBoolean(true), "the user's choice must be kept");
+        assertEquals("Project Atlas", hidden.at("/content/projects/0/name").asText(), "hiding must not delete entries");
+        assertFalse(previewSectionTitles(auth, draftId).contains("Projects"));
+        assertFalse(generatedDocxText(auth, draftId).contains("Project Atlas"));
+    }
+
+    private List<String> previewSectionTitles(String auth, long draftId) throws Exception {
+        String previewBody = mockMvc.perform(post("/api/v1/resume-builder/drafts/" + draftId + "/preview")
+                        .header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        List<String> titles = new ArrayList<>();
+        objectMapper.readTree(previewBody).get("sections").forEach(s -> titles.add(s.get("title").asText()));
+        return titles;
+    }
+
+    private String generatedDocxText(String auth, long draftId) throws Exception {
+        String resumeId = generate(auth, draftId, UUID.randomUUID().toString());
+        byte[] docxBytes = mockMvc.perform(get("/api/v1/resumes/" + resumeId + "/download").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(docxBytes))) {
+            return doc.getParagraphs().stream().map(XWPFParagraph::getText).collect(Collectors.joining("\n"));
+        }
     }
 
     // ---------------------------------------------------------------------------

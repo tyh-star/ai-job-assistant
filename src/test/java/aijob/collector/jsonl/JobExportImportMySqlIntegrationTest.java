@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -276,12 +277,29 @@ class JobExportImportMySqlIntegrationTest {
     }
 
     private void truncateAll() {
+        Set<String> tables = new LinkedHashSet<>(List.of("user_saved_catalog_jobs", "job_ingest_runs",
+                "job_source_records", "job_catalog", "job_sources", "jobs", "users"));
+        addReferencingTables(tables);
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
-        for (String table : List.of("user_saved_catalog_jobs", "job_ingest_runs", "job_source_records",
-                "job_catalog", "job_sources", "jobs", "users")) {
+        for (String table : tables) {
             jdbcTemplate.execute("TRUNCATE TABLE " + table);
         }
         jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 1");
+    }
+
+    /** With FK checks off, truncating users/jobs alone leaves rows in tables that reference
+     * them (resumes, drafts, ...) pointing at ids AUTO_INCREMENT hands out again, so a later
+     * suite's new user silently inherits them. Truncate every referencing table too. */
+    private void addReferencingTables(Set<String> tables) {
+        boolean added = true;
+        while (added) {
+            String placeholders = String.join(",", java.util.Collections.nCopies(tables.size(), "?"));
+            List<String> children = jdbcTemplate.queryForList(
+                    "SELECT DISTINCT table_name FROM information_schema.KEY_COLUMN_USAGE"
+                            + " WHERE table_schema = DATABASE() AND referenced_table_name IN (" + placeholders + ")",
+                    String.class, tables.toArray());
+            added = tables.addAll(children);
+        }
     }
 
     // ---------------------------------------------------------------------------

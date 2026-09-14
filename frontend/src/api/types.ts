@@ -784,15 +784,37 @@ export type ResumeBuilderTemplateType =
 
 export type ResumeBuilderLocale = 'en' | 'zh-CN'
 
+export type ResumeBuilderProfessionalLinkType =
+  | 'LINKEDIN'
+  | 'PORTFOLIO'
+  | 'GITHUB'
+  | 'PERSONAL_WEBSITE'
+  | 'BEHANCE'
+  | 'OTHER'
+
+export interface ResumeBuilderProfessionalLink {
+  type: string
+  label: string
+  url: string
+}
+
 export interface ResumeBuilderBasicInfo {
   fullName: string
   city: string
   country: string
   phone: string
   email: string
+  /** Kept so pre-upgrade drafts that stored a single LinkedIn URL still load. */
   linkedin: string
+  /** Kept so pre-upgrade GitHub URLs are not lost. */
   github: string
+  /** Kept so pre-upgrade personal-website URLs are not lost. */
   website: string
+  /**
+   * Canonical repeatable links. `null`/`undefined` on old drafts means migrate from
+   * the three scalar URL fields; an empty array means the user cleared them.
+   */
+  professionalLinks?: ResumeBuilderProfessionalLink[] | null
   /** Null = not stated. Deliberately the ONLY "eligibility" style field -- age,
    * gender, photo, and marital status are never collected by this form. */
   legallyEligibleToWork: boolean | null

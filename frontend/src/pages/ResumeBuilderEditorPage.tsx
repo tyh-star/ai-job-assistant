@@ -12,6 +12,7 @@ import {
 import type {
   NormalizedResume,
   ResumeBuilderDraftContent,
+  ResumeBuilderDraftResponse,
   ResumeBuilderTemplateType,
 } from '../api/types'
 import { Alert } from '../components/Alert'
@@ -19,7 +20,6 @@ import { Spinner } from '../components/Spinner'
 import { CareerMaterialsTab } from '../resumeBuilder/CareerMaterialsTab'
 import {
   DEFAULT_SECTION_ORDER,
-  SECTION_TITLE_KEY,
   TEMPLATE_TYPES,
   blankDraftContent,
   customSectionIdFromRef,
@@ -27,9 +27,17 @@ import {
   isCustomSectionRef,
 } from '../resumeBuilder/constants'
 import { GenericListField } from '../resumeBuilder/GenericListField'
+import { ProfessionalLinksEditor } from '../resumeBuilder/ProfessionalLinksEditor'
+import {
+  overlayLivePreview,
+  unifyDraftTarget,
+  withSyncedTargetRole,
+} from '../resumeBuilder/draftReadiness'
+import { migrateAndSyncProfessionalLinks } from '../resumeBuilder/professionalLinks'
 import { PreviewPanel } from '../resumeBuilder/PreviewPanel'
 import { RepeatableSection } from '../resumeBuilder/RepeatableSection'
 import { buildSectionSchemas, customSectionSchema, skillCategorySchema } from '../resumeBuilder/sectionSchemas'
+import { reorderForTemplate, sectionTitleI18nKey, suggestedSectionOrder } from '../resumeBuilder/templateLayout'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'conflict' | 'error'
 type Tab = 'sections' | 'careerMaterials' | 'preview'
@@ -71,9 +79,24 @@ export function ResumeBuilderEditorPage() {
   const savingInFlightRef = useRef(false)
   const dirtySinceLastSaveRef = useRef(false)
   const frozenRef = useRef(false)
+  const applyingServerRef = useRef(false)
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve())
+  // Synchronous guard: React's `generating` state is too late to stop a double-click
+  // from starting a second generate with a different idempotency key.
+  const generatingRef = useRef(false)
+  const generateKeyRef = useRef<string | null>(null)
   const schemas = useMemo(() => buildSectionSchemas(t), [t])
   const skillSchema = useMemo(() => skillCategorySchema(t), [t])
   const customSchema = useMemo(() => customSectionSchema(t), [t])
+  const readinessLabels = useMemo(
+    () => ({
+      name: t('resumeBuilder.preview.missingName'),
+      contact: t('resumeBuilder.preview.missingContact'),
+      target: t('resumeBuilder.preview.missingTargetTitle'),
+    }),
+    [t],
+  )
+  const livePreview = overlayLivePreview(preview, content, targetRole, readinessLabels)
 
   async function load() {
     setLoading(true)
@@ -81,14 +104,32 @@ export function ResumeBuilderEditorPage() {
     loadedRef.current = false
     try {
       const { data } = await getResumeBuilderDraft(draftId)
+      const unified = unifyDraftTarget(data.content, data.targetRole ?? '')
+      const migrated = {
+        ...unified.content,
+        basicInfo: migrateAndSyncProfessionalLinks(unified.content.basicInfo),
+      }
+      const nextLocale = (data.locale as 'en' | 'zh-CN') ?? 'en'
+      const nextTemplate = data.templateType as ResumeBuilderTemplateType
+      latestRef.current = {
+        title: data.title,
+        templateType: nextTemplate,
+        targetRole: unified.targetRole,
+        locale: nextLocale,
+        content: migrated,
+        version: data.version,
+      }
       setTitle(data.title)
-      setTemplateType(data.templateType as ResumeBuilderTemplateType)
-      setTargetRole(data.targetRole ?? '')
-      setLocale((data.locale as 'en' | 'zh-CN') ?? 'en')
-      setContent(data.content)
+      setTemplateType(nextTemplate)
+      setTargetRole(unified.targetRole)
+      setLocale(nextLocale)
+      setContent(migrated)
       setVersion(data.version)
       setFrozen(false)
       setSaveStatus('idle')
+      setTimeout(() => {
+        void loadPreview({ quiet: true })
+      }, 0)
     } catch (err) {
       setLoadError(t(apiErrorKey(err)))
     } finally {
@@ -107,8 +148,17 @@ export function ResumeBuilderEditorPage() {
 
   // Keep the ref snapshot current on every render -- flushSave reads ONLY this, never
   // the enclosing effect's own closure (see latestRef's declaration above for why).
+  // Version is never rolled backwards: an in-flight save may have already written a
+  // newer version into the ref before React has committed setVersion.
   useEffect(() => {
-    latestRef.current = { title, templateType, targetRole, locale, content, version }
+    latestRef.current = {
+      title,
+      templateType,
+      targetRole,
+      locale,
+      content,
+      version: Math.max(version, latestRef.current.version),
+    }
   })
   useEffect(() => {
     frozenRef.current = frozen
@@ -127,28 +177,94 @@ export function ResumeBuilderEditorPage() {
    * make stale, and would fail once the earlier one's response lands.
    */
   async function flushSave() {
-    if (savingInFlightRef.current || frozenRef.current) {
+    if (frozenRef.current) {
       dirtySinceLastSaveRef.current = true
       return
     }
+    if (savingInFlightRef.current) {
+      dirtySinceLastSaveRef.current = true
+      await saveChainRef.current
+      if (dirtySinceLastSaveRef.current && !frozenRef.current && !savingInFlightRef.current) {
+        await flushSave()
+      }
+      return
+    }
+
+    let releaseChain = () => {}
+    saveChainRef.current = new Promise<void>((resolve) => {
+      releaseChain = resolve
+    })
     savingInFlightRef.current = true
-    dirtySinceLastSaveRef.current = false
+    try {
+      dirtySinceLastSaveRef.current = false
+      await putLatestSnapshot()
+      while (dirtySinceLastSaveRef.current && !frozenRef.current) {
+        dirtySinceLastSaveRef.current = false
+        await putLatestSnapshot()
+      }
+    } finally {
+      savingInFlightRef.current = false
+      releaseChain()
+    }
+  }
+
+  function snapshotIsStillCurrent(snapshot: typeof latestRef.current): boolean {
+    const local = latestRef.current
+    return (
+      local.content === snapshot.content &&
+      local.title === snapshot.title &&
+      local.targetRole === snapshot.targetRole &&
+      local.templateType === snapshot.templateType &&
+      local.locale === snapshot.locale
+    )
+  }
+
+  function applySuccessfulSave(snapshot: typeof latestRef.current, data: ResumeBuilderDraftResponse) {
+    const keepLocalEdits = !snapshotIsStillCurrent(snapshot)
+    if (keepLocalEdits) {
+      latestRef.current = { ...latestRef.current, version: data.version }
+      setVersion(data.version)
+      return
+    }
+    applyingServerRef.current = true
+    const nextLocale = (data.locale as 'en' | 'zh-CN') ?? snapshot.locale
+    const nextTemplate = data.templateType as ResumeBuilderTemplateType
+    const migratedContent = {
+      ...data.content,
+      basicInfo: migrateAndSyncProfessionalLinks(data.content.basicInfo),
+    }
+    latestRef.current = {
+      title: data.title,
+      templateType: nextTemplate,
+      targetRole: data.targetRole ?? '',
+      locale: nextLocale,
+      content: migratedContent,
+      version: data.version,
+    }
+    setTitle(data.title)
+    setTemplateType(nextTemplate)
+    setTargetRole(data.targetRole ?? '')
+    setLocale(nextLocale)
+    setContent(migratedContent)
+    setVersion(data.version)
+  }
+
+  async function putLatestSnapshot() {
     setSaveStatus('saving')
     const snapshot = latestRef.current
+    const contentToSave = withSyncedTargetRole(snapshot.content, snapshot.targetRole)
     try {
       const { data } = await updateResumeBuilderDraft(draftId, {
         title: snapshot.title.trim() || t('resumeBuilder.list.untitled'),
         templateType: snapshot.templateType,
         targetRole: snapshot.targetRole.trim() || null,
         locale: snapshot.locale,
-        content: snapshot.content,
+        content: contentToSave,
         version: snapshot.version,
       })
-      // Update the ref SYNCHRONOUSLY (not just via setVersion + a future render) so a
-      // save queued immediately below already sees the new version.
-      latestRef.current = { ...latestRef.current, version: data.version }
-      setVersion(data.version)
+      applySuccessfulSave(snapshot, data)
       setSaveStatus('saved')
+      void loadPreview({ quiet: true })
     } catch (err) {
       const key = apiErrorKey(err)
       if (key === 'resumeBuilder.saveConflict') {
@@ -158,12 +274,6 @@ export function ResumeBuilderEditorPage() {
       } else {
         setSaveStatus('error')
       }
-    } finally {
-      savingInFlightRef.current = false
-    }
-    if (dirtySinceLastSaveRef.current && !frozenRef.current) {
-      dirtySinceLastSaveRef.current = false
-      void flushSave()
     }
   }
 
@@ -171,6 +281,10 @@ export function ResumeBuilderEditorPage() {
   // after the initial load. Frozen (a save conflict happened) stops further autosaves
   // until the user explicitly reloads -- never silently overwrites a newer version.
   useEffect(() => {
+    if (applyingServerRef.current) {
+      applyingServerRef.current = false
+      return
+    }
     if (!loadedRef.current || frozen) {
       return
     }
@@ -189,40 +303,72 @@ export function ResumeBuilderEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, templateType, targetRole, locale, content])
 
-  async function loadPreview() {
-    setPreviewLoading(true)
+  async function loadPreview(options?: { quiet?: boolean }) {
+    if (!options?.quiet) {
+      setPreviewLoading(true)
+    }
     try {
       const { data } = await previewResumeBuilderDraft(draftId)
       setPreview(data)
     } catch {
-      setPreview(null)
+      if (!options?.quiet) {
+        setPreview(null)
+      }
     } finally {
-      setPreviewLoading(false)
+      if (!options?.quiet) {
+        setPreviewLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    if (tab === 'preview' && loadedRef.current) {
+    if ((tab === 'preview' || tab === 'sections') && loadedRef.current) {
       void loadPreview()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
   async function onGenerate() {
+    if (!livePreview.readyToGenerate || frozenRef.current || generatingRef.current) {
+      return
+    }
+    generatingRef.current = true
+    if (!generateKeyRef.current) {
+      generateKeyRef.current = newIdempotencyKey()
+    }
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
     setGenerating(true)
     setGenerateError('')
     try {
-      const { data } = await generateResumeBuilderDraft(draftId, { idempotencyKey: newIdempotencyKey() })
+      await flushSave()
+      if (frozenRef.current) {
+        return
+      }
+      const { data } = await generateResumeBuilderDraft(draftId, { idempotencyKey: generateKeyRef.current })
       setGeneratedResumeId(data.id)
     } catch (err) {
       setGenerateError(t(apiErrorKey(err)))
     } finally {
+      generatingRef.current = false
+      generateKeyRef.current = null
       setGenerating(false)
     }
   }
 
   function patchContent(patch: Partial<ResumeBuilderDraftContent>) {
     setContent((prev) => ({ ...prev, ...patch }))
+  }
+
+  function setUnifiedTarget(value: string) {
+    setTargetRole(value)
+    setContent((prev) =>
+      prev.jobTarget.targetTitle === value
+        ? prev
+        : { ...prev, jobTarget: { ...prev.jobTarget, targetTitle: value } },
+    )
   }
 
   function moveSectionOrder(sectionId: string, delta: number) {
@@ -244,13 +390,21 @@ export function ResumeBuilderEditorPage() {
     })
   }
 
+  function onTemplateTypeChange(next: ResumeBuilderTemplateType) {
+    setTemplateType(next)
+    setContent((prev) => ({
+      ...prev,
+      sectionOrder: reorderForTemplate(prev.sectionOrder, next),
+    }))
+  }
+
   function sectionLabel(sectionId: string): string {
     if (isCustomSectionRef(sectionId)) {
       const customId = customSectionIdFromRef(sectionId)
       const section = content.customSections.find((s) => s.id === customId)
       return section?.title || t('resumeBuilder.sections.customFallback')
     }
-    return t(SECTION_TITLE_KEY[sectionId] ?? sectionId)
+    return t(sectionTitleI18nKey(sectionId, templateType))
   }
 
   function addCustomSection() {
@@ -273,29 +427,49 @@ export function ResumeBuilderEditorPage() {
   const orderedSectionIds = content.sectionOrder.length > 0 ? content.sectionOrder : DEFAULT_SECTION_ORDER
 
   return (
-    <div className="pb-24">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link to="/resumes/builder" className="text-sm text-slate-500 underline">
-            {t('resumeBuilder.list.backToList')}
-          </Link>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">{t('resumeBuilder.editor.title')}</h1>
+    <div className="min-w-0 pb-24">
+      <div className="sticky top-14 z-20 -mx-4 mb-4 border-b border-line bg-page/95 px-4 py-3 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <Link to="/resumes/builder" className="text-sm text-muted underline">
+              {t('resumeBuilder.list.backToList')}
+            </Link>
+            <label className="mt-2 block min-w-0">
+              <span className="mb-1 block text-sm text-muted">{t('resumeBuilder.editor.draftTitle')}</span>
+              <input
+                className="ui-input mt-0 max-w-xl"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <SaveStatusBadge status={saveStatus} onReload={() => void load()} />
+            <button
+              type="button"
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              disabled={generating || frozen || !livePreview.readyToGenerate}
+              onClick={() => void onGenerate()}
+            >
+              {generating ? t('common.processing') : t('resumeBuilder.editor.generate')}
+            </button>
+          </div>
         </div>
-        <SaveStatusBadge status={saveStatus} onReload={() => void load()} />
       </div>
+      <h1 className="sr-only">{t('resumeBuilder.editor.title')}</h1>
 
       {frozen ? (
         <div className="mt-4">
-          <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <p>{t('resumeBuilder.editor.conflictBanner')}</p>
-            <button type="button" className="mt-2 font-medium underline" onClick={() => void load()}>
+          <div role="alert" className="rounded-md border-2 border-warning bg-warning-soft px-4 py-4 text-sm text-warning">
+            <p className="font-medium">{t('resumeBuilder.editor.conflictBanner')}</p>
+            <button type="button" className="mt-2 font-semibold underline" onClick={() => void load()}>
               {t('resumeBuilder.editor.reload')}
             </button>
           </div>
         </div>
       ) : null}
 
-      <div className="mt-4 flex gap-2 border-b border-slate-200">
+      <div className="mt-4 flex min-w-0 flex-wrap gap-2 border-b border-slate-200">
         {(['sections', 'careerMaterials', 'preview'] as Tab[]).map((tabId) => (
           <button
             key={tabId}
@@ -309,7 +483,7 @@ export function ResumeBuilderEditorPage() {
       </div>
 
       {tab === 'sections' ? (
-        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
           {/* Desktop sidebar: vertical section list with reorder/enable controls. */}
           <nav className="hidden md:block">
             <div className="sticky top-4 space-y-1 rounded-xl border border-slate-200 bg-white p-3">
@@ -318,6 +492,7 @@ export function ResumeBuilderEditorPage() {
                 sectionIds={orderedSectionIds}
                 labelFor={sectionLabel}
                 enabled={content.sectionEnabled}
+                suggestedIds={suggestedSectionOrder(templateType)}
                 onMove={moveSectionOrder}
                 onToggle={toggleSectionEnabled}
                 onReorderTo={(from, to) => {
@@ -339,11 +514,12 @@ export function ResumeBuilderEditorPage() {
           </nav>
 
           {/* Mobile: horizontal "jump to section" strip instead of a sidebar. */}
-          <div className="-mx-1 mb-2 flex gap-1 overflow-x-auto pb-2 md:hidden">
+          <div className="-mx-1 mb-2 flex max-w-full gap-1 overflow-x-auto pb-2 md:hidden">
             <SectionOrderList
               sectionIds={orderedSectionIds}
               labelFor={sectionLabel}
               enabled={content.sectionEnabled}
+              suggestedIds={suggestedSectionOrder(templateType)}
               onMove={moveSectionOrder}
               onToggle={toggleSectionEnabled}
               onReorderTo={(from, to) => {
@@ -356,26 +532,19 @@ export function ResumeBuilderEditorPage() {
             />
           </div>
 
+          <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
           <div className="space-y-6">
-            <details open className="rounded-xl border border-slate-200 bg-white p-4">
+            <details open className="rounded-lg border border-line bg-card p-4 shadow-card">
               <summary className="cursor-pointer text-sm font-semibold text-slate-800">
                 {t('resumeBuilder.editor.metaHeading')}
               </summary>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="mb-1 block text-slate-600">{t('resumeBuilder.editor.draftTitle')}</span>
-                  <input
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1 block text-slate-600">{t('resumeBuilder.list.templateType')}</span>
+              <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block min-w-0 text-sm sm:col-span-2">
+                  <span className="mb-1 block text-muted">{t('resumeBuilder.list.templateType')}</span>
                   <select
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     value={templateType}
-                    onChange={(event) => setTemplateType(event.target.value as ResumeBuilderTemplateType)}
+                    onChange={(event) => onTemplateTypeChange(event.target.value as ResumeBuilderTemplateType)}
                   >
                     {TEMPLATE_TYPES.map((type) => (
                       <option key={type} value={type}>
@@ -383,13 +552,14 @@ export function ResumeBuilderEditorPage() {
                       </option>
                     ))}
                   </select>
+                  <span className="mt-1 block text-xs text-slate-500">{t('resumeBuilder.editor.templateSwitchNote')}</span>
                 </label>
                 <label className="block text-sm">
                   <span className="mb-1 block text-slate-600">{t('resumeBuilder.editor.targetRole')}</span>
                   <input
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     value={targetRole}
-                    onChange={(event) => setTargetRole(event.target.value)}
+                    onChange={(event) => setUnifiedTarget(event.target.value)}
                   />
                 </label>
                 <label className="block text-sm">
@@ -406,16 +576,16 @@ export function ResumeBuilderEditorPage() {
               </div>
             </details>
 
-            <details open id="section-basic-info" className="rounded-xl border border-slate-200 bg-white p-4">
+            <details open id="section-basic-info" className="rounded-lg border border-line bg-card p-4 shadow-card">
               <summary className="cursor-pointer text-sm font-semibold text-slate-800">
                 {t('resumeBuilder.sections.basicInfo')}
               </summary>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {(['fullName', 'city', 'country', 'phone', 'email', 'linkedin', 'github', 'website'] as const).map((key) => (
-                  <label key={key} className="block text-sm">
+              <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                {(['fullName', 'city', 'country', 'phone', 'email'] as const).map((key) => (
+                  <label key={key} className="block min-w-0 text-sm">
                     <span className="mb-1 block text-slate-600">{t(`resumeBuilder.fields.${key}`)}</span>
                     <input
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm"
                       value={content.basicInfo[key]}
                       onChange={(event) =>
                         patchContent({ basicInfo: { ...content.basicInfo, [key]: event.target.value } })
@@ -423,7 +593,7 @@ export function ResumeBuilderEditorPage() {
                     />
                   </label>
                 ))}
-                <label className="flex items-center gap-2 text-sm text-slate-700">
+                <label className="flex min-w-0 items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                   <input
                     type="checkbox"
                     checked={content.basicInfo.legallyEligibleToWork === true}
@@ -438,10 +608,18 @@ export function ResumeBuilderEditorPage() {
                   />
                   {t('resumeBuilder.fields.legallyEligibleToWork')}
                 </label>
+                <div className="min-w-0 sm:col-span-2">
+                  <ProfessionalLinksEditor
+                    basicInfo={content.basicInfo}
+                    templateType={templateType}
+                    onChange={(next) => patchContent({ basicInfo: next })}
+                    t={t}
+                  />
+                </div>
               </div>
             </details>
 
-            <details open id="section-job-target" className="rounded-xl border border-slate-200 bg-white p-4">
+            <details open id="section-job-target" className="rounded-lg border border-line bg-card p-4 shadow-card">
               <summary className="cursor-pointer text-sm font-semibold text-slate-800">
                 {t('resumeBuilder.sections.jobTarget')}
               </summary>
@@ -452,9 +630,14 @@ export function ResumeBuilderEditorPage() {
                     <input
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                       value={content.jobTarget[key]}
-                      onChange={(event) =>
-                        patchContent({ jobTarget: { ...content.jobTarget, [key]: event.target.value } })
-                      }
+                      onChange={(event) => {
+                        const value = event.target.value
+                        if (key === 'targetTitle') {
+                          setUnifiedTarget(value)
+                          return
+                        }
+                        patchContent({ jobTarget: { ...content.jobTarget, [key]: value } })
+                      }}
                     />
                   </label>
                 ))}
@@ -477,7 +660,7 @@ export function ResumeBuilderEditorPage() {
                 key={sectionId}
                 open
                 id={`section-${sectionId.replace(/[^a-zA-Z0-9]/g, '-')}`}
-                className="rounded-xl border border-slate-200 bg-white p-4"
+                className="rounded-lg border border-line bg-card p-4 shadow-card"
               >
                 <summary className="cursor-pointer text-sm font-semibold text-slate-800">
                   {sectionLabel(sectionId)}
@@ -490,6 +673,19 @@ export function ResumeBuilderEditorPage() {
                 <div className="mt-3">{renderSectionBody(sectionId)}</div>
               </details>
             ))}
+          </div>
+          <div className="mt-6 xl:mt-0 xl:sticky xl:top-32">
+            <PreviewPanel preview={livePreview} loading={previewLoading && preview === null} />
+            {generateError ? <Alert message={generateError} /> : null}
+            {generatedResumeId ? (
+              <div className="mt-3 rounded-md bg-success-soft px-4 py-3 text-sm text-success">
+                {t('resumeBuilder.editor.generatedSuccess')}{' '}
+                <Link className="underline" to="/resumes">
+                  {t('resumeBuilder.editor.viewInMyResumes')}
+                </Link>
+              </div>
+            ) : null}
+          </div>
           </div>
         </div>
       ) : null}
@@ -514,24 +710,16 @@ export function ResumeBuilderEditorPage() {
 
       {tab === 'preview' ? (
         <div className="mt-4 space-y-4">
-          <PreviewPanel preview={preview} loading={previewLoading} />
+          <PreviewPanel preview={livePreview} loading={previewLoading && preview === null} />
           {generateError ? <Alert message={generateError} /> : null}
           {generatedResumeId ? (
-            <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <div className="rounded-md bg-success-soft px-4 py-3 text-sm text-success">
               {t('resumeBuilder.editor.generatedSuccess')}{' '}
               <Link className="underline" to="/resumes">
                 {t('resumeBuilder.editor.viewInMyResumes')}
               </Link>
             </div>
           ) : null}
-          <button
-            type="button"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-            disabled={generating || preview === null || !preview.readyToGenerate}
-            onClick={() => void onGenerate()}
-          >
-            {generating ? t('common.processing') : t('resumeBuilder.editor.generate')}
-          </button>
         </div>
       ) : null}
     </div>
@@ -587,6 +775,7 @@ export function ResumeBuilderEditorPage() {
           collapseLabel={t('resumeBuilder.editor.collapse')}
           expandLabel={t('resumeBuilder.editor.expand')}
           emptyHint={t('resumeBuilder.editor.emptySkills')}
+          hint={t('resumeBuilder.hints.skills')}
         />
       )
     }
@@ -624,6 +813,7 @@ export function ResumeBuilderEditorPage() {
         collapseLabel={t('resumeBuilder.editor.collapse')}
         expandLabel={t('resumeBuilder.editor.expand')}
         emptyHint={t('resumeBuilder.editor.emptySection')}
+        hint={sectionId === 'PROJECTS' ? t('resumeBuilder.hints.projects') : undefined}
       />
     )
   }
@@ -645,16 +835,17 @@ function SaveStatusBadge({ status, onReload }: { status: SaveStatus; onReload: (
   if (status === 'idle') {
     return null
   }
-  const map: Record<SaveStatus, { text: string; className: string }> = {
-    idle: { text: '', className: '' },
-    saving: { text: t('resumeBuilder.editor.status.saving'), className: 'text-slate-500' },
-    saved: { text: t('resumeBuilder.editor.status.saved'), className: 'text-emerald-700' },
-    conflict: { text: t('resumeBuilder.editor.status.conflict'), className: 'text-amber-700' },
-    error: { text: t('resumeBuilder.editor.status.error'), className: 'text-red-700' },
+  const map: Record<SaveStatus, { text: string; className: string; dot: string }> = {
+    idle: { text: '', className: '', dot: '' },
+    saving: { text: t('resumeBuilder.editor.status.saving'), className: 'text-muted', dot: 'bg-accent' },
+    saved: { text: t('resumeBuilder.editor.status.saved'), className: 'text-success', dot: 'bg-success' },
+    conflict: { text: t('resumeBuilder.editor.status.conflict'), className: 'text-warning', dot: 'bg-warning' },
+    error: { text: t('resumeBuilder.editor.status.error'), className: 'text-danger', dot: 'bg-danger' },
   }
   const info = map[status]
   return (
-    <span className={`text-sm ${info.className}`}>
+    <span className={`inline-flex items-center gap-2 text-sm ${info.className}`}>
+      <span className={`h-2.5 w-2.5 rounded-full ${info.dot}`} aria-hidden="true" />
       {info.text}
       {status === 'error' ? (
         <button type="button" className="ml-2 underline" onClick={onReload}>
@@ -669,23 +860,33 @@ interface SectionOrderListProps {
   sectionIds: string[]
   labelFor: (id: string) => string
   enabled: Record<string, boolean>
+  suggestedIds: string[]
   onMove: (id: string, delta: number) => void
   onToggle: (id: string) => void
   onReorderTo: (from: number, to: number) => void
   layout: 'vertical' | 'horizontal'
 }
 
-function SectionOrderList({ sectionIds, labelFor, enabled, onMove, onToggle, onReorderTo, layout }: SectionOrderListProps) {
+function SectionOrderList({
+  sectionIds,
+  labelFor,
+  enabled,
+  suggestedIds,
+  onMove,
+  onToggle,
+  onReorderTo,
+  layout,
+}: SectionOrderListProps) {
   const { t } = useTranslation()
   const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const containerClass = layout === 'vertical' ? 'flex flex-col gap-1' : 'flex flex-row gap-1'
+  const containerClass = layout === 'vertical' ? 'flex min-w-0 flex-col gap-1' : 'flex flex-row gap-1'
 
   return (
     <div className={containerClass}>
       {sectionIds.map((sectionId, index) => (
         <div
           key={sectionId}
-          className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+          className="flex min-w-0 shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
           draggable
           onDragStart={() => setDragIndex(index)}
           onDragOver={(event) => event.preventDefault()}
@@ -706,6 +907,9 @@ function SectionOrderList({ sectionIds, labelFor, enabled, onMove, onToggle, onR
           <a href={`#section-${sectionId.replace(/[^a-zA-Z0-9]/g, '-')}`} className="whitespace-nowrap text-slate-700">
             {labelFor(sectionId)}
           </a>
+          {suggestedIds.includes(sectionId) ? (
+            <span className="text-slate-400">{t('resumeBuilder.editor.suggested')}</span>
+          ) : null}
           <button
             type="button"
             aria-label={t('resumeBuilder.editor.moveUp')}

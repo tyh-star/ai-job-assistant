@@ -116,6 +116,12 @@ describe('apiErrorKey status mapping', () => {
     expect(apiErrorKey(axiosError(403))).toBe('errors.forbidden')
   })
 
+  it('maps a missing response to network, not forbidden', () => {
+    expect(apiErrorKey({ message: 'Network Error' })).toBe('errors.network')
+    expect(apiErrorKey({ request: {} })).toBe('errors.network')
+    expect(apiErrorKey({ message: 'Network Error' })).not.toBe('errors.forbidden')
+  })
+
   it('maps WEAK_PASSWORD to the stable frontend key', () => {
     expect(apiErrorKey({
       response: { status: 400, data: { code: 'WEAK_PASSWORD', message: 'Password does not meet strength requirements' } },

@@ -31,6 +31,7 @@ class ResumeBuilderDraftValidatorTest {
         ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
         content.getBasicInfo().setFullName("Alex Morgan");
         content.getBasicInfo().setEmail("alex.morgan@example.com");
+        content.getBasicInfo().setProfessionalLinks(null);
         content.getBasicInfo().setLinkedin("https://linkedin.com/in/alexmorgan");
         content.getJobTarget().setTargetTitle("Software Engineer");
 
