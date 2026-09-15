@@ -333,11 +333,11 @@ class JobCatalogAppliedMySqlIntegrationTest {
     void anonymousConfirmAndRevokeAreRejectedBeforeTouchingMySql() throws Exception {
         int status1 = mockMvc.perform(post("/api/v1/job-catalog/freehire:acme-swe-mysql/applied"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status1 == 401 || status1 == 403, "status=" + status1);
+        assertEquals(401, status1, "save without credentials must be 401");
 
         int status2 = mockMvc.perform(delete("/api/v1/job-catalog/freehire:acme-swe-mysql/applied"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status2 == 401 || status2 == 403, "status=" + status2);
+        assertEquals(401, status2, "applied without credentials must be 401");
 
         Integer rowCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM jobs", Integer.class);
         assertEquals(0, rowCount, "an anonymous request must never write a row");

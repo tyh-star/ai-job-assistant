@@ -73,7 +73,7 @@ class ResumeBuilderControllerSecurityTest {
 
     private static void assertRejected(int status) {
         assertNotEquals(200, status);
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "missing or unusable credentials must be 401");
     }
 
     private long createDraft(String auth, String title) throws Exception {

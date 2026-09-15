@@ -35,6 +35,7 @@ import type {
 } from '../api/types'
 import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
+import { displayFileName } from '../resumes/fileName'
 import {
   IncompletePdfStructureError,
   ResumeFileUnavailableError,
@@ -906,7 +907,7 @@ export function TailorPage() {
             <option value="">{t('tailor.selectResume')}</option>
             {visibleResumes.map((resume) => (
               <option key={resume.id} value={resume.id}>
-                {resume.fileName}
+                {displayFileName(resume.fileName)}
               </option>
             ))}
           </select>

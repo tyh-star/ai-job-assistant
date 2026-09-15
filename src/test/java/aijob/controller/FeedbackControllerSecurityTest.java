@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -66,7 +67,7 @@ class FeedbackControllerSecurityTest {
 
     private static void assertRejected(int status) {
         assertNotEquals(200, status);
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "missing or unusable credentials must be 401");
     }
 
     // ---------------------------------------------------------------------------

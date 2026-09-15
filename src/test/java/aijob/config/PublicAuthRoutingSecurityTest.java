@@ -147,18 +147,18 @@ class PublicAuthRoutingSecurityTest {
     }
 
     @Test
-    void protectedResumeListWithoutJwt_is401Or403() throws Exception {
+    void protectedResumeListWithoutJwt_is401() throws Exception {
         int status = mockMvc.perform(get("/api/v1/resumes"))
                 .andReturn()
                 .getResponse()
                 .getStatus();
         assertNotEquals(200, status);
         assertNotEquals(400, status);
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "missing credentials must be 401, not 403");
     }
 
     @Test
-    void protectedPersonalJobsAndStatsWithoutJwt_are401Or403() throws Exception {
+    void protectedPersonalJobsAndStatsWithoutJwt_are401() throws Exception {
         assertAnonymousDenied("/api/v1/jobs");
         assertAnonymousDenied("/api/v1/jobs/application-stats");
         assertAnonymousDenied("/api/v1/resume-builder/drafts");
@@ -166,18 +166,18 @@ class PublicAuthRoutingSecurityTest {
     }
 
     @Test
-    void protectedCatalogWriteWithoutJwt_is401Or403() throws Exception {
+    void protectedCatalogWriteWithoutJwt_is401() throws Exception {
         int saveStatus = mockMvc.perform(post("/api/v1/job-catalog/501/save"))
                 .andReturn()
                 .getResponse()
                 .getStatus();
-        assertTrue(saveStatus == 401 || saveStatus == 403, "save status=" + saveStatus);
+        assertEquals(401, saveStatus, "save status");
 
         int appliedStatus = mockMvc.perform(post("/api/v1/job-catalog/501/applied"))
                 .andReturn()
                 .getResponse()
                 .getStatus();
-        assertTrue(appliedStatus == 401 || appliedStatus == 403, "applied status=" + appliedStatus);
+        assertEquals(401, appliedStatus, "applied status");
     }
 
     @Test
@@ -196,14 +196,15 @@ class PublicAuthRoutingSecurityTest {
                 .getResponse()
                 .getStatus();
         assertNotEquals(200, status, path);
-        assertTrue(status == 401 || status == 403, path + " status=" + status);
+        assertEquals(401, status, path);
     }
 
     @Test
     void corsConfiguration_allowsConfiguredOriginsOnly() {
         SecurityConfig config = new SecurityConfig(
                 mock(JwtAuthenticationFilter.class),
-                "https://example.sslip.io, http://localhost:5173,http://127.0.0.1:5173"
+                "https://example.sslip.io, http://localhost:5173,http://127.0.0.1:5173",
+                new com.fasterxml.jackson.databind.ObjectMapper()
         );
         CorsConfigurationSource source = config.corsConfigurationSource();
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/register");

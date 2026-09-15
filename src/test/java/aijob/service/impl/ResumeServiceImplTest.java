@@ -527,6 +527,54 @@ class ResumeServiceImplTest {
     }
 
     @Test
+    void uploadPdf_phoneEncodedChineseName_isStoredAndReturnedDecoded() throws Exception {
+        when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
+        stubInsert();
+        when(resumeTextExtractor.extract(any(Path.class), eq("pdf"))).thenReturn(SAMPLE_TEXT);
+        when(pdfLayoutExtractor.extract(any(Path.class))).thenReturn(sampleLayout());
+
+        ResumeResponse response = resumeService.uploadResume(EMAIL, new MockMultipartFile(
+                "file", "%E7%AE%80%E5%8E%86%20(1).pdf", "application/pdf", "dummy-pdf".getBytes(StandardCharsets.UTF_8)));
+
+        assertEquals("简历 (1).pdf", lastInserted.getFileName());
+        assertEquals("简历 (1).pdf", response.getFileName());
+    }
+
+    @Test
+    void uploadPdf_encodedPathSeparators_keepOnlyTheLastSegment() throws Exception {
+        when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
+        stubInsert();
+        when(resumeTextExtractor.extract(any(Path.class), eq("pdf"))).thenReturn(SAMPLE_TEXT);
+        when(pdfLayoutExtractor.extract(any(Path.class))).thenReturn(sampleLayout());
+
+        resumeService.uploadResume(EMAIL, new MockMultipartFile(
+                "file", "..%2F..%5Cetc%2F%E7%AE%80%E5%8E%86.pdf", "application/pdf", "dummy-pdf".getBytes(StandardCharsets.UTF_8)));
+
+        assertEquals("简历.pdf", lastInserted.getFileName());
+    }
+
+    @Test
+    void upload_encodedNulHidingAnotherExtension_isRejected() {
+        when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
+
+        assertThrows(InvalidResumeFileException.class, () -> resumeService.uploadResume(EMAIL, new MockMultipartFile(
+                "file", "cv.pdf%00.exe", "application/pdf", "dummy".getBytes(StandardCharsets.UTF_8))));
+        verify(resumeMapper, never()).insert(any());
+    }
+
+    @Test
+    void storedEncodedName_isShownAndDownloadedDecodedWithoutReupload() throws Exception {
+        byte[] payload = "%PDF-1.4 legacy".getBytes(StandardCharsets.UTF_8);
+        Resume legacy = storedOwnedUpload(4L, "pdf", "%E7%AE%80%E5%8E%86.pdf", payload);
+        when(userMapper.findByEmail(EMAIL)).thenReturn(owner);
+        when(resumeMapper.findByUserId(2L)).thenReturn(List.of(legacy));
+        when(resumeMapper.findById(4L)).thenReturn(legacy);
+
+        assertEquals("简历.pdf", resumeService.getMyResumes(EMAIL, false).get(0).getFileName());
+        assertEquals("简历.pdf", resumeService.downloadResume(EMAIL, 4L).getFileName());
+    }
+
+    @Test
     void downloadResume_otherUser_is404() throws Exception {
         Resume resume = storedOwnedUpload(4L, "pdf", "alex-morgan.pdf", "pdf".getBytes(StandardCharsets.UTF_8));
         User other = new User();

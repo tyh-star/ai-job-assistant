@@ -1,5 +1,6 @@
 import { api, API_BASE_URL, readApiErrorMessage } from './client'
 import { endpoints } from './endpoints'
+import { fileNameFromContentDisposition } from '../resumes/fileName'
 import { stripApiV1Prefix } from './url'
 import type {
   ResumeEvidenceItem,
@@ -62,7 +63,7 @@ export async function downloadByUrl(downloadUrl: string, fallbackName: string) {
   try {
     const path = toApiPath(downloadUrl)
     const response = await api.get(path, { responseType: 'blob' })
-    const name = filenameFromDisposition(
+    const name = fileNameFromContentDisposition(
       response.headers['content-disposition'],
       fallbackName,
     )
@@ -78,18 +79,6 @@ export function toApiPath(downloadUrl: string): string {
     return stripApiV1Prefix(path.slice(API_BASE_URL.length) || '/')
   }
   return stripApiV1Prefix(path)
-}
-
-function filenameFromDisposition(header: string | undefined, fallback: string): string {
-  if (!header) {
-    return fallback
-  }
-  const utf = /filename\*=UTF-8''([^;]+)/i.exec(header)
-  if (utf?.[1]) {
-    return decodeURIComponent(utf[1])
-  }
-  const simple = /filename="?([^";]+)"?/i.exec(header)
-  return simple?.[1] ?? fallback
 }
 
 function triggerBlobDownload(blob: Blob, fileName: string) {

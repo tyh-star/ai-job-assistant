@@ -13,6 +13,7 @@ import type { ResumeResponse } from '../api/types'
 import { Alert } from '../components/Alert'
 import { EmptyState } from '../components/EmptyState'
 import { Spinner } from '../components/Spinner'
+import { displayFileName, safeDownloadFileName } from '../resumes/fileName'
 
 export function ResumesPage() {
   const { t } = useTranslation()
@@ -65,7 +66,7 @@ export function ResumesPage() {
     }
     setError('')
     try {
-      await downloadByUrl(resume.downloadUrl, resume.fileName)
+      await downloadByUrl(resume.downloadUrl, safeDownloadFileName(resume.fileName, `resume.${resume.fileType.toLowerCase()}`))
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       setError(message || t('resumes.downloadFailed'))
@@ -141,7 +142,7 @@ export function ResumesPage() {
             <tbody>
               {items.map((resume) => (
                 <tr key={resume.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-3">{resume.fileName}</td>
+                  <td className="px-4 py-3">{displayFileName(resume.fileName)}</td>
                   <td className="px-4 py-3 uppercase">{resume.fileType}</td>
                   <td className="px-4 py-3">{t(statusKey(resume))}</td>
                   <td className="px-4 py-3">

@@ -99,7 +99,7 @@ class JobControllerAppliedSecurityTest {
 
         int status = mockMvc.perform(post("/api/v1/jobs/" + id + "/applied"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "missing or invalid credentials must be 401");
 
         Map<String, Object> unchanged = row(id);
         assertEquals(Boolean.FALSE, toBoolean(unchanged.get("APPLIED")),
@@ -116,7 +116,7 @@ class JobControllerAppliedSecurityTest {
 
         int status = mockMvc.perform(delete("/api/v1/jobs/" + id + "/applied"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "missing or invalid credentials must be 401");
 
         // Still applied -- the anonymous revoke attempt must never have reached the row.
         Map<String, Object> unchanged = row(id);
@@ -131,7 +131,7 @@ class JobControllerAppliedSecurityTest {
         int status = mockMvc.perform(post("/api/v1/jobs/" + id + "/applied")
                         .header("Authorization", "Bearer not-a-real-token"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "missing or invalid credentials must be 401");
         assertEquals(Boolean.FALSE, toBoolean(row(id).get("APPLIED")));
     }
 

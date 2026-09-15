@@ -91,5 +91,11 @@ export function sanitizeReturnTo(raw: string | null | undefined): string {
   if (decodedAgain !== raw && !isSafeRelativePath(decodedAgain)) {
     return DEFAULT_RETURN_TO
   }
+  // Going "back" to the login or register page after logging in would bounce between
+  // the two forever; send the user to the default page instead.
+  const target = decodedAgain.split(/[?#]/)[0].replace(/\/+$/, "")
+  if (target === "/login" || target === "/register") {
+    return DEFAULT_RETURN_TO
+  }
   return raw
 }

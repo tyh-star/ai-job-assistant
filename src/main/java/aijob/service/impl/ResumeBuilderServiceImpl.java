@@ -434,7 +434,7 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
                 : null;
         return new ResumeResponse(
                 resume.getId(),
-                resume.getFileName(),
+                aijob.util.ResumeFileNames.displayName(resume.getFileName()),
                 resume.getFileType(),
                 resume.getCreatedAt(),
                 resume.getUpdatedAt(),
