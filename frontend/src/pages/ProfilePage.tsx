@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { changePassword as changePasswordApi, getMe } from '../api/auth'
@@ -7,14 +7,14 @@ import { useAuth } from '../auth/AuthContext'
 import { evaluatePassword } from '../auth/passwordStrength'
 import { Alert } from '../components/Alert'
 import { FeedbackForm } from '../components/FeedbackForm'
-import { PasswordChecklist } from '../components/PasswordChecklist'
+import { PasswordRequirements, type PasswordRequirementsHandle } from '../components/PasswordRequirements'
 import { Spinner } from '../components/Spinner'
 
-const SECTION_CLASS = 'rounded-xl border border-slate-200 bg-white p-6'
-const LABEL_CLASS = 'block text-sm text-slate-700'
-const INPUT_CLASS = 'mt-1 min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm'
-const SUBMIT_CLASS = 'min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60'
-const SUCCESS_CLASS = 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900'
+const SECTION_CLASS = 'rounded-lg border border-line bg-card p-6 shadow-card'
+const LABEL_CLASS = 'block text-sm text-ink'
+const INPUT_CLASS = 'ui-input mt-1'
+const SUBMIT_CLASS = 'min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-brand disabled:opacity-60'
+const SUCCESS_CLASS = 'rounded-md border border-success/30 bg-success-soft px-4 py-3 text-sm text-success'
 const NAME_MAX_LENGTH = 100
 
 export function ProfilePage() {
@@ -53,7 +53,7 @@ export function ProfilePage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold text-slate-900">{t('profile.title')}</h1>
+      <h1 className="page-title">{t('profile.title')}</h1>
 
       {loading ? <div className="mt-6"><Spinner label={t('common.loading')} /></div> : null}
       {loadError ? <div className="mt-6"><Alert message={loadError} /></div> : null}
@@ -61,15 +61,15 @@ export function ProfilePage() {
       {!loading && !loadError ? (
         <div className="mt-6 space-y-6">
           <section className={SECTION_CLASS}>
-            <h2 className="text-lg font-medium text-slate-900">{t('profile.accountInfo')}</h2>
+            <CardHeading icon="user" title={t('profile.accountInfo')} hint={t('profile.accountInfoHint')} />
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex flex-wrap justify-between gap-x-4 gap-y-1">
-                <dt className="text-slate-500">{t('profile.email')}</dt>
-                <dd className="min-w-0 break-all text-slate-900">{user?.email}</dd>
+                <dt className="text-muted">{t('profile.email')}</dt>
+                <dd className="min-w-0 break-all text-ink">{user?.email}</dd>
               </div>
               <div className="flex flex-wrap justify-between gap-x-4 gap-y-1">
-                <dt className="text-slate-500">{t('profile.registeredAt')}</dt>
-                <dd className="text-slate-900">
+                <dt className="text-muted">{t('profile.registeredAt')}</dt>
+                <dd className="text-ink">
                   {createdAt ? new Date(createdAt).toLocaleDateString(i18n.language) : '—'}
                 </dd>
               </div>
@@ -123,8 +123,7 @@ function NameSection() {
 
   return (
     <section className={SECTION_CLASS}>
-      <h2 className="text-lg font-medium text-slate-900">{t('profile.nameSection')}</h2>
-      <p className="mt-1 text-sm text-slate-500">{t('profile.nameHint')}</p>
+      <CardHeading icon="id" title={t('profile.nameSection')} hint={t('profile.nameHint')} />
       <form className="mt-4 space-y-3" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
         {success ? <div className={SUCCESS_CLASS}>{t('profile.nameSaved')}</div> : null}
@@ -188,8 +187,7 @@ function EmailSection() {
 
   return (
     <section className={SECTION_CLASS}>
-      <h2 className="text-lg font-medium text-slate-900">{t('profile.emailSection')}</h2>
-      <p className="mt-1 text-sm text-slate-500">{t('profile.emailHint')}</p>
+      <CardHeading icon="mail" title={t('profile.emailSection')} hint={t('profile.emailHint')} />
       <form className="mt-4 space-y-3" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
         {success ? <div className={SUCCESS_CLASS}>{t('profile.emailSaved')}</div> : null}
@@ -230,6 +228,7 @@ function PasswordSection() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [saving, setSaving] = useState(false)
+  const passwordFieldRef = useRef<PasswordRequirementsHandle>(null)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -241,6 +240,7 @@ function PasswordSection() {
     if (!evaluatePassword(newPassword).strong) {
       setError(t('errors.weakPassword'))
       setSuccess(false)
+      passwordFieldRef.current?.reportInvalidSubmit()
       return
     }
     setSaving(true)
@@ -269,8 +269,7 @@ function PasswordSection() {
 
   return (
     <section className={SECTION_CLASS}>
-      <h2 className="text-lg font-medium text-slate-900">{t('profile.passwordSection')}</h2>
-      <p className="mt-1 text-sm text-slate-500">{t('profile.passwordHint')}</p>
+      <CardHeading icon="lock" title={t('profile.passwordSection')} hint={t('profile.passwordHint')} />
       <form className="mt-4 space-y-3" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
         {success ? <div className={SUCCESS_CLASS}>{t('profile.passwordSavedRedirecting')}</div> : null}
@@ -285,22 +284,56 @@ function PasswordSection() {
             disabled={success}
           />
         </label>
-        <label className={LABEL_CLASS}>
-          <span>{t('profile.newPassword')}</span>
-          <input
-            className={INPUT_CLASS}
-            type="password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            autoComplete="new-password"
-            disabled={success}
-          />
-        </label>
-        <PasswordChecklist password={newPassword} />
+        <PasswordRequirements
+          ref={passwordFieldRef}
+          label={t('profile.newPassword')}
+          password={newPassword}
+          onPasswordChange={(value) => {
+            setNewPassword(value)
+            setSuccess(false)
+          }}
+          labelClassName={LABEL_CLASS}
+          inputClassName="ui-input"
+          autoComplete="new-password"
+          disabled={success}
+        />
         <button type="submit" className={SUBMIT_CLASS} disabled={saving || success}>
           {saving ? t('common.saving') : t('profile.savePassword')}
         </button>
       </form>
     </section>
+  )
+}
+
+function CardHeading({
+  icon,
+  title,
+  hint,
+}: {
+  icon: 'user' | 'id' | 'mail' | 'lock'
+  title: string
+  hint?: string
+}) {
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-soft text-brand" aria-hidden="true">
+        {icon === 'user' ? (
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="7" r="3" /><path d="M4 16c0-3 2.7-5 6-5s6 2 6 5" /></svg>
+        ) : null}
+        {icon === 'id' ? (
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="5" width="14" height="10" rx="1.5" /><path d="M7 9h6M7 12h4" /></svg>
+        ) : null}
+        {icon === 'mail' ? (
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="5" width="14" height="10" rx="1.5" /><path d="m4 6 6 5 6-5" /></svg>
+        ) : null}
+        {icon === 'lock' ? (
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="5" y="9" width="10" height="8" rx="1.5" /><path d="M7.5 9V7a2.5 2.5 0 0 1 5 0v2" /></svg>
+        ) : null}
+      </span>
+      <div>
+        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        {hint ? <p className="mt-1 text-sm text-muted">{hint}</p> : null}
+      </div>
+    </div>
   )
 }

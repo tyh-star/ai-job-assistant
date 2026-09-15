@@ -850,7 +850,7 @@ export function TailorPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-900">{t('tailor.title')}</h1>
+      <h1 className="page-title">{t('tailor.title')}</h1>
       {loading ? <div className="mt-6"><Spinner label={t('common.loading')} /></div> : null}
       {running && scanProgress ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">

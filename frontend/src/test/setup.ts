@@ -8,6 +8,7 @@ import '@testing-library/jest-dom/vitest'
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {}
 }
+window.scrollTo = () => {}
 if (!window.matchMedia) {
   window.matchMedia = (query: string) => ({
     matches: false,

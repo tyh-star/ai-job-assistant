@@ -3,40 +3,44 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiErrorKey } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { sanitizeReturnTo } from '../auth/returnTo'
+import { LOGIN_REASON_EXPIRED, LOGIN_REASON_REQUIRED, sanitizeReturnTo } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
 import { LanguageSwitch } from '../components/LanguageSwitch'
 import { Spinner } from '../components/Spinner'
+import { BrandMark } from '../components/ui/BrandMark'
 
 export const AUTH_SHELL_CLASS =
-  'auth-shell flex min-h-screen flex-col bg-slate-50'
+  'auth-shell flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-sky-50 to-indigo-50'
 export const AUTH_CARD_CLASS =
-  'auth-card w-full max-w-[min(92vw,540px)] rounded-2xl border border-slate-200 bg-white px-8 py-10 shadow-sm sm:px-10'
+  'auth-card w-full max-w-[min(92vw,540px)] rounded-2xl border border-line bg-card px-8 py-10 shadow-card sm:px-10'
 export const AUTH_TITLE_CLASS =
-  'auth-title text-3xl font-semibold tracking-tight text-slate-900'
-export const AUTH_SUBTITLE_CLASS = 'auth-subtitle mt-2 text-base text-slate-500'
+  'auth-title text-3xl font-semibold tracking-tight text-ink'
+export const AUTH_SUBTITLE_CLASS = 'auth-subtitle mt-2 text-base text-muted'
 export const AUTH_LABEL_CLASS = 'auth-label block text-base'
 export const AUTH_INPUT_CLASS =
-  'auth-input mt-1 min-h-12 w-full rounded-lg border border-slate-300 px-3 py-3 text-base'
+  'auth-input mt-1 min-h-12 w-full rounded-lg border border-line px-3 py-3 text-base'
 export const AUTH_SUBMIT_CLASS =
-  'auth-submit min-h-12 w-full rounded-lg bg-slate-900 px-4 py-3 text-base font-medium text-white disabled:opacity-60'
-export const AUTH_FOOTER_CLASS = 'auth-footer mt-6 text-base text-slate-600'
+  'auth-submit min-h-12 w-full rounded-lg bg-accent px-4 py-3 text-base font-medium text-white hover:bg-brand disabled:opacity-60'
+export const AUTH_FOOTER_CLASS = 'auth-footer mt-6 text-base text-muted'
 
 export function LoginPage() {
   const { t } = useTranslation()
   const { isAuthenticated, login } = useAuth()
   const [searchParams] = useSearchParams()
   const returnTo = sanitizeReturnTo(searchParams.get('returnTo'))
+  const reason = searchParams.get('reason')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  // The axios interceptor's own forced redirect (see api/client.ts) carries this so
-  // the visitor sees an honest reason, not a blank form that looks like nothing
-  // happened -- initialized once from the URL, not re-read on every render, so it
-  // does not reappear after the user has cleared or replaced it with their own error.
-  const [error, setError] = useState(() =>
-    searchParams.get('reason') === 'session_expired' ? t('auth.sessionExpired') : '',
-  )
+  const [formError, setFormError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const reasonNotice =
+    reason === LOGIN_REASON_EXPIRED
+      ? t('auth.sessionExpired')
+      : reason === LOGIN_REASON_REQUIRED
+        ? t('auth.loginRequired')
+        : ''
+  const error = formError || reasonNotice
 
   if (isAuthenticated) {
     return <Navigate to={returnTo} replace />
@@ -45,19 +49,19 @@ export function LoginPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (!email.trim()) {
-      setError(t('auth.emailRequired'))
+      setFormError(t('auth.emailRequired'))
       return
     }
     if (!email.includes('@')) {
-      setError(t('auth.emailInvalid'))
+      setFormError(t('auth.emailInvalid'))
       return
     }
     if (!password) {
-      setError(t('auth.passwordRequired'))
+      setFormError(t('auth.passwordRequired'))
       return
     }
     setLoading(true)
-    setError('')
+    setFormError('')
     try {
       await login(email.trim(), password)
     } catch (err) {
@@ -69,7 +73,7 @@ export function LoginPage() {
       // from any OTHER call but actively misleading here -- this login never had a
       // session to expire in the first place.
       const status = (err as { response?: { status?: number } }).response?.status
-      setError(status === 401 ? t('auth.invalidCredentials') : t(apiErrorKey(err)))
+      setFormError(status === 401 ? t('auth.invalidCredentials') : t(apiErrorKey(err)))
     } finally {
       setLoading(false)
     }
@@ -82,7 +86,7 @@ export function LoginPage() {
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
         <label className={AUTH_LABEL_CLASS}>
-          <span className="text-slate-700">{t('auth.email')}</span>
+          <span className="text-ink">{t('auth.email')}</span>
           <input
             className={AUTH_INPUT_CLASS}
             type="email"
@@ -92,7 +96,7 @@ export function LoginPage() {
           />
         </label>
         <label className={AUTH_LABEL_CLASS}>
-          <span className="text-slate-700">{t('auth.password')}</span>
+          <span className="text-ink">{t('auth.password')}</span>
           <input
             className={AUTH_INPUT_CLASS}
             type="password"
@@ -112,7 +116,10 @@ export function LoginPage() {
       {loading ? <div className="mt-4"><Spinner label={t('common.loading')} /></div> : null}
       <p className={AUTH_FOOTER_CLASS}>
         {t('auth.noAccount')}{' '}
-        <Link className="font-medium text-slate-900 underline" to="/register">
+        <Link
+          className="font-medium text-brand underline"
+          to={`/register?returnTo=${encodeURIComponent(returnTo)}`}
+        >
           {t('auth.goRegister')}
         </Link>
       </p>
@@ -121,7 +128,6 @@ export function LoginPage() {
 }
 
 export function AuthShell({ children }: { children: ReactNode }) {
-  const { t } = useTranslation()
   return (
     <div className={AUTH_SHELL_CLASS} data-testid="auth-shell">
       <div className="flex justify-end px-6 py-4">
@@ -129,7 +135,9 @@ export function AuthShell({ children }: { children: ReactNode }) {
       </div>
       <div className="flex flex-1 items-center justify-center px-4 pb-16">
         <div className={AUTH_CARD_CLASS} data-testid="auth-card">
-          <p className="text-base font-medium text-slate-500">{t('app.name')}</p>
+          <Link to="/" className="inline-block">
+            <BrandMark />
+          </Link>
           {children}
         </div>
       </div>

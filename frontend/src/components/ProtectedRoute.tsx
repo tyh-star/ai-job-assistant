@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { loginPathAfterSessionExpiry, loginPathWithReturnTo } from '../auth/returnTo'
+import { loginPathAfterSessionExpiry, loginPathForAnonymousFeature } from '../auth/returnTo'
 import { hasSessionExpiredMark } from '../auth/session'
 
 export function ProtectedRoute() {
@@ -13,7 +13,7 @@ export function ProtectedRoute() {
     const currentPath = `${location.pathname}${location.search}`
     const target = hasSessionExpiredMark()
       ? loginPathAfterSessionExpiry(currentPath)
-      : loginPathWithReturnTo(currentPath)
+      : loginPathForAnonymousFeature(currentPath)
     return <Navigate to={target} replace />
   }
   return <Outlet />

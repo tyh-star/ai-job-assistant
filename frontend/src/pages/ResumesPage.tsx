@@ -12,11 +12,14 @@ import {
 import type { ResumeResponse } from '../api/types'
 import { Alert } from '../components/Alert'
 import { EmptyState } from '../components/EmptyState'
-import { Spinner } from '../components/Spinner'
+import { Badge } from '../components/ui/Badge'
+import { Card } from '../components/ui/Card'
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
+import { SectionHeader } from '../components/ui/SectionHeader'
 import { displayFileName, safeDownloadFileName } from '../resumes/fileName'
 
 export function ResumesPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [items, setItems] = useState<ResumeResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -97,90 +100,95 @@ export function ResumesPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-slate-900">{t('resumes.title')}</h1>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            to="/resumes/builder"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-800"
-          >
-            {t('resumes.buildNew')}
-          </Link>
-          <label className="cursor-pointer rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
-            {uploading ? t('resumes.uploading') : t('resumes.upload')}
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              disabled={uploading}
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                event.target.value = ''
-                void onFile(file)
-              }}
-            />
-          </label>
-        </div>
-      </div>
-      <p className="mt-1 text-sm text-slate-500">{t('resumes.chooseFile')}</p>
-      {loading ? <div className="mt-6"><Spinner label={t('common.loading')} /></div> : null}
+      <SectionHeader
+        title={t('resumes.title')}
+        description={t('resumes.chooseFile')}
+        action={
+          <>
+            <Link
+              to="/resumes/builder"
+              className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-white"
+            >
+              {t('resumes.buildNew')}
+            </Link>
+            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-line bg-card px-4 py-2 text-sm font-medium text-ink">
+              {uploading ? t('resumes.uploading') : t('resumes.upload')}
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                disabled={uploading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  void onFile(file)
+                }}
+              />
+            </label>
+          </>
+        }
+      />
+      {loading ? <div className="mt-6"><LoadingSkeleton rows={3} label={t('common.loading')} /></div> : null}
       {error ? <div className="mt-4"><Alert message={error} onRetry={() => void load()} /></div> : null}
       {!loading && items.length === 0 && !error ? (
-        <div className="mt-6"><EmptyState title={t('resumes.empty')} /></div>
+        <div className="mt-6">
+          <EmptyState
+            title={t('resumes.empty')}
+            action={
+              <Link className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white" to="/resumes/builder">
+                {t('resumes.buildNew')}
+              </Link>
+            }
+          />
+        </div>
       ) : null}
       {items.length > 0 ? (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-4 py-3">{t('resumes.fileName')}</th>
-                <th className="px-4 py-3">{t('resumes.type')}</th>
-                <th className="px-4 py-3">{t('resumes.status')}</th>
-                <th className="px-4 py-3">{t('resumes.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((resume) => (
-                <tr key={resume.id} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-3">{displayFileName(resume.fileName)}</td>
-                  <td className="px-4 py-3 uppercase">{resume.fileType}</td>
-                  <td className="px-4 py-3">{t(statusKey(resume))}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-3">
-                      {resume.fileAvailable && resume.downloadUrl ? (
-                        <button
-                          type="button"
-                          className="text-slate-700 underline"
-                          onClick={() => void onDownload(resume)}
-                        >
-                          {t('resumes.download')}
-                        </button>
-                      ) : null}
-                      {resume.fileType.toLowerCase() === 'pdf' ? (
-                        <Link className="text-slate-700 underline" to={`/resumes/${resume.id}/structure`}>
-                          {t('resumes.confirmContent')}
-                        </Link>
-                      ) : null}
-                      <Link className="text-slate-700 underline" to={`/resumes/${resume.id}/quality-score`}>
-                        {t('resumes.viewQualityScore')}
-                      </Link>
-                      <Link className="text-slate-700 underline" to={`/tailor?resumeId=${resume.id}`}>
-                        {t('resumes.startTailor')}
-                      </Link>
-                      <button
-                        type="button"
-                        className="text-red-700 underline"
-                        onClick={() => void onDelete(resume)}
-                      >
-                        {t('resumes.delete')}
-                      </button>
+        <ul className="mt-6 grid gap-3">
+          {items.map((resume) => (
+            <li key={resume.id}>
+              <Card>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="break-words text-base font-semibold text-ink">{displayFileName(resume.fileName)}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {t('resumes.createdAt')}: {new Date(resume.createdAt).toLocaleString(i18n.language)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {resume.origin === 'GENERATED' ? (
+                        <Badge tone="accent">{t('resumes.generatedBadge')}</Badge>
+                      ) : (
+                        <Badge>{t('resumes.uploadedBadge')}</Badge>
+                      )}
+                      <Badge>{resume.fileType.toUpperCase()}</Badge>
+                      <Badge tone={statusTone(resume)}>{t(statusKey(resume))}</Badge>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap gap-2">
+                    {resume.fileAvailable && resume.downloadUrl ? (
+                      <button type="button" className="rounded-md border border-line px-3 py-2 text-sm" onClick={() => void onDownload(resume)}>
+                        {t('resumes.download')}
+                      </button>
+                    ) : null}
+                    {resume.fileType.toLowerCase() === 'pdf' ? (
+                      <Link className="rounded-md border border-line px-3 py-2 text-sm" to={`/resumes/${resume.id}/structure`}>
+                        {t('resumes.confirmContent')}
+                      </Link>
+                    ) : null}
+                    <Link className="rounded-md border border-line px-3 py-2 text-sm" to={`/resumes/${resume.id}/quality-score`}>
+                      {t('resumes.viewQualityScore')}
+                    </Link>
+                    <Link className="rounded-md border border-line px-3 py-2 text-sm" to={`/tailor?resumeId=${resume.id}`}>
+                      {t('resumes.startTailor')}
+                    </Link>
+                    <button type="button" className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger" onClick={() => void onDelete(resume)}>
+                      {t('resumes.delete')}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   )
@@ -196,3 +204,12 @@ function statusKey(resume: ResumeResponse): string {
   return 'resumes.statusReady'
 }
 
+function statusTone(resume: ResumeResponse): 'neutral' | 'warning' | 'success' {
+  if (!resume.fileAvailable) {
+    return 'warning'
+  }
+  if (resume.fileType.toLowerCase() === 'pdf' && resume.reviewStatus === 'PENDING_REVIEW') {
+    return 'warning'
+  }
+  return 'success'
+}

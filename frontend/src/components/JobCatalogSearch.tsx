@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
-import type { AxiosError } from 'axios'
 import { apiErrorKey } from '../api/client'
 import {
-  clearJobCatalogApplied,
-  getJobCatalogJob,
-  markJobCatalogApplied,
-  saveJobCatalogJob,
   searchCatalogCities,
   searchJobCatalog,
 } from '../api/jobCatalog'
@@ -21,13 +16,23 @@ import type {
   CatalogEmploymentType,
   CatalogRemoteType,
   CitySuggestion,
-  JobCatalogDetail,
   JobCatalogSummary,
   JobSearchHistoryItem,
   RecordJobSearchHistoryRequest,
 } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { loginPathWithReturnTo } from '../auth/returnTo'
+import { catalogJobPath, isSpecifiedCatalogFacet } from '../jobCatalog/catalogJobPath'
+import { countryLabel } from '../jobCatalog/countryLabel'
+import {
+  jobsSearchQueryToCriteria,
+  parseJobsSearchQuery,
+  serializeJobsSearchQuery,
+} from '../jobCatalog/searchQuery'
+import { consumeJobsSearchScroll, saveJobsSearchScroll } from '../jobCatalog/searchScroll'
+import { catalogSearchParamsKey, mergeJobsTabIntoSearch } from '../jobs/jobsTab'
+import { Badge } from './ui/Badge'
+import { LoadingSkeleton } from './ui/LoadingSkeleton'
+import { cx } from './ui/cx'
 import {
   clearAnonymousHistory,
   deleteAnonymousHistory,
@@ -63,8 +68,8 @@ const COUNTRIES = ['CA', 'US', 'GB', 'DE', 'FR', 'NL', 'IE', 'AU', 'IN', 'SG'] a
 const CITY_QUERY_MIN_LENGTH = 2
 const CITY_QUERY_DEBOUNCE_MS = 300
 
-const INPUT_CLASS = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2'
-const LABEL_CLASS = 'block text-sm'
+const INPUT_CLASS = 'ui-input mt-1'
+const LABEL_CLASS = 'block text-sm text-ink'
 
 function CheckIcon() {
   return (
@@ -74,107 +79,71 @@ function CheckIcon() {
   )
 }
 
-function ChevronIcon({ expanded }: { expanded: boolean }) {
+function ChevronIcon() {
   return (
     <svg
-      className={`h-4 w-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+      className="h-4 w-4 shrink-0"
       viewBox="0 0 20 20"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       aria-hidden="true"
     >
-      <path d="M5 7.5 10 12.5 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.5 5 12.5 10 7.5 15" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 
-type CatalogDetailLoadError = {
-  kind: 'gone' | 'rateLimited' | 'unavailable'
-  retryAfter?: string
+function SearchIcon() {
+  return (
+    <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="8.5" cy="8.5" r="5" />
+      <path d="M12.5 12.5 17 17" strokeLinecap="round" />
+    </svg>
+  )
 }
 
-function headerValue(headers: unknown, name: string): string | undefined {
-  if (!headers || typeof headers !== 'object') {
-    return undefined
-  }
-  const record = headers as Record<string, unknown>
-  const direct = record[name] ?? record[name.toLowerCase()] ?? record['Retry-After']
-  if (typeof direct === 'string' && direct.trim()) {
-    return direct.trim()
-  }
-  if (Array.isArray(direct) && typeof direct[0] === 'string' && direct[0].trim()) {
-    return direct[0].trim()
-  }
-  return undefined
+function BookmarkIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M5 3.5A1.5 1.5 0 0 1 6.5 2h7A1.5 1.5 0 0 1 15 3.5v13.2l-5-2.7-5 2.7V3.5Z" />
+    </svg>
+  )
 }
 
-function catalogDetailLoadError(error: unknown): CatalogDetailLoadError {
-  const axiosError = error as AxiosError
-  const status = axiosError.response?.status
-  if (status === 404) {
-    return { kind: 'gone' }
-  }
-  if (status === 429) {
-    return { kind: 'rateLimited', retryAfter: headerValue(axiosError.response?.headers, 'retry-after') }
-  }
-  return { kind: 'unavailable' }
-}
-
-/** Only http(s) listing URLs are offered; javascript: and other schemes are dropped. */
-function safeHttpUrl(url: string | null | undefined): string | null {
-  if (!url) {
-    return null
-  }
-  try {
-    const parsed = new URL(url)
-    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
-      return parsed.href
-    }
-  } catch {
-    /* reject unparseable or relative junk */
-  }
-  return null
+function CompanyMark({ name }: { name: string }) {
+  const letter = (name.trim().charAt(0) || '?').toUpperCase()
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-brand"
+    >
+      {letter}
+    </span>
+  )
 }
 
 /**
- * "Canada (CA)" / "加拿大（CA）" -- never a bare code. `Intl.DisplayNames` is the same
- * built-in idiom FreeHire's own frontend uses for this (confirmed in the pinned
- * upstream source's geo.go: "the caller already has countryLabel() ... Intl.DisplayNames
- * -backed"). Falls back to the bare code if the runtime lacks the API or does not
- * recognise it -- never throws, never blocks rendering the option.
+ * Search over the site's job catalog. Search and browsing need no account.
+ * Saving and applied-tracking live on the dedicated detail page.
  */
-function countryLabel(code: string, language: string): string {
-  try {
-    const displayNames = new Intl.DisplayNames([language], { type: 'region' })
-    const name = displayNames.of(code)
-    if (!name || name === code) {
-      return code
-    }
-    return language.startsWith('zh') ? `${name}（${code}）` : `${name} (${code})`
-  } catch {
-    return code
-  }
-}
-
-/**
- * Search over the site's job catalog. Search, browsing and detail need no account --
- * only saving a posting and confirming/revoking "applied" require login (see
- * `useAuth().isAuthenticated` gates below).
- */
-export function JobCatalogSearch(
-  { onSaved, onApplied }: { onSaved?: () => void; onApplied?: () => void } = {},
-) {
+export function JobCatalogSearch() {
   const { t, i18n } = useTranslation()
   const { isAuthenticated } = useAuth()
-  const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialQuery = parseJobsSearchQuery(searchParams)
+  const syncedQueryRef = useRef(catalogSearchParamsKey(searchParams))
+  const restoredScrollRef = useRef(false)
+  const locationRef = useRef(location)
+  locationRef.current = location
 
-  const [keywords, setKeywords] = useState('')
-  const [country, setCountry] = useState('')
-  const [remoteType, setRemoteType] = useState('')
-  const [employmentType, setEmploymentType] = useState('')
-  const [postedWithinDays, setPostedWithinDays] = useState('')
-  const [sort, setSort] = useState('')
+  const [keywords, setKeywords] = useState(initialQuery.q)
+  const [country, setCountry] = useState(initialQuery.city ? initialQuery.cityCountry : initialQuery.country)
+  const [remoteType, setRemoteType] = useState(initialQuery.workMode)
+  const [employmentType, setEmploymentType] = useState(initialQuery.employmentType)
+  const [postedWithinDays, setPostedWithinDays] = useState(initialQuery.postedWithin)
+  const [sort, setSort] = useState(initialQuery.sort)
 
   // City: a structured facet, never free text -- `city` is only ever set to a `value`
   // `searchCatalogCities` actually returned. `cityQuery` is the raw text the user is
@@ -192,80 +161,26 @@ export function JobCatalogSearch(
   //     FreeHireJobCatalogService#buildSearchParams. The user manually changing this
   //     select (onCountryChanged) is what turns it back into a real filter, and clears
   //     the city so the two roles are never ambiguous.
-  const [cityQuery, setCityQuery] = useState('')
-  const [city, setCity] = useState('')
+  const [cityQuery, setCityQuery] = useState(initialQuery.city)
+  const [city, setCity] = useState(initialQuery.city)
   const [citySuggestions, setCitySuggestions] = useState<CitySuggestion[]>([])
   const [cityLookupError, setCityLookupError] = useState(false)
   const [cityLookupLoading, setCityLookupLoading] = useState(false)
   const [showCitySuggestions, setShowCitySuggestions] = useState(false)
 
   const [results, setResults] = useState<JobCatalogSummary[]>([])
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(initialQuery.page)
   const [totalPages, setTotalPages] = useState(0)
   const [totalCount, setTotalCount] = useState(0)
   const [hasSearched, setHasSearched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorKey, setErrorKey] = useState<string | null>(null)
-  const [savingId, setSavingId] = useState<string | null>(null)
-  const [saveErrorId, setSaveErrorId] = useState<string | null>(null)
-  // Distinct from saveErrorId: the UPSTREAM posting's own detail lookup 404'd (see
-  // JobDetailUnavailableException) -- a genuinely different fact from a transient save
-  // failure, so it gets its own persistent per-card marker (a Set, since more than one
-  // card in the same result page could independently hit this) rather than a single
-  // "last error" id that a later action would silently clear. Once marked, the card
-  // stays marked "详情不可用" -- retrying a save can never succeed for a gone posting.
-  const [detailUnavailableIds, setDetailUnavailableIds] = useState<Set<string>>(new Set())
 
   // Scroll target for pagination -- see runSearch's `scrollToResultsOnSuccess`. Anchored
   // to the results-count line itself, never the top of the page.
   const resultsHeadingRef = useRef<HTMLParagraphElement>(null)
-
-  // "Applied" confirm-after-return flow: clicking the external apply link never marks
-  // anything by itself. It only remembers (in memory -- the tab never unloads, since
-  // the link opens in a new tab) which job the user was looking at, and asks once the
-  // user comes back to THIS tab.
-  const [pendingApplyId, setPendingApplyId] = useState<string | null>(null)
-  const [confirmApplyId, setConfirmApplyId] = useState<string | null>(null)
-  const [applyBusyId, setApplyBusyId] = useState<string | null>(null)
-  const [applyErrorId, setApplyErrorId] = useState<string | null>(null)
   const [history, setHistory] = useState<JobSearchHistoryItem[]>([])
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [detailCache, setDetailCache] = useState<Record<string, JobCatalogDetail>>({})
-  const [detailErrors, setDetailErrors] = useState<Record<string, CatalogDetailLoadError>>({})
-  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null)
-  const expandedIdRef = useRef<string | null>(null)
-  const detailCacheRef = useRef<Record<string, JobCatalogDetail>>({})
-  const detailInflight = useRef(new Map<string, Promise<void>>())
-  const detailGeneration = useRef(0)
-  const resultIdsRef = useRef(new Set<string>())
-
-  function replaceDetailCache(next: Record<string, JobCatalogDetail>) {
-    detailCacheRef.current = next
-    setDetailCache(next)
-  }
-
-  function resetOpenDetail(nextIds: string[] = []) {
-    detailGeneration.current += 1
-    expandedIdRef.current = null
-    setExpandedId(null)
-    replaceDetailCache({})
-    setDetailErrors({})
-    setDetailLoadingId(null)
-    resultIdsRef.current = new Set(nextIds)
-  }
-
-  function patchJobState(
-    catalogJobId: string,
-    patch: Partial<JobCatalogSummary> & Partial<JobCatalogDetail>,
-  ) {
-    setResults((current) =>
-      current.map((item) => (item.id === catalogJobId ? { ...item, ...patch } : item)),
-    )
-    const cached = detailCacheRef.current[catalogJobId]
-    if (cached) {
-      replaceDetailCache({ ...detailCacheRef.current, [catalogJobId]: { ...cached, ...patch } })
-    }
-  }
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false)
 
   async function refreshHistory() {
     try {
@@ -293,6 +208,29 @@ export function JobCatalogSearch(
     }
   }
 
+  function syncSearchUrl(targetPage: number, payload: RecordJobSearchHistoryRequest) {
+    const query = mergeJobsTabIntoSearch(
+      searchParams,
+      serializeJobsSearchQuery({
+        q: payload.keywords ?? '',
+        city: payload.city ?? '',
+        cityCountry: payload.cityCountry ?? '',
+        country: payload.country ?? '',
+        workMode: payload.remoteType ?? '',
+        employmentType: payload.employmentType ?? '',
+        postedWithin: payload.postedWithinDays ? String(payload.postedWithinDays) : '',
+        sort: payload.sort ?? '',
+        page: targetPage,
+      }),
+    )
+    const next = query.toString()
+    syncedQueryRef.current = catalogSearchParamsKey(query)
+    if (next !== searchParams.toString()) {
+      setSearchParams(query, { replace: true })
+    }
+    saveJobsSearchScroll(next ? `?${next}` : '', window.scrollY)
+  }
+
   // Only Next/Previous pass scrollToResultsOnSuccess=true -- the initial on-mount load
   // and a brand-new keyword/filter search must never auto-scroll the page, only a
   // pagination change on an already-visible results list. recordHistory is true only
@@ -300,7 +238,12 @@ export function JobCatalogSearch(
   const runSearch = useCallback(
     async (
       targetPage: number,
-      options: { scrollToResultsOnSuccess?: boolean; recordHistory?: boolean; criteria?: RecordJobSearchHistoryRequest } = {},
+      options: {
+        scrollToResultsOnSuccess?: boolean
+        recordHistory?: boolean
+        criteria?: RecordJobSearchHistoryRequest
+        syncUrl?: boolean
+      } = {},
     ) => {
       setLoading(true)
       setErrorKey(null)
@@ -328,16 +271,16 @@ export function JobCatalogSearch(
           sort: historyPayload.sort ?? '',
         })
         const nextResults = response.data.results
-        resetOpenDetail(nextResults.map((job) => job.id))
         setResults(nextResults)
         setPage(response.data.page)
         setTotalPages(response.data.totalPages)
         setTotalCount(response.data.totalCount)
+        if (options.syncUrl !== false) {
+          syncSearchUrl(response.data.page, historyPayload)
+        }
         if (options.recordHistory && !isEmptySearchCriteria(historyPayload)) {
           void persistHistory(historyPayload)
         }
-        // Results updated above BEFORE scrolling -- a failed load (catch below) never
-        // reaches this line at all, so the page stays exactly where it was.
         if (options.scrollToResultsOnSuccess) {
           const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
           resultsHeadingRef.current?.scrollIntoView({
@@ -346,48 +289,65 @@ export function JobCatalogSearch(
           })
         }
       } catch (error) {
-        // A local database problem is surfaced as an error; it never silently
-        // falls back to an external job API.
         setResults([])
         setTotalPages(0)
         setTotalCount(0)
-        resetOpenDetail()
         setErrorKey(apiErrorKey(error))
       } finally {
         setLoading(false)
         setHasSearched(true)
       }
     },
-    [keywords, city, country, remoteType, employmentType, postedWithinDays, sort, isAuthenticated],
+    [keywords, city, country, remoteType, employmentType, postedWithinDays, sort, isAuthenticated, searchParams, setSearchParams],
   )
 
   useEffect(() => {
-    void runSearch(1)
-    // Loads the newest indexed jobs once on mount; later runs are user-driven.
+    const key = catalogSearchParamsKey(searchParams)
+    if (key === syncedQueryRef.current && hasSearched) {
+      return
+    }
+    const parsed = parseJobsSearchQuery(searchParams)
+    setKeywords(parsed.q)
+    setCity(parsed.city)
+    setCityQuery(parsed.city)
+    setCountry(parsed.city ? parsed.cityCountry : parsed.country)
+    setRemoteType(parsed.workMode)
+    setEmploymentType(parsed.employmentType)
+    setPostedWithinDays(parsed.postedWithin)
+    setSort(parsed.sort)
+    syncedQueryRef.current = key
+    void runSearch(parsed.page, {
+      criteria: jobsSearchQueryToCriteria(parsed),
+      syncUrl: false,
+    })
+    // URL is the source of truth when the visitor lands or uses the back button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  useEffect(() => {
+    return () => {
+      const { pathname, search } = locationRef.current
+      if (pathname === '/jobs') {
+        saveJobsSearchScroll(search, window.scrollY)
+      }
+    }
   }, [])
+
+  useEffect(() => {
+    if (loading || !hasSearched || restoredScrollRef.current) {
+      return
+    }
+    const y = consumeJobsSearchScroll(location.search)
+    if (y != null) {
+      restoredScrollRef.current = true
+      window.scrollTo(0, y)
+    }
+  }, [loading, hasSearched, results, location.search])
 
   useEffect(() => {
     void refreshHistory()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
-
-  // Prompts for confirmation the moment the user comes back to this tab after
-  // following an apply link -- not on a timer, not automatically.
-  useEffect(() => {
-    function onVisible() {
-      if (document.visibilityState === 'visible' && pendingApplyId) {
-        setConfirmApplyId(pendingApplyId)
-        setPendingApplyId(null)
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', onVisible)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', onVisible)
-    }
-  }, [pendingApplyId])
 
   // Debounced city-suggestion lookup. Skipped once a city is already selected (typing
   // stops driving suggestions until the selection is cleared) and for very short
@@ -466,173 +426,22 @@ export function JobCatalogSearch(
     }
   }
 
-  function loadDetail(catalogJobId: string, force = false) {
-    if (!force && detailCacheRef.current[catalogJobId]) {
-      setDetailErrors((current) => {
-        if (!(catalogJobId in current)) {
-          return current
-        }
-        const next = { ...current }
-        delete next[catalogJobId]
-        return next
-      })
-      return
-    }
-    if (detailInflight.current.has(catalogJobId)) {
-      return
-    }
-    const generation = detailGeneration.current
-    setDetailLoadingId(catalogJobId)
-    if (force) {
-      const nextCache = { ...detailCacheRef.current }
-      delete nextCache[catalogJobId]
-      replaceDetailCache(nextCache)
-      setDetailErrors((current) => {
-        const next = { ...current }
-        delete next[catalogJobId]
-        return next
-      })
-    }
-    const request = getJobCatalogJob(catalogJobId)
-      .then((response) => {
-        if (generation !== detailGeneration.current || !resultIdsRef.current.has(catalogJobId)) {
-          return
-        }
-        replaceDetailCache({ ...detailCacheRef.current, [catalogJobId]: response.data })
-        setDetailErrors((current) => {
-          if (!(catalogJobId in current)) {
-            return current
-          }
-          const next = { ...current }
-          delete next[catalogJobId]
-          return next
-        })
-      })
-      .catch((error: unknown) => {
-        if (generation !== detailGeneration.current || !resultIdsRef.current.has(catalogJobId)) {
-          return
-        }
-        setDetailErrors((current) => ({ ...current, [catalogJobId]: catalogDetailLoadError(error) }))
-      })
-      .finally(() => {
-        detailInflight.current.delete(catalogJobId)
-        setDetailLoadingId((current) => (current === catalogJobId ? null : current))
-      })
-    detailInflight.current.set(catalogJobId, request)
-  }
-
-  function toggleExpand(catalogJobId: string) {
-    if (expandedIdRef.current === catalogJobId) {
-      expandedIdRef.current = null
-      setExpandedId(null)
-      return
-    }
-    expandedIdRef.current = catalogJobId
-    setExpandedId(catalogJobId)
-    loadDetail(catalogJobId)
-  }
-
-  async function onSave(catalogJobId: string) {
-    if (!isAuthenticated) {
-      navigate(loginPathWithReturnTo('/jobs'))
-      return
-    }
-    setSavingId(catalogJobId)
-    setSaveErrorId(null)
-    try {
-      const response = await saveJobCatalogJob(catalogJobId)
-      const personalJobId = response.data.jobId
-      patchJobState(catalogJobId, { saved: true, personalJobId })
-      onSaved?.()
-    } catch (error) {
-      if (apiErrorKey(error) === 'errors.jobDetailUnavailable') {
-        // Never "保存职位失败，请重试" -- retrying a save can never succeed once the
-        // upstream posting's own detail is gone. Marked permanently for this card
-        // (not cleared by a later action the way saveErrorId would be).
-        setDetailUnavailableIds((current) => new Set(current).add(catalogJobId))
-      } else {
-        setSaveErrorId(catalogJobId)
-      }
-    } finally {
-      setSavingId(null)
-    }
-  }
-
-  function onApplyLinkClicked(catalogJobId: string) {
-    if (isAuthenticated) {
-      setPendingApplyId(catalogJobId)
-    }
-    // Anonymous visitors just follow the link -- applied-tracking needs an account,
-    // and no confirmation prompt is shown for them.
-  }
-
-  async function onConfirmApplied(catalogJobId: string) {
-    if (!isAuthenticated) {
-      navigate(loginPathWithReturnTo('/jobs'))
-      return
-    }
-    setApplyBusyId(catalogJobId)
-    setApplyErrorId(null)
-    try {
-      const response = await markJobCatalogApplied(catalogJobId)
-      patchJobState(catalogJobId, {
-        saved: true,
-        personalJobId: response.data.jobId,
-        applied: true,
-        appliedAt: response.data.job.appliedAt,
-      })
-      setConfirmApplyId(null)
-      // A distinct signal from onSaved -- this job just moved to "已投递职位", not
-      // merely "已保存职位" -- so the caller can switch the Jobs page to the right tab
-      // instead of guessing which of the two things just happened from one callback.
-      onApplied?.()
-    } catch (error) {
-      if (apiErrorKey(error) === 'errors.jobDetailUnavailable') {
-        setDetailUnavailableIds((current) => new Set(current).add(catalogJobId))
-      } else {
-        setApplyErrorId(catalogJobId)
-      }
-    } finally {
-      setApplyBusyId(null)
-    }
-  }
-
-  function onDismissApplyPrompt() {
-    setConfirmApplyId(null)
-  }
-
-  async function onRevokeApplied(catalogJobId: string) {
-    setApplyBusyId(catalogJobId)
-    setApplyErrorId(null)
-    try {
-      await clearJobCatalogApplied(catalogJobId)
-      patchJobState(catalogJobId, { applied: false, appliedAt: null })
-      // Keeps the Jobs page's own personal-jobs list (已保存/已投递 tabs) in sync --
-      // this job just moved back to 已保存职位.
-      onSaved?.()
-    } catch {
-      setApplyErrorId(catalogJobId)
-    } finally {
-      setApplyBusyId(null)
-    }
-  }
-
   return (
-    <section className="mt-6 min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="text-lg font-medium">{t('jobCatalog.title')}</h2>
-      <p className="mt-1 text-sm text-slate-600">{t('jobCatalog.subtitle')}</p>
+    <section id="job-catalog-search" className="mt-6 min-w-0 overflow-hidden rounded-lg border border-line bg-card p-5 shadow-card">
+      <h2 className="section-title">{t('jobCatalog.title')}</h2>
+      <p className="mt-1 text-sm text-muted">{t('jobCatalog.subtitle')}</p>
 
       <form
-        className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3"
         onSubmit={(event) => {
           event.preventDefault()
           void runSearch(1, { recordHistory: true })
         }}
       >
-        <label className={LABEL_CLASS}>
+        <label className={`${LABEL_CLASS} md:col-span-2`}>
           <span>{t('jobCatalog.keywords')}</span>
           <input
-            className={INPUT_CLASS}
+            className={`${INPUT_CLASS} min-h-12 text-base`}
             value={keywords}
             onChange={(event) => setKeywords(event.target.value)}
           />
@@ -699,9 +508,18 @@ export function JobCatalogSearch(
             <span className="mt-1 block text-xs text-amber-700">{t('jobCatalog.cityLookupUnavailable')}</span>
           ) : null}
           {city ? (
-            <span className="mt-1 block text-xs text-slate-500">{t('jobCatalog.cityNameOnlyMatchHint')}</span>
+            <span className="mt-1 block text-sm text-muted">{t('jobCatalog.cityNameOnlyMatchHint')}</span>
           ) : null}
         </div>
+        <button
+          type="button"
+          className="rounded-md border border-line px-3 py-2 text-sm text-ink md:hidden"
+          aria-expanded={moreFiltersOpen}
+          onClick={() => setMoreFiltersOpen((open) => !open)}
+        >
+          {t('jobCatalog.moreFilters')}
+        </button>
+        <div className={cx(moreFiltersOpen ? 'grid gap-3 sm:grid-cols-2 md:contents' : 'hidden md:contents')}>
         <div>
           <label className={LABEL_CLASS}>
             <span>{t('jobCatalog.country')}</span>
@@ -723,7 +541,7 @@ export function JobCatalogSearch(
             </select>
           </label>
           {city ? (
-            <span className="mt-1 block text-xs text-slate-500">
+            <span className="mt-1 block text-sm text-muted">
               {t('jobCatalog.countryReflectsCitySuggestion')}
             </span>
           ) : null}
@@ -778,12 +596,14 @@ export function JobCatalogSearch(
             <option value="POSTED_AT">{t('jobCatalog.sortPostedAt')}</option>
           </select>
         </label>
+        </div>
         <div className="flex items-end">
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-brand disabled:opacity-60 md:w-auto"
           >
+            <SearchIcon />
             {loading ? t('jobCatalog.searching') : t('jobCatalog.search')}
           </button>
         </div>
@@ -839,7 +659,7 @@ export function JobCatalogSearch(
       />
 
       {loading ? (
-        <p className="mt-4 text-sm text-slate-600">{t('jobCatalog.loading')}</p>
+        <LoadingSkeleton className="mt-4" rows={5} label={t('jobCatalog.loading')} />
       ) : null}
 
       {errorKey ? (
@@ -854,7 +674,7 @@ export function JobCatalogSearch(
 
       {!errorKey && results.length > 0 ? (
         <>
-          <p ref={resultsHeadingRef} className="mt-4 text-sm text-slate-600">
+          <p ref={resultsHeadingRef} className="text-meta mt-4 text-slate-600">
             {/* A city filter's total comes from FreeHire's own aggregate count over a
                 bare name match (see cityMatch below) -- confirmed live to include
                 postings whose real location is a different country entirely, so it is
@@ -866,240 +686,66 @@ export function JobCatalogSearch(
           </p>
           <ul className="mt-3 min-w-0 space-y-3">
             {results.map((job) => {
-              const expanded = expandedId === job.id
-              const panelId = `job-catalog-detail-${job.id}`
-              const headerId = `job-catalog-header-${job.id}`
-              const detail = detailCache[job.id]
-              const loadError = detailErrors[job.id]
-              const loadingDetail = detailLoadingId === job.id
-              const originalUrl = safeHttpUrl(detail?.applyUrl ?? detail?.canonicalUrl ?? null)
-              const detailErrorText = loadError
-                ? loadError.kind === 'gone'
-                  ? t('jobCatalog.detailGone')
-                  : loadError.kind === 'rateLimited' && loadError.retryAfter
-                    ? t('jobCatalog.detailRateLimitedWithRetry', { retryAfter: loadError.retryAfter })
-                    : loadError.kind === 'rateLimited'
-                      ? t('jobCatalog.detailRateLimited')
-                      : t('jobCatalog.detailTemporarilyUnavailable')
-                : null
+              const href = catalogJobPath(job.id)
               return (
-                <li key={job.id} className="min-w-0 overflow-hidden rounded-lg border border-slate-200">
-                  <button
-                    type="button"
-                    id={headerId}
-                    className="flex w-full min-w-0 items-start justify-between gap-3 p-4 text-left"
-                    aria-expanded={expanded}
-                    aria-controls={panelId}
-                    aria-label={`${job.title} — ${t('jobCatalog.viewDetails')}`}
-                    onClick={() => toggleExpand(job.id)}
-                  >
-                    <div className="min-w-0 overflow-hidden">
-                      <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-                        <span className="break-words font-medium text-slate-900">{job.title}</span>
+                <li key={job.id} className="min-w-0 overflow-hidden rounded-lg border border-line bg-card shadow-card motion-safe:transition-shadow motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lift">
+                  <div className="flex w-full min-w-0 items-start gap-3 p-4">
+                    <CompanyMark name={job.companyName} />
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <Link
+                          to={href}
+                          className="break-words text-base font-semibold text-ink hover:text-brand hover:underline"
+                          onClick={() => saveJobsSearchScroll(location.search, window.scrollY)}
+                        >
+                          {job.title}
+                        </Link>
                         {job.status === 'EXPIRED' ? (
-                          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                            {t('jobCatalog.expiredBadge')}
-                          </span>
+                          <Badge tone="warning">{t('jobCatalog.expiredBadge')}</Badge>
                         ) : null}
                         {job.saved ? (
-                          <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                            {t('jobCatalog.savedBadge')}
-                          </span>
+                          <Badge tone="accent" icon={<BookmarkIcon />}>{t('jobCatalog.savedBadge')}</Badge>
                         ) : null}
                         {job.applied ? (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
-                            <CheckIcon />
-                            {t('jobCatalog.appliedBadge')}
-                          </span>
-                        ) : null}
-                        {detailUnavailableIds.has(job.id) ? (
-                          <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-800">
-                            {t('jobCatalog.detailUnavailableBadge')}
-                          </span>
+                          <Badge tone="success" icon={<CheckIcon />}>{t('jobCatalog.appliedBadge')}</Badge>
                         ) : null}
                       </div>
-                      <p className="mt-1 break-words text-sm text-slate-700">{job.companyName}</p>
+                      <p className="mt-1 break-words text-sm text-ink">{job.companyName}</p>
                       {job.cityMatch ? (
-                        // A multi-location posting can genuinely match a city search while its
-                        // OWN location text names a different place entirely (confirmed live:
-                        // a Toronto search returning a posting whose own location reads
-                        // "Remote (US)", because that same posting's structured cities list
-                        // also includes Toronto) -- shown as its own line, separate from and
-                        // never replacing the posting's own location below, so this never
-                        // looks like the filter silently stopped working.
-                        <p className="mt-1 break-words text-sm text-slate-700">
-                          <span className="font-medium">{t('jobCatalog.cityMatchLabel')}</span>{' '}
+                        <p className="mt-1 break-words text-sm text-muted">
+                          <span className="font-medium text-ink">{t('jobCatalog.cityMatchLabel')}</span>{' '}
                           {job.cityMatch.countryConfirmed && job.cityMatch.countryCode
                             ? `${job.cityMatch.city}, ${countryLabel(job.cityMatch.countryCode.toUpperCase(), i18n.language)}`
                             : t('jobCatalog.cityMatchUnconfirmed', { city: job.cityMatch.city })}
                         </p>
                       ) : null}
-                      <p className="mt-1 break-words text-sm text-slate-600">
+                      <p className="mt-1 break-words text-sm text-muted">
                         {job.cityMatch ? (
-                          <span className="font-medium">{t('jobCatalog.originalLocationLabel')} </span>
+                          <span className="font-medium text-ink">{t('jobCatalog.originalLocationLabel')} </span>
                         ) : null}
-                        {[
-                          job.locationText,
-                          job.countryCode,
-                          t(`jobCatalog.remote.${job.remoteType}`),
-                          t(`jobCatalog.employment.${job.employmentType}`),
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
+                        {[job.locationText, job.countryCode].filter(Boolean).join(' · ')}
                       </p>
-                      {job.postedAt ? (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {`${t('jobCatalog.postedAt')}: ${job.postedAt.slice(0, 10)}`}
-                        </p>
-                      ) : null}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {isSpecifiedCatalogFacet(job.remoteType) ? (
+                          <Badge>{t(`jobCatalog.remote.${job.remoteType}`)}</Badge>
+                        ) : null}
+                        {isSpecifiedCatalogFacet(job.employmentType) ? (
+                          <Badge>{t(`jobCatalog.employment.${job.employmentType}`)}</Badge>
+                        ) : null}
+                        {job.postedAt ? (
+                          <Badge>{`${t('jobCatalog.postedAt')}: ${job.postedAt.slice(0, 10)}`}</Badge>
+                        ) : null}
+                      </div>
                     </div>
-                    <span className="flex shrink-0 items-center gap-1 pt-0.5 text-sm text-slate-700">
+                    <Link
+                      to={href}
+                      className="flex shrink-0 items-center gap-1 pt-0.5 text-sm text-brand"
+                      aria-label={`${job.title} — ${t('jobCatalog.viewDetails')}`}
+                      onClick={() => saveJobsSearchScroll(location.search, window.scrollY)}
+                    >
                       {t('jobCatalog.viewDetails')}
-                      <ChevronIcon expanded={expanded} />
-                    </span>
-                  </button>
-                  <div
-                    id={panelId}
-                    role="region"
-                    aria-labelledby={headerId}
-                    hidden={!expanded}
-                    className="min-w-0 overflow-hidden border-t border-slate-200 px-4 pb-4"
-                  >
-                    {expanded ? (
-                      <>
-                        {loadingDetail && !detail ? (
-                          <p className="mt-3 text-sm text-slate-600">{t('jobCatalog.detailLoading')}</p>
-                        ) : null}
-                        {detailErrorText ? (
-                          <div className="mt-3">
-                            <p role="alert" className="break-words text-sm text-red-700">
-                              {detailErrorText}
-                            </p>
-                            <button
-                              type="button"
-                              className="mt-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-                              onClick={() => loadDetail(job.id, true)}
-                            >
-                              {t('jobCatalog.detailRetry')}
-                            </button>
-                          </div>
-                        ) : null}
-                        {detail ? (
-                          <div className="mt-3 min-w-0 overflow-hidden">
-                            <p className="min-w-0 overflow-hidden whitespace-pre-wrap break-words text-sm text-slate-700">
-                              {detail.descriptionText}
-                            </p>
-                            <p className="mt-2 break-words text-sm text-slate-600">
-                              {[
-                                detail.locationText,
-                                detail.countryCode,
-                                t(`jobCatalog.remote.${detail.remoteType}`),
-                                t(`jobCatalog.employment.${detail.employmentType}`),
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </p>
-                            <p className="mt-1 break-words text-xs text-slate-500">
-                              {[
-                                detail.source ? `${t('jobCatalog.source')}: ${detail.source}` : null,
-                                detail.postedAt
-                                  ? `${t('jobCatalog.postedAt')}: ${detail.postedAt.slice(0, 10)}`
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </p>
-                            {detailUnavailableIds.has(job.id) ? (
-                              <p role="alert" className="mt-2 text-sm text-red-700">
-                                {t('errors.jobDetailUnavailable')}
-                              </p>
-                            ) : saveErrorId === job.id ? (
-                              <p role="alert" className="mt-2 text-sm text-red-700">
-                                {t('jobCatalog.saveFailed')}
-                              </p>
-                            ) : null}
-                            {applyErrorId === job.id ? (
-                              <p role="alert" className="mt-2 text-sm text-red-700">
-                                {t('jobCatalog.appliedFailed')}
-                              </p>
-                            ) : null}
-                            {confirmApplyId === job.id ? (
-                              <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
-                                <p>{t('jobCatalog.appliedConfirmPrompt')}</p>
-                                <div className="mt-2 flex gap-2">
-                                  <button
-                                    type="button"
-                                    disabled={applyBusyId === job.id}
-                                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white disabled:opacity-60"
-                                    onClick={() => void onConfirmApplied(job.id)}
-                                  >
-                                    {t('jobCatalog.appliedConfirmYes')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={applyBusyId === job.id}
-                                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs disabled:opacity-60"
-                                    onClick={onDismissApplyPrompt}
-                                  >
-                                    {t('jobCatalog.appliedConfirmNo')}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : null}
-                            <div className="mt-3 flex min-w-0 flex-wrap items-center gap-3">
-                              {job.saved ? null : (
-                                <button
-                                  type="button"
-                                  disabled={savingId === job.id || detailUnavailableIds.has(job.id)}
-                                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-                                  onClick={() => void onSave(job.id)}
-                                >
-                                  {savingId === job.id ? t('jobCatalog.saving') : t('jobCatalog.save')}
-                                </button>
-                              )}
-                              {job.saved && job.personalJobId ? (
-                                <>
-                                  <a className="underline text-sm" href={`/tailor?jobId=${job.personalJobId}`}>
-                                    {t('jobCatalog.analyzeMatch')}
-                                  </a>
-                                  <a className="underline text-sm" href={`/tailor?jobId=${job.personalJobId}`}>
-                                    {t('jobCatalog.generateSuggestions')}
-                                  </a>
-                                </>
-                              ) : null}
-                              {job.applied ? (
-                                <button
-                                  type="button"
-                                  disabled={applyBusyId === job.id}
-                                  className="text-xs text-slate-500 underline disabled:opacity-60"
-                                  onClick={() => void onRevokeApplied(job.id)}
-                                >
-                                  {t('jobCatalog.appliedRevoke')}
-                                </button>
-                              ) : null}
-                              {originalUrl ? (
-                                <a
-                                  className="break-all underline text-sm"
-                                  href={originalUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={() => onApplyLinkClicked(job.id)}
-                                >
-                                  {t('jobCatalog.openOriginal')}
-                                </a>
-                              ) : null}
-                              <button
-                                type="button"
-                                className="text-sm text-slate-600 underline"
-                                onClick={() => toggleExpand(job.id)}
-                              >
-                                {t('jobCatalog.collapseDetail')}
-                              </button>
-                            </div>
-                          </div>
-                        ) : null}
-                      </>
-                    ) : null}
+                      <ChevronIcon />
+                    </Link>
                   </div>
                 </li>
               )
@@ -1109,18 +755,18 @@ export function JobCatalogSearch(
             <button
               type="button"
               disabled={page <= 1 || loading}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-60"
+              className="rounded-md border border-line px-4 py-2 text-sm disabled:opacity-60"
               onClick={() => void runSearch(page - 1, { scrollToResultsOnSuccess: true })}
             >
               {t('jobCatalog.previousPage')}
             </button>
-            <span className="text-sm text-slate-700">
+            <span className="text-sm text-ink">
               {t('jobCatalog.pageLabel', { page, total: Math.max(totalPages, 1) })}
             </span>
             <button
               type="button"
               disabled={page >= totalPages || loading}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-60"
+              className="rounded-md border border-line px-4 py-2 text-sm disabled:opacity-60"
               onClick={() => void runSearch(page + 1, { scrollToResultsOnSuccess: true })}
             >
               {t('jobCatalog.nextPage')}
@@ -1145,47 +791,36 @@ function RecentSearches({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="mt-4 min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+    <div className="mt-4 min-w-0">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-slate-800">{t('jobCatalog.recentSearches')}</h3>
+        <h3 className="text-sm font-medium text-ink">{t('jobCatalog.recentSearches')}</h3>
         {items.length > 0 ? (
-          <button type="button" className="text-xs text-slate-600 underline" onClick={onClear}>
+          <button type="button" className="text-sm text-muted underline" onClick={onClear}>
             {t('jobCatalog.recentSearchClear')}
           </button>
         ) : null}
       </div>
       {items.length === 0 ? (
-        <p className="mt-2 text-xs text-slate-500">{t('jobCatalog.recentSearchEmpty')}</p>
+        <p className="mt-2 text-sm text-muted">{t('jobCatalog.recentSearchEmpty')}</p>
       ) : (
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 flex flex-wrap gap-2">
           {items.map((item) => (
-            <li key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-2">
-              <p className="truncate text-sm font-medium text-slate-900">
+            <li key={item.id} className="flex min-w-0 max-w-full items-center gap-1 rounded-full border border-line bg-slate-50 py-1 pl-1 pr-2">
+              <button
+                type="button"
+                className="min-w-0 truncate rounded-full px-2 py-1 text-sm text-ink"
+                onClick={() => onReplay(item)}
+              >
                 {item.keywords || t('jobCatalog.recentSearchKeywordsFallback')}
-              </p>
-              <p className="mt-0.5 break-words text-xs text-slate-500">
-                {[item.city, item.country || item.cityCountry, item.workMode, item.employmentType,
-                  item.postedWithinDays ? `${item.postedWithinDays}d` : null,
-                  item.sortBy === 'POSTED_AT' ? item.sortBy : null]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
-                  onClick={() => onReplay(item)}
-                >
-                  {t('jobCatalog.recentSearchReplay')}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
-                  onClick={() => onDelete(item.id)}
-                >
-                  {t('jobCatalog.recentSearchDelete')}
-                </button>
-              </div>
+              </button>
+              <button
+                type="button"
+                className="shrink-0 rounded-full px-2 py-1 text-sm text-muted hover:text-danger"
+                aria-label={t('jobCatalog.recentSearchDelete')}
+                onClick={() => onDelete(item.id)}
+              >
+                ×
+              </button>
             </li>
           ))}
         </ul>

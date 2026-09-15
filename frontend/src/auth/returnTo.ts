@@ -4,9 +4,7 @@
  * or writes it agrees on the same safety rule.
  */
 
-// "/" is always just a redirect to /jobs (see App.tsx) -- defaulting straight to
-// /jobs avoids that extra hop rather than changing the destination.
-const DEFAULT_RETURN_TO = '/jobs'
+const DEFAULT_RETURN_TO = '/dashboard'
 
 /** The profile card that holds site ratings. Old /feedback URLs redirect here. */
 export const PROFILE_FEEDBACK_RETURN_TO = '/profile#feedback'
@@ -17,12 +15,24 @@ export const PROFILE_FEEDBACK_RETURN_TO = '/profile#feedback'
 // in a diff and indistinguishable from a harmless space at a glance.
 const CONTROL_CHAR_PATTERN = new RegExp('[\\x00-\\x1f\\x7f]')
 
+export const LOGIN_REASON_REQUIRED = 'login_required'
+export const LOGIN_REASON_EXPIRED = 'session_expired'
+
 /** Builds the `/login` path a protected route redirects an anonymous visitor to. */
-export function loginPathWithReturnTo(currentPath: string): string {
+export function loginPathWithReturnTo(currentPath: string, reason?: string): string {
   if (!currentPath || currentPath === '/login' || currentPath.startsWith('/login?')) {
-    return '/login'
+    return reason ? `/login?reason=${encodeURIComponent(reason)}` : '/login'
   }
-  return `/login?returnTo=${encodeURIComponent(currentPath)}`
+  let path = `/login?returnTo=${encodeURIComponent(currentPath)}`
+  if (reason) {
+    path += `&reason=${encodeURIComponent(reason)}`
+  }
+  return path
+}
+
+/** First-time anonymous click on a signed-in feature -- never "session expired". */
+export function loginPathForAnonymousFeature(currentPath: string): string {
+  return loginPathWithReturnTo(currentPath, LOGIN_REASON_REQUIRED)
 }
 
 /**
@@ -33,9 +43,7 @@ export function loginPathWithReturnTo(currentPath: string): string {
  * notice rather than a blank form.
  */
 export function loginPathAfterSessionExpiry(currentPath: string): string {
-  const base = loginPathWithReturnTo(currentPath)
-  const separator = base.includes('?') ? '&' : '?'
-  return `${base}${separator}reason=session_expired`
+  return loginPathWithReturnTo(currentPath, LOGIN_REASON_EXPIRED)
 }
 
 function isSafeRelativePath(candidate: string): boolean {
@@ -93,8 +101,8 @@ export function sanitizeReturnTo(raw: string | null | undefined): string {
   }
   // Going "back" to the login or register page after logging in would bounce between
   // the two forever; send the user to the default page instead.
-  const target = decodedAgain.split(/[?#]/)[0].replace(/\/+$/, "")
-  if (target === "/login" || target === "/register") {
+  const target = decodedAgain.split(/[?#]/)[0].replace(/\/+$/, '')
+  if (target === '/login' || target === '/register') {
     return DEFAULT_RETURN_TO
   }
   return raw

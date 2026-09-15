@@ -37,9 +37,9 @@ describe('ProtectedRoute', () => {
     clearSessionExpiredMark()
   })
 
-  it('sends a first-time visitor to login with the page to return to', () => {
+  it('sends a first-time visitor to login with the login-required notice and the page to return to', () => {
     renderAt('/resumes?tab=files')
-    expect(screen.getByText('login:/login?returnTo=%2Fresumes%3Ftab%3Dfiles')).toBeInTheDocument()
+    expect(screen.getByText('login:/login?returnTo=%2Fresumes%3Ftab%3Dfiles&reason=login_required')).toBeInTheDocument()
   })
 
   it('says the session expired when the token stopped working', () => {

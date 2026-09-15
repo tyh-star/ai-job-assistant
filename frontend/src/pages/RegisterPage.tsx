@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiErrorKey } from '../api/client'
@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthContext'
 import { evaluatePassword } from '../auth/passwordStrength'
 import { sanitizeReturnTo } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
-import { PasswordChecklist } from '../components/PasswordChecklist'
+import { PasswordRequirements, type PasswordRequirementsHandle } from '../components/PasswordRequirements'
 import { Spinner } from '../components/Spinner'
 import {
   AUTH_FOOTER_CLASS,
@@ -27,6 +27,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const passwordFieldRef = useRef<PasswordRequirementsHandle>(null)
 
   if (isAuthenticated) {
     return <Navigate to={returnTo} replace />
@@ -48,6 +49,7 @@ export function RegisterPage() {
     }
     if (!evaluatePassword(password).strong) {
       setError(t('errors.weakPassword'))
+      passwordFieldRef.current?.reportInvalidSubmit()
       return
     }
     setLoading(true)
@@ -67,7 +69,7 @@ export function RegisterPage() {
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         {error ? <Alert message={error} /> : null}
         <label className={AUTH_LABEL_CLASS}>
-          <span className="text-slate-700">{t('auth.name')}</span>
+          <span className="text-ink">{t('auth.name')}</span>
           <input
             className={AUTH_INPUT_CLASS}
             value={name}
@@ -76,7 +78,7 @@ export function RegisterPage() {
           />
         </label>
         <label className={AUTH_LABEL_CLASS}>
-          <span className="text-slate-700">{t('auth.email')}</span>
+          <span className="text-ink">{t('auth.email')}</span>
           <input
             className={AUTH_INPUT_CLASS}
             type="email"
@@ -85,17 +87,15 @@ export function RegisterPage() {
             autoComplete="email"
           />
         </label>
-        <label className={AUTH_LABEL_CLASS}>
-          <span className="text-slate-700">{t('auth.password')}</span>
-          <input
-            className={AUTH_INPUT_CLASS}
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="new-password"
-          />
-        </label>
-        <PasswordChecklist password={password} />
+        <PasswordRequirements
+          ref={passwordFieldRef}
+          label={t('auth.password')}
+          password={password}
+          onPasswordChange={setPassword}
+          labelClassName={AUTH_LABEL_CLASS}
+          inputClassName="auth-input min-h-12 w-full rounded-lg border border-line px-3 py-3 text-base"
+          autoComplete="new-password"
+        />
         <button
           type="submit"
           disabled={loading}
@@ -107,7 +107,7 @@ export function RegisterPage() {
       {loading ? <div className="mt-4"><Spinner label={t('common.loading')} /></div> : null}
       <p className={AUTH_FOOTER_CLASS}>
         {t('auth.hasAccount')}{' '}
-        <Link className="font-medium text-slate-900 underline" to="/login">
+        <Link className="font-medium text-brand underline" to="/login">
           {t('auth.goLogin')}
         </Link>
       </p>
