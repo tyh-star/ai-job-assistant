@@ -54,12 +54,22 @@ public class ResumeDocxTailorServiceImpl implements ResumeDocxTailorService {
             Long userId,
             Long jobId) {
 
-        Path original = originalDocx.toAbsolutePath().normalize();
         Path outputPath = storagePathResolver
                 .tailoredJobDirectory(userId, jobId)
                 .toAbsolutePath()
                 .normalize()
                 .resolve(UUID.randomUUID() + ".docx");
+        return createTailoredDocx(originalDocx, changes, outputPath);
+    }
+
+    @Override
+    public Path createTailoredDocx(
+            Path originalDocx,
+            List<TailorChange> changes,
+            Path outputPath) {
+
+        Path original = originalDocx.toAbsolutePath().normalize();
+        outputPath = outputPath.toAbsolutePath().normalize();
         Path tempPath = outputPath.resolveSibling(outputPath.getFileName() + ".tmp");
 
         try {

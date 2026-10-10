@@ -1,0 +1,1804 @@
+/*
+ * V3 prototype design system, round 3.
+ * Imported only by DesignV3App (DEV route /__design-v3). Scoped under .v3 so
+ * it cannot leak into the production pages or the older /__design prototype.
+ *
+ * Two surfaces, one brand:
+ *   .v3-site  signed out -- TOP horizontal navigation, editorial rhythm
+ *   .v3-app   signed in  -- the SAME top navigation, collapsing to a
+ *                           hamburger menu below 900px. No side rail anywhere.
+ */
+
+.v3 {
+  /* brand */
+  --navy-900: #0b1638;
+  --navy-800: #12205c;
+  --navy-700: #1b2f7a;
+  --navy-600: #1e3a8a;
+  --blue-600: #2563eb;
+  --blue-500: #3b76f6;
+  --blue-100: #dbe7fe;
+  --blue-50: #eff5ff;
+
+  /* ink / neutrals */
+  --ink: #0d1526;
+  --ink-2: #33405a;
+  --ink-3: #55637d;
+  --ink-4: #7d8ba5;
+  --line: #e4e9f1;
+  --line-2: #eef1f7;
+  --paper: #ffffff;
+  --canvas: #f5f7fb;
+
+  /* status */
+  --amber: #a35b06;
+  --amber-bg: #fdf1de;
+  --red: #b4231c;
+  --red-bg: #fdeceb;
+
+  /* shape */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+  --sh-1: 0 1px 2px rgb(13 21 38 / 0.06);
+  --sh-2: 0 4px 16px -4px rgb(13 21 38 / 0.10), 0 1px 3px rgb(13 21 38 / 0.05);
+  --sh-3: 0 24px 60px -20px rgb(11 22 56 / 0.28), 0 6px 18px -8px rgb(13 21 38 / 0.16);
+
+  /* rhythm -- two explicit layers.
+     --shell-max is the ONE width both headers use, so the brand, the nav and
+     the right-hand actions never shift horizontally when the route changes
+     between the signed-out site and the signed-in console.
+     The two content widths are allowed to differ underneath it. */
+  --shell-max: 1200px;
+  --site-content-max: 1120px;
+  --app-content-max: 1200px;
+
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-width: 0;
+}
+
+body:has(.v3) {
+  background: #f5f7fb;
+  margin: 0;
+}
+
+.v3 *,
+.v3 *::before,
+.v3 *::after { box-sizing: border-box; }
+
+.v3 h1, .v3 h2, .v3 h3, .v3 h4,
+.v3 p, .v3 ul, .v3 ol, .v3 figure, .v3 figcaption { margin: 0; padding: 0; }
+
+.v3 ul, .v3 ol { list-style: none; }
+
+/* :where() keeps these resets at type-selector specificity (0,0,1). Written as
+   `.v3 a` / `.v3 button` they score (0,1,1) and silently beat every single-class
+   rule below -- which is exactly what made .v3-btn--primary paint
+   transparent backgrounds. */
+:where(.v3) a { color: inherit; text-decoration: none; }
+:where(.v3) button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+.v3 :focus-visible { outline: 2px solid var(--blue-600); outline-offset: 2px; border-radius: 4px; }
+.v3 img, .v3 svg { display: block; max-width: 100%; }
+
+/* ======================================================================== */
+/* Primitives                                                               */
+/* ======================================================================== */
+
+/*
+ * Touch targets.
+ *
+ * Several controls are deliberately small in ink (a 28px language pill, a
+ * 13.5px text link). Their POINTER target still has to be at least 44x44 CSS
+ * px, so each one carries a centred, invisible ::before that is forced to that
+ * minimum while the painted control keeps its designed size.
+ *
+ * ::before, never ::after: the current nav item and the selected tab already
+ * use ::after for their 2px indicator, and a second ::after would collide.
+ * The pseudo-element is a child of the control, so clicks that land on it
+ * still activate that control.
+ */
+.v3-btn,
+.v3-link,
+.v3-iconBtn,
+.v3-lang button,
+.v3-siteNav a,
+.v3-acct__trigger,
+.v3-menu a,
+.v3-menu button,
+.v3-appDrawer nav a,
+.v3-siteHeader__drawer nav a,
+.v3-appNav a,
+.v3-appNav .v3-appNav__trigger { position: relative; }
+
+.v3-btn::before,
+.v3-link::before,
+.v3-iconBtn::before,
+.v3-lang button::before,
+.v3-siteNav a::before,
+.v3-acct__trigger::before,
+.v3-menu a::before,
+.v3-menu button::before,
+.v3-appDrawer nav a::before,
+.v3-siteHeader__drawer nav a::before,
+.v3-appNav a::before,
+.v3-appNav .v3-appNav__trigger::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  pointer-events: auto;
+}
+
+.v3-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.v3-btn--primary { background: var(--blue-600); color: #fff; box-shadow: var(--sh-1); }
+.v3-btn--primary:hover { background: #1d4ed8; }
+
+.v3-btn--ghost { border: 1px solid #d5deea; background: var(--paper); color: var(--ink); }
+.v3-btn--ghost:hover { border-color: #b9c7db; background: #fbfcfe; }
+
+.v3-btn--quiet { color: var(--ink-2); padding: 0 10px; }
+.v3-btn--quiet:hover { color: var(--ink); background: var(--line-2); }
+
+.v3-btn--onDark { background: #fff; color: var(--navy-900); }
+.v3-btn--onDark:hover { background: #eef3ff; }
+
+.v3-btn--onDarkGhost { border: 1px solid rgb(255 255 255 / 0.32); color: #fff; }
+.v3-btn--onDarkGhost:hover { background: rgb(255 255 255 / 0.1); }
+
+.v3-btn--lg { min-height: 46px; padding: 0 22px; font-size: 15px; }
+.v3-btn--sm { min-height: 32px; padding: 0 12px; font-size: 13px; font-weight: 500; }
+
+.v3-iconBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  flex: none;
+}
+.v3-iconBtn:hover { background: var(--line-2); color: var(--ink); }
+.v3-iconBtn--onDark { color: rgb(255 255 255 / 0.7); }
+.v3-iconBtn--onDark:hover { background: rgb(255 255 255 / 0.1); color: #fff; }
+
+.v3-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.v3-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--blue-600);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.v3-link:hover { text-decoration: underline; }
+/* auxiliary variant for repeated "view all" links */
+.v3-link--quiet { color: var(--ink-4); font-weight: 500; font-size: 13px; }
+.v3-link--quiet:hover { color: var(--blue-600); }
+
+.v3-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+.v3-brand__mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(140deg, var(--blue-500), var(--navy-700));
+  flex: none;
+}
+
+.v3-lang {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+  flex: none;
+}
+.v3-lang button {
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: var(--r-pill);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.v3-lang button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--sh-1);
+}
+
+/* ======================================================================== */
+/* Marketing site                                                           */
+/* ======================================================================== */
+
+.v3-site { background: var(--paper); }
+
+.v3-wrap {
+  width: 100%;
+  max-width: var(--site-content-max);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+.v3-siteHeader {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgb(255 255 255 / 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+.v3-siteHeader[data-stuck="true"] { border-bottom-color: var(--line); }
+
+.v3-siteHeader__inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 64px;
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+.v3-siteNav { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; }
+.v3-siteNav a {
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.v3-siteNav a:hover { background: var(--line-2); color: var(--ink); }
+.v3-siteNav a[aria-current="page"] { color: var(--navy-600); font-weight: 650; background: var(--blue-50); }
+
+.v3-siteHeader__actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.v3-siteHeader__burger { display: none; }
+
+.v3-siteHeader__drawer {
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  padding: 10px 24px 16px;
+}
+.v3-siteHeader__drawer nav { display: grid; gap: 2px; }
+.v3-siteHeader__drawer nav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.v3-siteHeader__drawer nav a:hover { background: var(--line-2); }
+.v3-siteHeader__drawerFoot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+}
+
+/* --- hero --------------------------------------------------------------- */
+
+.v3-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(56rem 28rem at 80% -12%, rgb(219 231 254 / 0.7), transparent 62%),
+    linear-gradient(180deg, #fbfcff 0%, #ffffff 72%);
+  border-bottom: 1px solid var(--line);
+}
+
+.v3-hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  align-items: center;
+  gap: 52px;
+  padding-block: 64px 72px;
+}
+
+.v3-hero__copy { min-width: 0; }
+
+.v3-hero h1 {
+  /* The pill above this is gone, so no top offset is reserved for it. */
+  margin-top: 0;
+  font-size: clamp(2rem, 3.2vw, 2.9rem);
+  line-height: 1.16;
+  letter-spacing: -0.025em;
+  font-weight: 800;
+}
+.v3-hero h1 em {
+  font-style: normal;
+  background: linear-gradient(96deg, var(--blue-600), var(--navy-700));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.v3-hero__sub {
+  margin-top: 16px;
+  max-width: 32rem;
+  font-size: 15.5px;
+  line-height: 1.68;
+  color: var(--ink-3);
+}
+
+.v3-hero__cta { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+.v3-hero__facts {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--ink-4);
+}
+.v3-hero__facts li { display: inline-flex; align-items: center; gap: 6px; }
+
+/* --- hero illustration: requirements / rewrite workspace ----------------- */
+
+/* Surface layers, exactly three: white chrome, light grey working ground,
+   very light blue for the one thing that matters (the suggestion). Blue is a
+   small fraction of the frame -- one panel, one left border, one icon, one
+   outline tag. */
+.v3-shot {
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--sh-3);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.v3-shot__bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding-inline: 13px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafd;
+}
+.v3-shot__bar i { width: 8px; height: 8px; border-radius: 50%; background: #d8dfeb; flex: none; }
+
+.v3-shot__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--paper);
+}
+.v3-shot__head strong {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.v3-shot__head span {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
+.v3-shot__work {
+  display: grid;
+  grid-template-columns: minmax(0, 36fr) minmax(0, 64fr);
+  align-items: start;
+  background: #fafbfe;
+}
+
+.v3-shot__colTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 10px;
+}
+
+/* left column: what the posting asks for */
+.v3-shot__req {
+  padding: 16px 16px 18px;
+  border-right: 1px solid var(--line-2);
+}
+.v3-shot__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.v3-shot__tag {
+  padding: 3px 9px;
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* abstract body text -- shape only, never readable content */
+.v3-shot__lines { display: grid; gap: 6px; margin-top: 14px; }
+.v3-shot__lines i { display: block; height: 5px; border-radius: 3px; background: #dfe5ef; }
+
+/* right column: the rewrite */
+.v3-shot__suggest { padding: 16px 18px 18px; }
+
+.v3-shot__miniLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 7px;
+}
+
+.v3-shot__before {
+  padding: 11px 12px;
+  border-radius: var(--r-sm);
+  background: #f1f3f7;
+  border: 1px solid #e6eaf1;
+}
+.v3-shot__before .v3-shot__lines { margin-top: 0; }
+.v3-shot__before .v3-shot__lines i { background: #d3d9e4; }
+
+/* the focal surface: very light blue with a blue left rule */
+.v3-shot__after {
+  margin-top: 10px;
+  padding: 12px 13px;
+  border-radius: var(--r-sm);
+  background: #eff5ff;
+  border: 1px solid #d7e4fb;
+  border-left: 3px solid var(--blue-600);
+}
+.v3-shot__after .v3-shot__miniLabel { color: var(--navy-600); }
+.v3-shot__after p {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.v3-shot__after p + p { margin-top: 4px; }
+
+.v3-shot__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--line-2);
+  background: var(--paper);
+}
+.v3-shot__trust {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  min-width: 0;
+}
+.v3-shot__trust svg { color: var(--blue-600); flex: none; }
+.v3-shot__confirm {
+  margin-left: auto;
+  flex: none;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid #c9d8f5;
+  color: var(--navy-600);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* --- sections ----------------------------------------------------------- */
+
+.v3-section { padding-block: 60px; }
+.v3-section--tint { background: var(--canvas); border-block: 1px solid var(--line); }
+
+.v3-section__head { max-width: 34rem; }
+.v3-section__head h2 {
+  margin-top: 10px;
+  font-size: clamp(1.45rem, 2.3vw, 1.9rem);
+  line-height: 1.22;
+  letter-spacing: -0.022em;
+  font-weight: 800;
+}
+.v3-section__head p { margin-top: 10px; font-size: 15px; color: var(--ink-3); }
+
+/* three capabilities */
+.v3-caps {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.v3-cap {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  padding: 22px;
+  box-shadow: var(--sh-1);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.v3-cap__icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--blue-50); color: var(--navy-600);
+  margin-bottom: 14px;
+}
+.v3-cap h3 { font-size: 16.5px; font-weight: 700; letter-spacing: -0.015em; }
+.v3-cap p { margin-top: 8px; font-size: 14px; line-height: 1.62; color: var(--ink-3); }
+.v3-cap__link { margin-top: auto; padding-top: 16px; align-self: flex-start; }
+
+/* three steps */
+.v3-steps {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  counter-reset: v3step;
+}
+.v3-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 20px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.v3-step__num {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; flex: none;
+  background: var(--navy-600); color: #fff;
+  font-size: 14px; font-weight: 700;
+}
+.v3-step__body { min-width: 0; }
+.v3-step__body h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.v3-step__body p { margin-top: 5px; font-size: 13.5px; line-height: 1.6; color: var(--ink-3); }
+
+/* --- closing CTA -------------------------------------------------------- */
+
+.v3-cta {
+  background:
+    radial-gradient(38rem 19rem at 12% 0%, rgb(59 118 246 / 0.4), transparent 62%),
+    linear-gradient(120deg, var(--navy-900), #14235f 55%, var(--navy-700));
+  color: #fff;
+}
+.v3-cta__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding-block: 52px;
+}
+.v3-cta__copy { min-width: 0; }
+.v3-cta h2 { font-size: clamp(1.35rem, 2.2vw, 1.85rem); letter-spacing: -0.022em; font-weight: 800; line-height: 1.28; }
+.v3-cta p { margin-top: 8px; font-size: 14.5px; color: rgb(255 255 255 / 0.74); max-width: 34rem; }
+.v3-cta__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* --- footer ------------------------------------------------------------- */
+
+.v3-footer { background: var(--paper); border-top: 1px solid var(--line); }
+.v3-footer__inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding-block: 36px 28px;
+}
+.v3-footer__brand { max-width: 26rem; min-width: 0; }
+.v3-footer__brand p { margin-top: 10px; font-size: 13px; color: var(--ink-3); line-height: 1.6; }
+.v3-footer__nav { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: flex-start; }
+.v3-footer__nav a,
+.v3-footer__nav button { font-size: 13.5px; color: var(--ink-2); }
+.v3-footer__nav a:hover,
+.v3-footer__nav button:hover { color: var(--blue-600); }
+.v3-footer__bottom {
+  border-top: 1px solid var(--line-2);
+  padding-block: 16px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--ink-4);
+}
+
+/* ======================================================================== */
+/* Application workbench                                                    */
+/* ======================================================================== */
+
+/*
+ * The signed-in surface is the SAME product as the marketing site, so it uses
+ * the same chrome: a white 64px single-row header whose inner box is aligned to
+ * the page container, the same type scale, the same 1px --line borders, the
+ * same radii and the same restrained use of brand blue. There is no dark rail.
+ *
+ * The only intentional differences from the site header are the nav items and
+ * the current-item indicator: a hairline under the label instead of the site's
+ * filled pill, because a console shows its current section constantly.
+ */
+
+.v3-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* The hero's ambient wash, continued -- not a flat grey-blue slab. */
+  background:
+    radial-gradient(58rem 26rem at 88% -10%, rgb(219 231 254 / 0.55), transparent 60%),
+    linear-gradient(180deg, #fbfcff 0%, #f8fafd 45%, #f5f7fb 100%);
+  background-attachment: fixed;
+}
+
+/* The populated workbench sits on the reference's soft cool-blue field. Scoped
+   with :has() so the first-run state (no .v3-wb--desk) keeps its background. */
+.v3-app:has(.v3-wb--desk) {
+  background:
+    radial-gradient(60rem 30rem at 6% -6%, rgb(255 255 255 / 0.7), transparent 62%),
+    radial-gradient(56rem 40rem at 100% 38%, rgb(200 228 252 / 0.55), transparent 64%),
+    radial-gradient(44rem 26rem at 30% 108%, rgb(206 233 252 / 0.3), transparent 66%),
+    linear-gradient(180deg, #eef8fe 0%, #e9f4fd 100%);
+  background-attachment: fixed;
+}
+
+/* --- header ------------------------------------------------------------- */
+
+/* The header width is already shared via --shell-max; nothing to override. */
+
+.v3-appNav { gap: 0; }
+
+.v3-appNav a,
+.v3-appNav .v3-appNav__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 63px;
+  padding: 0 12px;
+  border-radius: 0;
+  background: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.v3-appNav a:hover,
+.v3-appNav .v3-appNav__trigger:hover { color: var(--ink); background: none; }
+
+.v3-appNav a[aria-current="page"],
+.v3-appNav .v3-appNav__trigger[data-current="true"] {
+  color: var(--blue-600);
+  font-weight: 650;
+  /* Explicitly cancels the site header's filled pill: a console shows its
+     current section on every page, so it gets a hairline, not a blue block. */
+  background: transparent;
+}
+.v3-appNav a[aria-current="page"]::after,
+.v3-appNav .v3-appNav__trigger[data-current="true"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--blue-600);
+}
+
+.v3-appNav__chev { transition: transform 0.15s ease; }
+.v3-appNav__trigger[aria-expanded="true"] .v3-appNav__chev { transform: rotate(180deg); }
+
+/* --- dropdown / account menu (one shared surface) ----------------------- */
+
+.v3-menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 196px;
+  padding: 5px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--sh-2);
+  display: grid;
+  gap: 2px;
+}
+.v3-menu--under { top: calc(100% - 8px); left: 6px; }
+.v3-menu--right { top: calc(100% + 6px); right: 0; }
+
+.v3-menu a,
+.v3-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 11px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+  width: 100%;
+  white-space: nowrap;
+}
+.v3-menu a:hover,
+.v3-menu button:hover { background: var(--blue-50); color: var(--navy-600); }
+.v3-menu__sep { height: 1px; background: var(--line-2); margin: 4px 6px; }
+
+.v3-acct { position: relative; flex: none; }
+.v3-acct__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 3px 10px 3px 3px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  max-width: 220px;
+}
+.v3-acct__trigger:hover { border-color: var(--line); background: var(--paper); }
+.v3-acct__trigger[aria-expanded="true"] {
+  border-color: var(--line);
+  background: var(--paper);
+  box-shadow: var(--sh-1);
+}
+.v3-acct__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, var(--blue-500), var(--navy-700));
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.v3-acct__name {
+  font-size: 13.5px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- mobile menu (push-down, same pattern as the site header) ----------- */
+
+.v3-appHeader__burger { display: none; }
+
+.v3-appDrawer {
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  padding: 10px 24px 18px;
+}
+.v3-appDrawer nav { display: grid; gap: 2px; }
+.v3-appDrawer nav a {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.v3-appDrawer nav a:hover { background: var(--line-2); }
+.v3-appDrawer nav a[aria-current="page"] { color: var(--blue-600); font-weight: 650; background: var(--blue-50); }
+.v3-appDrawer__group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-2);
+}
+.v3-appDrawer__label {
+  padding: 0 12px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.v3-appDrawer__user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 10px;
+}
+.v3-appDrawer__user b { font-size: 14px; font-weight: 650; }
+
+/* --- workbench page ------------------------------------------------------ */
+
+/*
+ * Everything below is workbench-only and prefixed .v3-wb*. It cannot reach the
+ * marketing page, which owns .v3-site*, .v3-hero*, .v3-shot*, .v3-section*,
+ * .v3-cta* and .v3-footer*.
+ *
+ * Shape: one centred column, one white surface. Hierarchy comes from type size,
+ * whitespace and hairlines -- not from tinted banners or stacked cards.
+ */
+
+.v3-appMain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.v3-wb {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+  padding: 52px 24px 72px;
+}
+/* First run is a single short message, so it reads better a touch narrower. */
+.v3-wb[data-state="new"] { max-width: 760px; }
+
+/* --- page head ----------------------------------------------------------- */
+
+.v3-wbHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.v3-wbHead__text { min-width: 0; }
+.v3-wbHead h1 {
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.028em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.v3-wbHead p {
+  margin-top: 7px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+.v3-wbHead__action { flex: none; }
+
+/* --- the one surface ----------------------------------------------------- */
+
+.v3-wbPanel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow: 0 8px 28px rgb(15 23 42 / 0.06);
+  overflow: hidden;
+}
+
+/* --- desk layout (every signed-in state except first run) ---------------- */
+
+.v3-wb--desk {
+  max-width: 1264px;
+  padding-top: 40px;
+  padding-bottom: 56px;
+}
+
+/* Compact horizontal head: greeting | short faint rule | one line. */
+.v3-wbIntro {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 24px;
+}
+.v3-wbIntro h1 {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.v3-wbIntro__rule {
+  flex: none;
+  width: 2px;
+  height: 28px;
+  border-radius: 2px;
+  background: rgb(37 99 235 / 0.28);
+}
+.v3-wbIntro p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.v3-wbGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.v3-wbCol {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* --- modules ------------------------------------------------------------- */
+
+/* All three modules share one cool-blue family; strength sets the hierarchy.
+   Borders are soft blue, never grey; shadows are faint blue ambient light. */
+.v3-wbMod {
+  position: relative;
+  min-width: 0;
+  border-radius: 21px;
+  border: 1px solid #cfe4f8;
+  padding: 22px 24px;
+  overflow: hidden;
+}
+
+/* The focal module: the strongest light-blue surface and the deepest shadow.
+   A flex column so that, when the right-hand column makes it taller, the extra
+   height lands between the main resume and the divider, not under the last row. */
+.v3-wbMod--resume {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 28px 24px;
+  border-color: #c3dcf6;
+  background:
+    radial-gradient(34rem 22rem at 0% 0%, rgb(255 255 255 / 0.5), transparent 60%),
+    linear-gradient(160deg, #eaf5ff 0%, #dcecfd 100%);
+  box-shadow:
+    0 22px 48px -30px rgb(37 99 235 / 0.36),
+    0 2px 6px -2px rgb(37 99 235 / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.7);
+}
+/* Two faint concentric arcs in the lower right, placed so the outer one passes
+   below the buttons and the quality link -- decoration never sits under text. */
+/* The arcs may only occupy the empty lower-right corner, below the divider.
+   The compact layout (under 1344px) has a shorter module, so the default sits
+   lower; the >=1344px block raises it to the geometry fitted at 1440, where the
+   outer edge peaks ~27px below the divider. Band 44 -> 26px (-40%), every
+   alpha halved. Hidden on phones (see the <768px block). */
+.v3-wbMod--resume::after {
+  content: "";
+  position: absolute;
+  right: -200px;
+  bottom: -450px;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  border: 1.5px solid rgb(37 99 235 / 0.04);
+  box-shadow:
+    0 0 0 26px rgb(37 99 235 / 0.009),
+    0 0 0 27.5px rgb(37 99 235 / 0.025);
+  pointer-events: none;
+}
+.v3-wbMod--resume > * { position: relative; z-index: 1; }
+
+/* The two secondary modules: a visible but weaker cool blue, never near-white. */
+.v3-wbMod--quiet {
+  background: linear-gradient(170deg, #f3f9ff 0%, #e9f4fe 100%);
+  box-shadow:
+    0 16px 36px -28px rgb(37 99 235 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.8);
+}
+/* jobs: one very faint arc in the lower right, decoration only */
+.v3-wbMod--jobs::after {
+  content: "";
+  position: absolute;
+  right: -170px;
+  bottom: -250px;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(37 99 235 / 0.05) 0%, transparent 70%);
+  border: 1.5px solid rgb(37 99 235 / 0.07);
+  pointer-events: none;
+}
+.v3-wbMod--jobs > * { position: relative; z-index: 1; }
+
+.v3-wbMod__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  min-height: 44px;
+}
+.v3-wbMod__title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.v3-wbMod--resume .v3-wbMod__title { font-size: 22px; }
+.v3-wbMod__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: #dcebfc;
+  color: var(--blue-600);
+}
+.v3-wbMod__badge {
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: #e4eef9;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.v3-wbMod__end { margin-left: auto; flex: none; }
+
+/* Outline buttons that read as brand actions (blue text + blue-tinted rule),
+   still one step below the single solid primary. */
+.v3-btn--brand {
+  border-color: #b6cff2;
+  background: rgb(255 255 255 / 0.85);
+  color: var(--blue-600);
+}
+.v3-btn--brand:hover { border-color: var(--blue-600); background: #f5f8ff; }
+
+/* Every text action on the page: one size, one weight, one arrow. */
+.v3-wbAct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blue-600);
+  white-space: nowrap;
+}
+.v3-wbAct svg { flex: none; transition: transform 0.12s ease; }
+.v3-wbAct:hover { color: #1d4ed8; }
+.v3-wbAct:hover svg { transform: translateX(2px); }
+
+/* Rules that set a margin on a <p> are written as `.v3-wb .v3-wbX` (0,2,0):
+   the shared reset `.v3 p { margin: 0 }` is (0,1,1) and would otherwise win.
+   The reset itself is left alone because the marketing page relies on it. */
+.v3-wb .v3-wbLabel {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+}
+
+.v3-wbEmpty { font-size: 14px; color: var(--ink-3); }
+
+/* --- resume center ------------------------------------------------------- */
+
+.v3-wbResume {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  grid-template-areas:
+    "doc info"
+    "doc actions";
+  grid-template-rows: auto 1fr;
+  gap: 0 26px;
+}
+
+.v3-wbDoc {
+  grid-area: doc;
+  position: relative;
+  align-self: start;
+  aspect-ratio: 3 / 4;
+  padding: 16px 14px;
+  border-radius: 10px;
+  border: 1px solid #dbe4f2;
+  background: var(--paper);
+  box-shadow: 0 8px 20px -12px rgb(15 23 42 / 0.28);
+  overflow: hidden;
+}
+/* folded corner, in the brand's lightest blue */
+.v3-wbDoc::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(225deg, var(--blue-100) 50%, transparent 50%);
+}
+.v3-wb .v3-wbDoc__name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v3-wbDoc__line,
+.v3-wbDoc__pair i {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: #e1e7f1;
+}
+.v3-wbDoc__line { margin-top: 5px; }
+.v3-wbDoc__line--strong { background: #c9d3e3; }
+.v3-wbDoc__pair { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.v3-wbDoc__pair i:first-child { width: 42%; }
+.v3-wbDoc__pair i:last-child { width: 30%; }
+
+.v3-wbResume__info { grid-area: info; min-width: 0; padding-top: 4px; }
+.v3-wbResume__title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.016em;
+  line-height: 1.32;
+  color: var(--ink);
+}
+.v3-wb .v3-wbResume__meta {
+  margin-top: 6px;
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+
+.v3-wb .v3-wbReady {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #15803d;
+}
+.v3-wbReady__icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: #16a34a;
+  color: #fff;
+}
+
+.v3-wbResume__actions { grid-area: actions; min-width: 0; padding-top: 20px; }
+.v3-wbResume__buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.v3-wbResume__buttons .v3-btn { min-width: 136px; min-height: 44px; }
+.v3-wbResume__actions .v3-wbAct { margin-top: 4px; }
+/* keeps a floor of space above the divider when the module is not stretched */
+.v3-wbResume { margin-bottom: 22px; }
+
+/* the secondary resume: a quiet row, never a second set of buttons */
+.v3-wbFile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  margin-top: auto;
+  padding: 18px 10px 4px;
+  margin-inline: -10px;
+  border-top: 1px solid rgb(30 58 138 / 0.1);
+  border-radius: 0 0 10px 10px;
+  transition: background 0.12s ease;
+}
+.v3-wbFile:hover { background: rgb(255 255 255 / 0.55); }
+.v3-wbFile__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: #d3e6fb;
+  color: var(--blue-600);
+}
+.v3-wbFile__text { min-width: 0; }
+.v3-wbFile__name {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v3-wbFile__meta { display: block; margin-top: 3px; font-size: 13px; color: var(--ink-3); }
+
+/* --- jobs ---------------------------------------------------------------- */
+
+.v3-wbSaved {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  grid-template-areas: "bar text act";
+  align-items: center;
+  gap: 0 14px;
+}
+.v3-wbSaved__bar {
+  grid-area: bar;
+  align-self: stretch;
+  border-radius: 3px;
+  background: var(--blue-600);
+}
+.v3-wbSaved__text { grid-area: text; min-width: 0; }
+.v3-wbSaved__title {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.v3-wb .v3-wbSaved__org { margin-top: 3px; font-size: 13.5px; color: var(--ink-3); }
+.v3-wb .v3-wbSaved__status { margin-top: 3px; font-size: 12.5px; color: var(--ink-4); }
+.v3-wbSaved__act { grid-area: act; align-self: end; }
+
+/* --- recent applications: a quiet timeline ------------------------------- */
+
+.v3-wbTl li { position: relative; }
+/* the faint vertical line between one date chip and the next */
+.v3-wbTl li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 27px;
+  top: calc(50% + 14px);
+  height: calc(100% - 28px);
+  width: 2px;
+  border-radius: 2px;
+  background: #bcd6f4;
+}
+/* a small soft-blue dot halfway between one date and the next */
+.v3-wbTl li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 24.5px;
+  top: calc(100% - 3.5px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a9c9f0;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.6);
+}
+.v3-wbTl__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 62px;
+  padding: 8px 8px 8px 0;
+  border-radius: 10px;
+  transition: background 0.12s ease;
+}
+a.v3-wbTl__row:hover { background: #f5f8fd; }
+/* hairline between rows, text column only */
+.v3-wbTl li + li .v3-wbTl__row::after {
+  content: "";
+  position: absolute;
+  left: 72px;
+  right: 8px;
+  top: 0;
+  height: 1px;
+  background: var(--line-2);
+}
+.v3-wbTl__date {
+  justify-self: start;
+  position: relative;
+  z-index: 1;
+  min-width: 56px;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: #dfedfc;
+  color: var(--navy-600);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.v3-wbTl__text { min-width: 0; }
+.v3-wbTl__title {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v3-wbTl__org {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- first run ----------------------------------------------------------- */
+
+.v3-wbPanel--start {
+  padding: 40px 32px 36px;
+  text-align: center;
+}
+.v3-wbStart__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--blue-50);
+  color: var(--navy-600);
+  margin-bottom: 18px;
+}
+.v3-wbPanel--start h2 {
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.v3-wbPanel--start p {
+  margin: 9px auto 0;
+  max-width: 30rem;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--ink-3);
+}
+.v3-wbPanel--start .v3-btn { margin-top: 22px; }
+/* flex, not inline-flex: the quiet link must sit on its own line under the
+   button rather than beside it. */
+.v3-wbStart__alt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 44px;
+  margin: 4px auto 0;
+  font-size: 13.5px;
+  color: var(--ink-4);
+}
+.v3-wbStart__alt:hover { color: var(--blue-600); }
+
+/* --- failures ------------------------------------------------------------ */
+
+/* One module's request failed: it says so inside its own box. */
+.v3-wbFail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.v3-wbFail p { font-size: 13.5px; color: var(--ink-3); }
+.v3-wbFail .v3-btn { margin-left: auto; }
+
+/* Resume center failed: the module keeps its height, and the message is one
+   compact group centred in the space below the module title. */
+.v3-wbFailCenter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 0 28px;
+  text-align: center;
+}
+.v3-wbFailCenter__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  border: 1px solid #dbe4f2;
+  color: var(--blue-600);
+}
+.v3-wbFailCenter p { font-size: 14px; color: var(--ink-3); }
+.v3-wbFailCenter .v3-btn { margin-top: 2px; }
+
+/* Everything failed: the head stays, one panel carries a short message. */
+.v3-wbFailPage { padding: 34px 28px 32px; }
+.v3-wbFailPage h2 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.v3-wbFailPage p {
+  margin-top: 8px;
+  max-width: 32rem;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.v3-wbFailPage .v3-btn { margin-top: 18px; }
+
+/* --- loading ------------------------------------------------------------- */
+
+.v3-wbSkel {
+  display: block;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #eef1f7 25%, #e3e9f3 37%, #eef1f7 63%);
+  background-size: 400% 100%;
+  animation: v3-shimmer 1.4s ease infinite;
+}
+.v3-wbSkel--btn { width: 136px; height: 44px; border-radius: var(--r-sm); }
+.v3-wbDoc--skeleton { background: rgb(255 255 255 / 0.7); box-shadow: none; }
+.v3-wbDoc--skeleton::after { display: none; }
+.v3-wbFile--skeleton { pointer-events: none; }
+.v3-wbFile--skeleton .v3-wbFile__icon { background: rgb(255 255 255 / 0.7); }
+.v3-wbSaved__bar--skeleton { background: var(--line); }
+/* stand-ins for the "继续处理收藏" line and the saved-job text (compact layout) */
+.v3-wbSkel--label { height: 14px; margin: 3px 0 13px; }
+.v3-wbSaved__text--skeleton { min-height: 71px; }
+.v3-wbTl__date--skeleton { height: 25px; background: #eef1f7; }
+
+@keyframes v3-shimmer {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+/* ======================================================================== */
+/* Review toolbar (never part of the design -- hidden under ?chrome=0)      */
+/* ======================================================================== */
+
+.v3-reviewBar {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 20px);
+  padding: 6px 10px 6px 14px;
+  border-radius: var(--r-pill);
+  background: rgb(13 21 38 / 0.94);
+  color: #fff;
+  box-shadow: 0 12px 32px -8px rgb(13 21 38 / 0.5);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  overflow-x: auto;
+}
+.v3-reviewBar__tag { color: rgb(255 255 255 / 0.55); white-space: nowrap; }
+.v3-reviewBar nav { display: flex; gap: 2px; }
+.v3-reviewBar nav a {
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  color: rgb(255 255 255 / 0.72);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.v3-reviewBar nav a:hover { background: rgb(255 255 255 / 0.12); color: #fff; }
+.v3-reviewBar nav a.active { background: #fff; color: var(--ink); }
+.v3-reviewBar__variant {
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  color: #fff;
+  white-space: nowrap;
+}
+.v3-reviewBar__fixture {
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  background: var(--amber-bg);
+  color: var(--amber);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Keep the bar clear of page content while it is on screen. */
+.v3[data-review="on"] .v3-page { padding-bottom: 88px; }
+.v3[data-review="on"] .v3-footer__bottom { padding-bottom: 74px; }
+
+/* ======================================================================== */
+/* Responsive                                                               */
+/* ======================================================================== */
+
+/* --- marketing site ----------------------------------------------------- */
+
+@media (max-width: 1080px) {
+  .v3-hero__grid { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-block: 48px 56px; }
+  .v3-hero__sub { max-width: none; }
+}
+
+@media (max-width: 900px) {
+  .v3-caps { grid-template-columns: minmax(0, 1fr); }
+  .v3-steps { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 860px) {
+  .v3-siteNav:not(.v3-appNav) { display: none; }
+  .v3-siteHeader__burger { display: grid; }
+}
+
+/* --- workbench ---------------------------------------------------------- */
+
+/* Account name is the first thing to go when the header gets tight. */
+@media (max-width: 1120px) {
+  .v3-acct__name { display: none; }
+  .v3-acct__trigger { padding-right: 6px; }
+}
+
+/* The 7/5 split holds down to ~960px; below that the three modules stack in
+   reading order: resume center, jobs, recent applications. */
+@media (max-width: 959px) {
+  .v3-wbGrid { grid-template-columns: minmax(0, 1fr); }
+  .v3-wbCol { grid-template-rows: auto; }
+}
+
+/* --- wide desktop: proportions measured from the reference ---------------
+   From 1344px up the workbench content is a constant 1296px wide (72px side
+   margins at 1440), so every size below was fitted once, at that width.
+   The top navigation is not touched: only the page head and the three
+   modules grow. Narrower screens keep the compact layout above. */
+@media (min-width: 1344px) {
+  .v3-wb--desk {
+    max-width: none;
+    padding: 62px max(24px, calc((100% - 1296px) / 2)) 56px;
+  }
+
+  /* page head: one row, 60px under the nav, 34px above the modules */
+  .v3-wbIntro { gap: 10px 26px; margin-bottom: 34px; }
+  .v3-wbIntro h1 { font-size: 43px; font-weight: 700; line-height: 1.25; letter-spacing: -0.028em; }
+  .v3-wbIntro__rule { height: 43px; width: 2px; }
+  .v3-wbIntro p { font-size: 19.5px; color: #5a6b91; }
+
+  /* 55.5 / 44.5 split (the reference's own ratio), 18px gutter, 16px stack */
+  .v3-wbGrid { grid-template-columns: minmax(0, 55.5fr) minmax(0, 44.5fr); gap: 18px; }
+  .v3-wbCol { gap: 16px; }
+
+  /* shared module head */
+  .v3-wbMod { padding: 30px; }
+  .v3-wbMod__head { gap: 16px; min-height: 60px; margin-bottom: 20px; }
+  .v3-wbMod__title,
+  .v3-wbMod--resume .v3-wbMod__title { font-size: 28px; font-weight: 700; }
+  .v3-wbMod__icon { width: 60px; height: 60px; border-radius: 16px; }
+  .v3-wbMod__icon svg { width: 28px; height: 28px; }
+  .v3-wbMod__badge { padding: 5px 13px; font-size: 15px; font-weight: 500; }
+  .v3-wbAct { gap: 8px; font-size: 16px; }
+  .v3-wbAct svg { width: 18px; height: 18px; }
+
+  /* resume center */
+  .v3-wbMod--resume { padding: 32px; }
+  .v3-wbMod--resume::after { bottom: -370px; }
+  .v3-wbResume {
+    grid-template-columns: 195px minmax(0, 1fr);
+    gap: 0 20px;
+    margin-bottom: 30px;
+  }
+  .v3-wbDoc {
+    width: 195px;
+    height: 250px;
+    aspect-ratio: auto;
+    padding: 22px 18px;
+    border-radius: 12px;
+  }
+  .v3-wbDoc::after { width: 32px; height: 32px; }
+  .v3-wb .v3-wbDoc__name { font-size: 15.5px; margin-bottom: 16px; }
+  .v3-wbDoc__line,
+  .v3-wbDoc__pair i { height: 5px; }
+  .v3-wbDoc__line { margin-top: 9px; }
+  .v3-wbDoc__pair { margin-top: 10px; }
+  /* the reference sets the title ~28px below the top of the preview */
+  .v3-wbResume__info { padding-top: 28px; }
+  .v3-wbResume__title { font-size: 22px; white-space: nowrap; }
+  .v3-wb .v3-wbResume__meta { margin-top: 10px; font-size: 16px; }
+  .v3-wb .v3-wbReady { margin-top: 18px; gap: 12px; font-size: 17.5px; }
+  .v3-wbReady__icon { width: 34px; height: 34px; }
+  .v3-wbReady__icon svg { width: 20px; height: 20px; }
+  .v3-wbResume__actions { padding-top: 22px; }
+  .v3-wbResume__buttons { flex-wrap: nowrap; gap: 14px; }
+  .v3-wbResume__buttons .v3-btn { min-height: 54px; border-radius: 10px; font-size: 17.5px; }
+  .v3-wbResume__buttons .v3-btn--primary { width: 220px; min-width: 0; }
+  .v3-wbResume__buttons .v3-btn--ghost { width: 195px; min-width: 0; }
+  /* a 44px-tall link box: 11px margin reads as ~22px of space under the buttons */
+  .v3-wbResume__actions .v3-wbAct { margin-top: 11px; font-size: 17px; }
+
+  .v3-wbFile { gap: 20px; padding: 30px 10px 6px; margin-bottom: 26px; }
+  .v3-wbFile__icon { width: 70px; height: 70px; border-radius: 17px; }
+  .v3-wbFile__icon svg { width: 32px; height: 32px; }
+  .v3-wbFile__name { font-size: 17.5px; }
+  .v3-wbFile__meta { margin-top: 6px; font-size: 15.5px; }
+
+  /* jobs */
+  .v3-wbMod__end--button .v3-btn {
+    width: 180px;
+    min-height: 54px;
+    gap: 10px;
+    border-radius: 10px;
+    font-size: 17.5px;
+  }
+  .v3-wbMod__end--button .v3-btn svg { width: 27px; height: 27px; }
+  .v3-wb .v3-wbLabel { margin-bottom: 12px; font-size: 15.5px; }
+  .v3-wbSaved { grid-template-columns: 4px minmax(0, 1fr) auto; gap: 0 20px; }
+  .v3-wbSaved__bar { min-height: 72px; border-radius: 4px; }
+  .v3-wbSaved__title { font-size: 19.5px; line-height: 1.4; }
+  .v3-wb .v3-wbSaved__org { margin-top: 4px; font-size: 16px; line-height: 1.4; }
+  .v3-wb .v3-wbSaved__status { margin-top: 3px; font-size: 15px; line-height: 1.4; }
+  .v3-wbSaved__act .v3-wbAct { font-size: 17px; }
+  /* Loading, matched to the loaded sizes above: the label line is 24px + 12px
+     gap (36px slot) and the saved-job text block is ~78px tall. */
+  .v3-wbSkel--label { height: 16px; margin: 0 0 20px; }
+  .v3-wbSaved__text--skeleton { min-height: 78px; }
+
+  /* recent applications */
+  /* rows sit a little higher than a uniform 30px padding would put them, so the
+     first date lines up with the reference's first row */
+  .v3-wbMod--history { padding: 26px 30px 24px; }
+  /* The list starts 13px higher (head margin 4 -> -9) and those 13px are handed
+     back under the last row, so the module height, its padding and the 72px row
+     rhythm are all unchanged. The head paints above the first row's top edge. */
+  .v3-wbMod--history .v3-wbMod__head { margin-bottom: -9px; position: relative; z-index: 2; }
+  .v3-wbMod--history .v3-wbTl { margin-bottom: 13px; }
+  .v3-wbTl__row {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 20px;
+    min-height: 72px;
+    padding: 6px 8px 6px 0;
+  }
+  .v3-wbTl__date {
+    min-width: 78px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    font-size: 16.5px;
+    line-height: 40px;
+  }
+  .v3-wbTl li:not(:last-child)::before { left: 38px; top: calc(50% + 23px); height: calc(100% - 46px); }
+  .v3-wbTl li:not(:last-child)::after { left: 35.5px; }
+  .v3-wbTl li + li .v3-wbTl__row::after { left: 98px; }
+  .v3-wbTl__title { font-size: 18.5px; line-height: 1.4; }
+  .v3-wbTl__org { margin-top: 3px; font-size: 16px; line-height: 1.4; }
+}
+
+/* Below this the four nav items plus brand no longer fit on one line, so the
+   whole signed-in nav collapses into the hamburger menu. */
+@media (max-width: 899px) {
+  .v3-appNav { display: none; }
+  .v3-appHeader .v3-acct { display: none; }
+  .v3-appHeader__burger { display: grid; }
+  .v3-wb { padding-top: 36px; }
+}
+
+/* --- below 768: single column everywhere -------------------------------- */
+
+@media (max-width: 767px) {
+  .v3 { font-size: 14.5px; }
+  .v3-wrap { padding-inline: 18px; }
+  .v3-section { padding-block: 44px; }
+  .v3-hero__grid { padding-block: 34px 42px; }
+  .v3-hero__cta .v3-btn { flex: 1 1 auto; }
+
+  /* On a phone the two columns stack; the suggestion stays the focal panel. */
+  .v3-shot__work { grid-template-columns: minmax(0, 1fr); }
+  .v3-shot__req { border-right: 0; border-bottom: 1px solid var(--line-2); padding: 14px; }
+  .v3-shot__req .v3-shot__lines i:nth-child(n + 5) { display: none; }
+  .v3-shot__suggest { padding: 14px; }
+  .v3-shot__head { padding: 12px 14px; }
+  .v3-shot__foot { padding: 10px 14px; }
+
+  .v3-cta__inner { flex-direction: column; align-items: flex-start; padding-block: 40px; }
+  .v3-cta__actions { width: 100%; }
+  .v3-cta__actions .v3-btn { flex: 1 1 auto; }
+  .v3-footer__inner { flex-direction: column; gap: 22px; }
+
+  /* --- workbench, phone --- */
+  .v3-appDrawer { padding-inline: 18px; }
+
+  .v3-wb,
+  .v3-wb[data-state="new"] { padding: 28px 16px 64px; max-width: none; }
+
+  .v3-wbHead { align-items: stretch; margin-bottom: 20px; }
+  .v3-wbHead h1 { font-size: 26px; }
+  .v3-wbHead__action { width: 100%; }
+  .v3-wbHead__action .v3-btn { width: 100%; }
+
+  .v3-wbPanel--start { padding: 32px 20px 30px; }
+  .v3-wbPanel--start .v3-btn { width: 100%; }
+
+  /* desk layout, phone: head -> resume center -> jobs -> recent */
+  .v3-wbIntro { flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 18px; }
+  .v3-wbIntro h1 { font-size: 30px; }
+  .v3-wbIntro__rule { display: none; }
+  .v3-wbIntro p { font-size: 15px; }
+
+  .v3-wbGrid,
+  .v3-wbCol { gap: 14px; }
+  .v3-wbMod,
+  .v3-wbMod--resume { padding: 20px; }
+  /* no room for a quiet corner on a phone: the arcs are simply not drawn */
+  .v3-wbMod--resume::after { display: none; }
+  .v3-wbMod--resume .v3-wbMod__title { font-size: 20px; }
+  .v3-wbMod__title { font-size: 18px; }
+
+  /* The preview shrinks but stays; the actions take the full width below. */
+  .v3-wbResume {
+    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-areas:
+      "doc info"
+      "actions actions";
+    grid-template-rows: auto auto;
+    gap: 0 16px;
+  }
+  .v3-wbDoc { padding: 10px 9px; }
+  .v3-wb .v3-wbDoc__name { font-size: 9.5px; margin-bottom: 6px; }
+  .v3-wbDoc__line { margin-top: 4px; height: 3px; }
+  .v3-wbDoc__pair { margin-top: 4px; }
+  .v3-wbDoc__pair i { height: 3px; }
+  .v3-wbDoc__line:nth-last-child(-n + 3) { display: none; }
+  .v3-wbResume__info { padding-top: 0; }
+  .v3-wbResume__title { font-size: 17px; }
+  /* balance: in the narrow column the line otherwise breaks one glyph short */
+  .v3-wb .v3-wbReady { align-items: flex-start; font-size: 13.5px; text-wrap: balance; }
+  .v3-wbResume__actions { padding-top: 18px; }
+  .v3-wbResume__buttons { flex-direction: column; }
+  .v3-wbResume__buttons .v3-btn { width: 100%; }
+
+  /* The jobs head wraps: title + badge, then a full-width find button. */
+  .v3-wbMod__head { flex-wrap: wrap; row-gap: 12px; }
+  .v3-wbMod__end--button { margin-left: 0; width: 100%; }
+  .v3-wbMod__end--button .v3-btn { width: 100%; }
+
+  .v3-wbSaved {
+    grid-template-columns: 3px minmax(0, 1fr);
+    grid-template-areas:
+      "bar text"
+      "bar act";
+  }
+  .v3-wbSaved__act { align-self: start; margin-top: 2px; }
+
+  .v3-wbFailPage { padding: 28px 20px; }
+}
+
+@media (max-width: 560px) {
+  .v3-siteHeader__inner { height: 58px; padding-inline: 18px; gap: 8px; }
+  .v3-siteHeader__actions .v3-btn--quiet { display: none; }
+  .v3-siteHeader__actions { gap: 6px; }
+  .v3-siteHeader__actions .v3-btn { padding: 0 12px; }
+  .v3-siteHeader__drawer { padding-inline: 18px; }
+  .v3-lang button { padding: 0 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v3 * { transition: none !important; animation: none !important; }
+}
+

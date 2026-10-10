@@ -131,9 +131,16 @@ public class ResumeBuilderDraftContent {
         private String country;
         private String phone;
         private String email;
+        /** Kept so pre-upgrade {@code draft_json} that stored a single LinkedIn URL
+         * still deserializes. Canonical list is {@link #professionalLinks}. */
         private String linkedin;
+        /** Kept so pre-upgrade GitHub URLs are not lost. */
         private String github;
+        /** Kept so pre-upgrade personal-website URLs are not lost. */
         private String website;
+        /** Repeatable professional links. {@code null} on old drafts means "migrate
+         * from the three scalar URL fields"; an empty list means the user cleared them. */
+        private List<ProfessionalLink> professionalLinks;
         /** Null = not stated. Deliberately the ONLY "eligibility" style field -- age,
          * gender, photo, and marital status are never collected by this form. */
         private Boolean legallyEligibleToWork;
@@ -147,7 +154,19 @@ public class ResumeBuilderDraftContent {
             linkedin = orEmpty(linkedin);
             github = orEmpty(github);
             website = orEmpty(website);
+            aijob.util.ResumeBuilderProfessionalLinks.migrateAndSync(this);
         }
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ProfessionalLink {
+        /** One of LINKEDIN, PORTFOLIO, GITHUB, PERSONAL_WEBSITE, BEHANCE, OTHER. */
+        private String type;
+        private String label;
+        private String url;
     }
 
     @Data

@@ -52,6 +52,7 @@ public class JobCatalogController {
             @RequestParam(required = false) Integer size,
             @RequestParam(required = false) String sort) {
 
+
         JobCatalogSearchResponse response = jobCatalogService.search(
                 emailOrNullForAnonymous(authentication),
                 new JobCatalogSearchRequest(

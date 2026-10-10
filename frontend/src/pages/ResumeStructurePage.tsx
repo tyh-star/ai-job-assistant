@@ -79,7 +79,7 @@ export function ResumeStructurePage() {
       <Link className="text-sm text-slate-600 underline" to="/resumes">
         {t('resumes.backToList')}
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold text-slate-900">{t('resumes.structureTitle')}</h1>
+      <h1 className="page-title mt-3">{t('resumes.structureTitle')}</h1>
       <p className="mt-1 text-sm text-slate-500">{t('resumes.structureHint')}</p>
       {loading ? <div className="mt-6"><Spinner label={t('common.loading')} /></div> : null}
       {error ? <div className="mt-4"><Alert message={error} /></div> : null}

@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiErrorBody } from './types'
 import { loginPathAfterSessionExpiry, PROFILE_FEEDBACK_RETURN_TO } from '../auth/returnTo'
-import { TOKEN_KEY, clearSession } from '../auth/session'
+import { TOKEN_KEY, clearSession, markSessionExpired } from '../auth/session'
 import {
   isPublicAuthEndpoint,
   resolveApiBase,
@@ -62,6 +62,32 @@ export function isLoginRequiredFeedbackAction(requestUrl: string): boolean {
   return /^\/feedback\/me\/?$/.test(path)
 }
 
+// The only API routes the backend serves without an account (SecurityConfig permitAll):
+// GET job-catalog search/detail/cities and GET feedback/summary. /auth/** is handled
+// separately. Everything else needs a valid token.
+const PUBLIC_GET_PATHS = [/^\/job-catalog\/search\/?$/, /^\/job-catalog\/[^/]+\/?$/, /^\/feedback\/summary\/?$/]
+
+function apiPathOf(requestUrl: string): string {
+  let path = requestUrl.split(/[?#]/)[0]
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      path = new URL(path).pathname
+    } catch {
+      return path
+    }
+  }
+  return stripApiV1Prefix(path)
+}
+
+/** A request the backend would also answer for a visitor, so its 401 says nothing about this page. */
+export function isPublicApiRequest(method: string | undefined, requestUrl: string): boolean {
+  const path = apiPathOf(requestUrl)
+  if (isPublicAuthEndpoint(path)) {
+    return true
+  }
+  return (method ?? 'get').toLowerCase() === 'get' && PUBLIC_GET_PATHS.some((pattern) => pattern.test(path))
+}
+
 /**
  * Fired after any 401 clears the session, so AuthContext can flip its live `user`
  * state to signed-out even on paths where nothing below navigates away (this module
@@ -75,23 +101,21 @@ export const SESSION_EXPIRED_EVENT = 'aijob:session-expired'
  * synthetic 401 -- provoking a REAL 401 through the full axios + MockMvc stack, just
  * to exercise this one handler, would be its own kind of over-elaborate test.
  *
- * A 401 is not one uniform event -- where it happened and what it was FOR decide
- * what happens next:
- *   1. Merely browsing a public page (/jobs search/detail/cities, or "/", which is
- *      never rendered itself) -- clear the stale token and do nothing else. The
- *      visitor stays exactly where they are, now anonymous; content that never
- *      needed login keeps working.
- *   2. A protected page's own token went stale -- to /login?returnTo=<that exact
- *      page>, so logging back in returns them there.
- *   3. Still on /jobs, but the specific action just clicked (save / mark applied /
- *      the saved-applied tabs) needed login and the token turned out stale -- same
- *      redirect-with-return as #2, always back to /jobs, with an honest notice.
- *   4. Still on /profile, but GET/PUT/DELETE /feedback/me (the site-rating card)
- *      needed login and the token turned out stale -- same redirect-with-return,
- *      always back to /profile#feedback so login lands on the rating card.
- *   5. /auth/login or /auth/register's OWN 401 (wrong credentials) is not a session
- *      expiry at all -- skipped entirely, so the page's own error handling shows the
- *      real message instead of this being mistaken for an expired session.
+ * Only 401 means "this token no longer works" (missing, malformed, expired or
+ * revoked -- see the backend's RestSecurityErrorHandler). 403 is a real permission
+ * error and never signs anyone out. For a 401:
+ *   1. /auth/login or /auth/register's OWN 401 (wrong credentials) is not a session
+ *      expiry -- skipped entirely, so the page shows the real message.
+ *   2. Otherwise the token and cached user are cleared, the expiry is remembered for
+ *      the login notice, and AuthContext is told.
+ *   3. Already on /login or /register -- no navigation, so there is no redirect loop.
+ *   4. On /profile, a rating-card call (/feedback/me) -- to /login, back to
+ *      /profile#feedback.
+ *   5. On a page that needs an account, or the request itself needed one (the signed-in
+ *      dashboard at "/", saving a job on /jobs, ...) -- to /login with returnTo=<this
+ *      page> and the session-expired notice.
+ *   6. A public request on a public page (job search or detail) -- stay put, now as a
+ *      visitor; that content never needed an account.
  */
 export function handleResponseError(error: AxiosError<ApiErrorBody>): Promise<never> {
   if (error.response?.status !== 401) {
@@ -104,31 +128,38 @@ export function handleResponseError(error: AxiosError<ApiErrorBody>): Promise<ne
   }
 
   clearSession()
+  markSessionExpired()
   window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
 
   const pathname = window.location.pathname
-  // Must run before the generic /profile protected-path branch, which would drop
-  // the #feedback hash and land the visitor on the top of the profile instead of
-  // the rating card they were submitting.
+  if (pathname === '/login' || pathname === '/register') {
+    return Promise.reject(error)
+  }
+
+  // Must run before the generic protected-path branch, which would drop the #feedback
+  // hash and land the visitor on the top of the profile instead of the rating card.
   if (pathname === '/profile' && isLoginRequiredFeedbackAction(requestUrl)) {
     window.location.assign(loginPathAfterSessionExpiry(PROFILE_FEEDBACK_RETURN_TO))
     return Promise.reject(error)
   }
 
-  if (isProtectedPath(pathname)) {
+  if (isProtectedPath(pathname) || !isPublicApiRequest(error.config?.method, requestUrl)) {
     window.location.assign(loginPathAfterSessionExpiry(`${pathname}${window.location.search}`))
-    return Promise.reject(error)
-  }
-
-  if ((pathname === '/jobs' || pathname === '/') && isLoginRequiredJobsAction(requestUrl)) {
-    window.location.assign(loginPathAfterSessionExpiry('/jobs'))
-    return Promise.reject(error)
   }
 
   return Promise.reject(error)
 }
 
 api.interceptors.response.use((response) => response, handleResponseError)
+
+/** Resume Rewrite AI failures, identified by the backend's stable error code. */
+const REWRITE_ERROR_KEYS: Record<string, string> = {
+  AI_RATE_LIMITED: 'rewrite.errors.rateLimited',
+  AI_TIMEOUT: 'rewrite.errors.timeout',
+  AI_UPSTREAM_ERROR: 'rewrite.errors.upstream',
+  AI_INVALID_OUTPUT: 'rewrite.errors.invalidOutput',
+  AI_NOT_CONFIGURED: 'rewrite.errors.notConfigured',
+}
 
 export function apiErrorKey(error: unknown): string {
   const axiosError = error as AxiosError<ApiErrorBody>
@@ -137,6 +168,10 @@ export function apiErrorKey(error: unknown): string {
   }
   const status = axiosError.response.status
   const message = axiosError.response.data?.message ?? ''
+  const rewriteKey = REWRITE_ERROR_KEYS[axiosError.response.data?.code ?? '']
+  if (rewriteKey) {
+    return rewriteKey
+  }
   if (status === 401) {
     return 'errors.unauthorized'
   }

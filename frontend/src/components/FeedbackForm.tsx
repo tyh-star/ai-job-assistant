@@ -7,9 +7,9 @@ import type { FeedbackSummaryResponse } from '../api/types'
 import { Alert } from './Alert'
 import { Spinner } from './Spinner'
 
-const SECTION_CLASS = 'rounded-xl border border-slate-200 bg-white p-6 min-w-0'
-const SUCCESS_CLASS = 'rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900'
-const SUBMIT_CLASS = 'min-h-11 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60'
+const SECTION_CLASS = 'rounded-lg border border-line bg-card p-6 shadow-card min-w-0'
+const SUCCESS_CLASS = 'rounded-md border border-success/30 bg-success-soft px-4 py-3 text-sm text-success'
+const SUBMIT_CLASS = 'min-h-11 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-brand disabled:opacity-60'
 const COMMENT_MAX_LENGTH = 1000
 const STARS = [1, 2, 3, 4, 5] as const
 
@@ -161,7 +161,14 @@ export function FeedbackForm() {
 
   return (
     <section id="feedback" className={SECTION_CLASS}>
-      <h2 className="text-lg font-medium text-slate-900">{t('feedback.title')}</h2>
+      <div className="flex gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-warning-soft text-warning" aria-hidden="true">
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2.5 12.2 7l4.8.7-3.5 3.4.8 4.8L10 13.8 5.7 15.9l.8-4.8L3 7.7 7.8 7 10 2.5Z" /></svg>
+        </span>
+        <div>
+          <h2 className="text-lg font-semibold text-ink">{t('feedback.title')}</h2>
+        </div>
+      </div>
 
       {loading ? <div className="mt-4"><Spinner label={t('feedback.loading')} /></div> : (
         <div className="mt-4 space-y-4">
@@ -189,14 +196,14 @@ export function FeedbackForm() {
                     aria-label={t('feedback.starAriaLabel', { count: star })}
                     aria-checked={rating === star}
                     tabIndex={rating === star || (rating === 0 && star === 1) ? 0 : -1}
-                    className={`min-h-11 min-w-11 text-3xl leading-none ${
-                      rating === star ? 'rounded-lg ring-2 ring-amber-500 ring-offset-1' : ''
+                    className={`min-h-12 min-w-12 text-4xl leading-none ${
+                      rating === star ? 'rounded-md ring-2 ring-warning ring-offset-1' : ''
                     }`}
                     onMouseEnter={() => setHoveredStar(star)}
                     onClick={() => setRating(star)}
                     onKeyDown={onStarKeyDown}
                   >
-                    <span aria-hidden="true" className={star <= displayedStars ? 'text-amber-500' : 'text-slate-300'}>
+                    <span aria-hidden="true" className={star <= displayedStars ? 'text-warning' : 'text-slate-300'}>
                       ★
                     </span>
                   </button>

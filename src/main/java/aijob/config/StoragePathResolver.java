@@ -39,6 +39,11 @@ public class StoragePathResolver {
                 .resolve(String.valueOf(jobId));
     }
 
+    /** Free Resume Rewrite outputs (no job involved). */
+    public Path rewriteDirectory(Long userId) {
+        return root.resolve("rewrites").resolve(String.valueOf(userId));
+    }
+
     private static String normalizeRoot(String root) {
         if (root == null || root.isBlank()) {
             return "uploads";

@@ -99,6 +99,7 @@ export function blankDraftContent(): ResumeBuilderDraftContent {
       linkedin: '',
       github: '',
       website: '',
+      professionalLinks: [],
       legallyEligibleToWork: null,
     },
     jobTarget: {

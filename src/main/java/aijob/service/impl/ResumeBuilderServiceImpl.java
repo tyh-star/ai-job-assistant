@@ -30,6 +30,7 @@ import aijob.service.ResumeBuilderService;
 import aijob.util.CareerMaterialsGenerator;
 import aijob.util.ResumeBuilderDraftValidator;
 import aijob.util.ResumeBuilderNormalizer;
+import aijob.util.ResumeBuilderTemplateLayout;
 import aijob.util.ResumeTextExtractor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -90,6 +91,7 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
         validator.validateLocale(request.getLocale());
 
         ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        ResumeBuilderTemplateLayout.applyForNewDraft(content, request.getTemplateType());
 
         ResumeBuilderDraft draft = new ResumeBuilderDraft();
         draft.setUserId(user.getId());
@@ -135,6 +137,7 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
         validator.validate(content);
 
         String targetRole = request.getTargetRole() == null ? null : request.getTargetRole().trim();
+        targetRole = syncTargetRole(content, targetRole);
         int updated = draftMapper.updateWithVersion(
                 draftId,
                 user.getId(),
@@ -192,8 +195,9 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
         User user = getUserByEmail(email);
         ResumeBuilderDraft draft = getOwnedDraft(draftId, user.getId());
         ResumeBuilderDraftContent content = readContent(draft);
+        syncTargetRole(content, draft.getTargetRole());
         validator.validate(content);
-        return normalizer.normalize(content, draft.getLocale());
+        return normalizer.normalize(content, draft.getLocale(), draft.getTemplateType());
     }
 
     @Override
@@ -221,8 +225,9 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
         }
 
         ResumeBuilderDraftContent content = readContent(draft);
+        syncTargetRole(content, draft.getTargetRole());
         validator.validate(content);
-        NormalizedResume normalized = normalizer.normalize(content, draft.getLocale());
+        NormalizedResume normalized = normalizer.normalize(content, draft.getLocale(), draft.getTemplateType());
         if (!normalized.isReadyToGenerate()) {
             throw new InvalidResumeFileException(
                     "Add at least a name or a way to contact you before generating");
@@ -303,6 +308,28 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
     }
 
     // --- helpers ------------------------------------------------------
+
+    /**
+     * Draft-list {@code targetRole} and {@code content.jobTarget.targetTitle} are the
+     * same user-facing fact. Copy whichever side is filled into the empty side so
+     * preview, generate, and the saved JSON cannot disagree.
+     */
+    private String syncTargetRole(ResumeBuilderDraftContent content, String targetRole) {
+        if (content.getJobTarget() == null) {
+            content.setJobTarget(new ResumeBuilderDraftContent.JobTarget());
+            content.getJobTarget().normalize();
+        }
+        String title = content.getJobTarget().getTargetTitle();
+        String role = targetRole == null || targetRole.isBlank() ? null : targetRole.trim();
+        if ((title == null || title.isBlank()) && role != null) {
+            content.getJobTarget().setTargetTitle(role);
+            return role;
+        }
+        if (role == null && title != null && !title.isBlank()) {
+            return title.trim();
+        }
+        return role;
+    }
 
     private User getUserByEmail(String email) {
         User user = userMapper.findByEmail(email);
@@ -407,7 +434,7 @@ public class ResumeBuilderServiceImpl implements ResumeBuilderService {
                 : null;
         return new ResumeResponse(
                 resume.getId(),
-                resume.getFileName(),
+                aijob.util.ResumeFileNames.displayName(resume.getFileName()),
                 resume.getFileType(),
                 resume.getCreatedAt(),
                 resume.getUpdatedAt(),

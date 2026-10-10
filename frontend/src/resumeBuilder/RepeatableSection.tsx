@@ -23,6 +23,7 @@ interface RepeatableSectionProps {
   collapseLabel: string
   expandLabel: string
   emptyHint: string
+  hint?: string
 }
 
 /**
@@ -47,6 +48,7 @@ export function RepeatableSection({
   collapseLabel,
   expandLabel,
   emptyHint,
+  hint,
 }: RepeatableSectionProps) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -95,7 +97,8 @@ export function RepeatableSection({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
+      {hint ? <p className="text-sm text-slate-500">{hint}</p> : null}
       {entries.length === 0 ? <p className="text-sm text-slate-500">{emptyHint}</p> : null}
       {entries.map((entry, index) => {
         const isCollapsed = collapsed.has(index)
@@ -158,7 +161,7 @@ export function RepeatableSection({
               </div>
             </div>
             {isCollapsed ? null : (
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 {fields.map((field) => {
                   const value = entry[field.key]
                   if (field.kind === 'list') {

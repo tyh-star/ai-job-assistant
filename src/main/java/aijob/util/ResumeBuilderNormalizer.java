@@ -44,7 +44,11 @@ public class ResumeBuilderNormalizer {
     private static final int ONE_PAGE_LINE_BUDGET = 52;
 
     public NormalizedResume normalize(ResumeBuilderDraftContent content, String locale) {
-        Labels labels = Labels.forLocale(locale);
+        return normalize(content, locale, null);
+    }
+
+    public NormalizedResume normalize(ResumeBuilderDraftContent content, String locale, String templateType) {
+        Labels labels = Labels.forLocale(locale, templateType);
         NormalizedResume result = new NormalizedResume();
 
         result.setHeader(buildHeader(content.getBasicInfo(), content.getJobTarget()));
@@ -101,11 +105,8 @@ public class ResumeBuilderNormalizer {
         header.setLocation(join(", ", blank(info.getCity()), blank(info.getCountry())));
         header.setPhone(blank(info.getPhone()));
         header.setEmail(blank(info.getEmail()));
-        List<String> links = new ArrayList<>();
-        addIfPresent(links, info.getLinkedin());
-        addIfPresent(links, info.getGithub());
-        addIfPresent(links, info.getWebsite());
-        header.setLinks(links);
+        ResumeBuilderProfessionalLinks.migrateAndSync(info);
+        header.setLinks(ResumeBuilderProfessionalLinks.headerLines(info));
         header.setTargetTitle(target == null ? "" : blank(target.getTargetTitle()));
         return header;
     }
@@ -244,7 +245,7 @@ public class ResumeBuilderNormalizer {
             }
             addAll(lines, e.getOutcomes());
             if (!blank(e.getGithubUrl()).isBlank()) {
-                lines.add("GitHub: " + e.getGithubUrl());
+                lines.add(labels.projectLink + ": " + e.getGithubUrl());
             }
             if (!blank(e.getDemoUrl()).isBlank()) {
                 lines.add(labels.demo + ": " + e.getDemoUrl());
@@ -503,18 +504,23 @@ public class ResumeBuilderNormalizer {
         String skills, experience, education, projects, volunteer, certifications,
                 languages, leadership, publications, hobbies;
         String tools, coursework, role, teamSize, techStack, challenge, solution, users, demo,
-                serviceHours, credentialId, present;
+                serviceHours, credentialId, present, projectLink;
         String contentMayOverflow, missingName, missingContact, missingTargetTitle;
 
         static Labels forLocale(String locale) {
+            return forLocale(locale, null);
+        }
+
+        static Labels forLocale(String locale, String templateType) {
             Labels l = new Labels();
             boolean zh = "zh-CN".equals(locale);
-            l.skills = zh ? "技能" : "Skills";
-            l.experience = zh ? "工作经历" : "Experience";
+            String template = templateType == null ? "" : templateType;
+            l.skills = skillTitle(zh, template);
+            l.experience = experienceTitle(zh, template);
             l.education = zh ? "教育背景" : "Education";
             l.projects = zh ? "项目经历" : "Projects";
             l.volunteer = zh ? "志愿者经历" : "Volunteer Experience";
-            l.certifications = zh ? "证书与奖项" : "Certificates & Awards";
+            l.certifications = certificationTitle(zh, template);
             l.languages = zh ? "语言能力" : "Languages";
             l.leadership = zh ? "社团与领导经历" : "Clubs & Leadership";
             l.publications = zh ? "出版物" : "Publications";
@@ -523,11 +529,12 @@ public class ResumeBuilderNormalizer {
             l.coursework = zh ? "相关课程" : "Coursework";
             l.role = zh ? "担任角色" : "Role";
             l.teamSize = zh ? "团队规模" : "Team size";
-            l.techStack = zh ? "技术栈" : "Tech stack";
+            l.techStack = zh ? "工具或方法" : "Tools / methods";
             l.challenge = zh ? "挑战" : "Challenge";
             l.solution = zh ? "解决方案" : "Solution";
-            l.users = zh ? "用户数" : "Users";
+            l.users = zh ? "覆盖人数" : "People reached";
             l.demo = zh ? "演示" : "Demo";
+            l.projectLink = zh ? "链接" : "Link";
             l.serviceHours = zh ? "服务时长" : "Service hours";
             l.credentialId = zh ? "证书编号" : "Credential ID";
             l.present = zh ? "至今" : "Present";
@@ -539,6 +546,31 @@ public class ResumeBuilderNormalizer {
             l.missingContact = zh ? "联系方式（邮箱或电话）" : "a way to contact you (email or phone)";
             l.missingTargetTitle = zh ? "目标职位" : "a target job title";
             return l;
+        }
+
+        private static String skillTitle(boolean zh, String template) {
+            return switch (template) {
+                case "TECHNICAL" -> zh ? "技术技能" : "Technical skills";
+                case "EXPERIENCED" -> zh ? "核心能力" : "Core competencies";
+                case "CAREER_CHANGE" -> zh ? "可迁移技能" : "Transferable skills";
+                default -> zh ? "技能" : "Skills";
+            };
+        }
+
+        private static String experienceTitle(boolean zh, String template) {
+            return switch (template) {
+                case "STUDENT", "INTERNSHIP" -> zh ? "实习经历" : "Internships";
+                case "CAREER_CHANGE" -> zh ? "相关经历" : "Relevant experience";
+                default -> zh ? "工作经历" : "Work experience";
+            };
+        }
+
+        private static String certificationTitle(boolean zh, String template) {
+            return switch (template) {
+                case "TECHNICAL" -> zh ? "技术证书" : "Technical certificates";
+                case "CAREER_CHANGE" -> zh ? "培训与证书" : "Training & certificates";
+                default -> zh ? "证书与奖项" : "Certificates & Awards";
+            };
         }
     }
 }

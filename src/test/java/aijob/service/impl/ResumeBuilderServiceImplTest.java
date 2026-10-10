@@ -4,8 +4,10 @@ import aijob.config.StoragePathResolver;
 import aijob.dto.ResumeResponse;
 import aijob.dto.builder.CreateResumeBuilderDraftRequest;
 import aijob.dto.builder.GenerateResumeBuilderDraftRequest;
+import aijob.dto.builder.NormalizedResume;
 import aijob.dto.builder.ResumeBuilderDraftContent;
 import aijob.dto.builder.ResumeBuilderDraftResponse;
+import aijob.dto.builder.ResumeBuilderSectionIds;
 import aijob.dto.builder.UpdateResumeBuilderDraftRequest;
 import aijob.entity.Resume;
 import aijob.entity.ResumeBuilderDraft;
@@ -22,6 +24,7 @@ import aijob.mapper.UserMapper;
 import aijob.util.CareerMaterialsGenerator;
 import aijob.util.ResumeBuilderDraftValidator;
 import aijob.util.ResumeBuilderNormalizer;
+import aijob.util.ResumeBuilderProfessionalLinks;
 import aijob.util.ResumeTextExtractor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +42,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -162,6 +166,39 @@ class ResumeBuilderServiceImplTest {
     }
 
     @Test
+    void createDraftGenericAtsSuggestsLinkedInOnlyAndDoesNotSeedGithub() {
+        stubDraftInsert();
+        ResumeBuilderDraftResponse response = service.createDraft(
+                EMAIL, new CreateResumeBuilderDraftRequest("Untitled resume", "GENERIC_ATS", "en"));
+
+        var links = response.getContent().getBasicInfo().getProfessionalLinks();
+        assertEquals(1, links.size());
+        assertEquals(ResumeBuilderProfessionalLinks.LINKEDIN, links.get(0).getType());
+        assertEquals("", links.get(0).getUrl());
+        assertFalse(links.stream().anyMatch(link -> ResumeBuilderProfessionalLinks.GITHUB.equals(link.getType())));
+        assertEquals(Boolean.TRUE, response.getContent().getSectionEnabled().get(ResumeBuilderSectionIds.SKILLS));
+        assertEquals(Boolean.FALSE, response.getContent().getSectionEnabled().get(ResumeBuilderSectionIds.PROJECTS));
+    }
+
+    @Test
+    void createDraftTechnicalSuggestsLinkedInGithubAndPortfolioAllOptional() {
+        stubDraftInsert();
+        ResumeBuilderDraftResponse response = service.createDraft(
+                EMAIL, new CreateResumeBuilderDraftRequest("Untitled resume", "TECHNICAL", "en"));
+
+        var types = response.getContent().getBasicInfo().getProfessionalLinks().stream()
+                .map(aijob.dto.builder.ResumeBuilderDraftContent.ProfessionalLink::getType)
+                .toList();
+        assertEquals(List.of(
+                ResumeBuilderProfessionalLinks.LINKEDIN,
+                ResumeBuilderProfessionalLinks.GITHUB,
+                ResumeBuilderProfessionalLinks.PORTFOLIO), types);
+        assertTrue(response.getContent().getBasicInfo().getProfessionalLinks().stream()
+                .allMatch(link -> link.getUrl() == null || link.getUrl().isBlank()));
+        assertEquals(Boolean.TRUE, response.getContent().getSectionEnabled().get(ResumeBuilderSectionIds.PROJECTS));
+    }
+
+    @Test
     void updatingWithAStaleVersionIsRejectedAsAConflictNotSilentlyOverwritten() {
         ResumeBuilderDraft draft = filledDraft(contentJsonWithName("Alex Morgan"));
         when(draftMapper.findByIdAndUserId(1L, owner.getId())).thenReturn(draft);
@@ -183,6 +220,44 @@ class ResumeBuilderServiceImplTest {
                 "T", "GENERIC_ATS", null, "en", ResumeBuilderDraftContent.blank(), 1L);
 
         assertThrows(ResumeBuilderDraftNotFoundException.class, () -> service.updateDraft(EMAIL, 1L, request));
+    }
+
+    @Test
+    void previewUsesDraftLevelTargetRoleWhenJobTargetTitleIsBlank() {
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Alex Morgan");
+        content.getBasicInfo().setEmail("alex.morgan@example.com");
+        content.normalize();
+        ResumeBuilderDraft draft = filledDraft(objectMapper.valueToTree(content).toString());
+        draft.setTargetRole("Junior Software Developer");
+        when(draftMapper.findByIdAndUserId(1L, owner.getId())).thenReturn(draft);
+
+        NormalizedResume preview = service.previewDraft(EMAIL, 1L);
+
+        assertEquals("Junior Software Developer", preview.getHeader().getTargetTitle());
+        assertTrue(preview.getMissingKeyFacts().stream().noneMatch(fact -> fact.contains("target")));
+    }
+
+    @Test
+    void updateDraftCopiesTargetRoleIntoJobTargetWhenTargetTitleIsBlank() {
+        ResumeBuilderDraft draft = filledDraft(contentJsonWithName("Alex Morgan"));
+        when(draftMapper.findByIdAndUserId(1L, owner.getId())).thenReturn(draft);
+        when(draftMapper.updateWithVersion(eq(1L), eq(owner.getId()), any(), any(), any(), any(), any(), any(), eq(1L)))
+                .thenAnswer(inv -> {
+                    draft.setTargetRole(inv.getArgument(4));
+                    draft.setVersion(2L);
+                    return 1;
+                });
+
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Alex Morgan");
+        UpdateResumeBuilderDraftRequest request = new UpdateResumeBuilderDraftRequest(
+                "My Resume", "GENERIC_ATS", "Junior Software Developer", "en", content, 1L);
+
+        ResumeBuilderDraftResponse response = service.updateDraft(EMAIL, 1L, request);
+
+        assertEquals("Junior Software Developer", response.getContent().getJobTarget().getTargetTitle());
+        assertEquals("Junior Software Developer", response.getTargetRole());
     }
 
     // --- generate ---------------------------------------------------------

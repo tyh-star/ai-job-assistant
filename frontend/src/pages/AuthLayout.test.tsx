@@ -31,6 +31,7 @@ describe('Auth layout', () => {
   afterEach(() => {
     cleanup()
     localStorage.clear()
+    void i18n.changeLanguage('zh-CN')
   })
 
   it('login and register share the enlarged AuthShell classes', () => {
@@ -60,5 +61,24 @@ describe('Auth layout', () => {
     expect(screen.getByRole('heading', { level: 1 }).className).toBe(AUTH_TITLE_CLASS)
     expect(document.querySelectorAll('.auth-input').length).toBeGreaterThanOrEqual(3)
     expect(AUTH_CARD_CLASS).toContain('92vw')
+  })
+
+  it('shows the first-visit login prompt, never the expired-session copy', async () => {
+    await i18n.changeLanguage('zh-CN')
+    renderAuth(<LoginPage />, '/login?returnTo=%2Fresumes%2Fbuilder&reason=login_required')
+    expect(screen.getByText('登录后即可使用此功能。')).toBeInTheDocument()
+    expect(screen.queryByText('登录状态已过期，请重新登录。')).not.toBeInTheDocument()
+    cleanup()
+    await i18n.changeLanguage('en')
+    renderAuth(<LoginPage />, '/login?returnTo=%2Fresumes%2Fbuilder&reason=login_required')
+    expect(screen.getByText('Sign in to use this feature.')).toBeInTheDocument()
+    expect(screen.queryByText('Your session has expired. Please sign in again.')).not.toBeInTheDocument()
+  })
+
+  it('shows the expired-session copy only when reason=session_expired', async () => {
+    await i18n.changeLanguage('en')
+    renderAuth(<LoginPage />, '/login?reason=session_expired')
+    expect(screen.getByText('Your session has expired. Please sign in again.')).toBeInTheDocument()
+    expect(screen.queryByText('Sign in to use this feature.')).not.toBeInTheDocument()
   })
 })

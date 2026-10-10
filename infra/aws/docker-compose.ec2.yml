@@ -45,6 +45,11 @@ services:
       AIJOB_JWT_EXPIRATION: ${AIJOB_JWT_EXPIRATION:-86400000}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      # Resume Rewrite (Groq, OpenAI-compatible). Unset key = rewrite endpoints answer 503.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.groq.com/openai/v1}
+      AI_FREE_MODEL: ${AI_FREE_MODEL:-openai/gpt-oss-20b}
+      AI_PRO_MODEL: ${AI_PRO_MODEL:-openai/gpt-oss-120b}
       JSEARCH_API_KEY: ${JSEARCH_API_KEY}
       JSEARCH_API_BASE_URL: ${JSEARCH_API_BASE_URL:-https://api.openwebninja.com}
       JOB_SEARCH_PRIMARY_PROVIDER: ${JOB_SEARCH_PRIMARY_PROVIDER:-JSEARCH}

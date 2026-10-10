@@ -96,6 +96,20 @@ class ResumeControllerDownloadTest {
     }
 
     @Test
+    void downloadResume_chineseName_usesUtf8FilenameStarWithAsciiFallback() throws Exception {
+        Path file = tempDir.resolve("stored-cn.pdf");
+        Files.write(file, "%PDF-1.4".getBytes(StandardCharsets.UTF_8));
+        when(resumeService.downloadResume(EMAIL, 5L))
+                .thenReturn(new ResumeFileDownload(file, "简历 (1).pdf", "pdf"));
+
+        ResponseEntity<Resource> response = controller.downloadResume(authentication, 5L);
+
+        String header = response.getHeaders().getFirst(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION);
+        assertEquals("attachment; filename=\"_ (1).pdf\"; filename*=UTF-8''%E7%AE%80%E5%8E%86%20%281%29.pdf", header);
+        assertEquals("简历 (1).pdf", response.getHeaders().getContentDisposition().getFilename());
+    }
+
+    @Test
     void downloadResume_otherUser_returns404() throws Exception {
         when(resumeService.downloadResume(EMAIL, 4L))
                 .thenThrow(new ResumeNotFoundException("Resume not found"));

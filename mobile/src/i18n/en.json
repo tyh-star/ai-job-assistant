@@ -1,0 +1,1190 @@
+{
+  "brand": "AI Job Assistant",
+  "common": {
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "close": "Close",
+    "yes": "Confirm",
+    "no": "Cancel",
+    "processing": "Working…"
+  },
+  "errors": {
+    "requestFailed": "The request failed. Please try again.",
+    "unauthorized": "Your session expired. Please log in again.",
+    "forbidden": "You do not have permission to do that.",
+    "notFound": "The requested resource was not found.",
+    "conflict": "This conflicts with existing data.",
+    "emailExists": "This email is already registered.",
+    "badRequest": "The request is invalid. Please check the form.",
+    "weakPassword": "This password does not meet the requirements shown.",
+    "network": "Network error. Check your connection.",
+    "rateLimited": "Too many requests. Please try again shortly.",
+    "serviceUnavailable": "The service is temporarily unavailable. Please try again later.",
+    "detailGone": "This posting is no longer available. It may have just been taken down."
+  },
+  "auth": {
+    "loginTitle": "Log in",
+    "registerTitle": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "submitLogin": "Log in",
+    "submitRegister": "Create account",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "goRegister": "Register",
+    "goLogin": "Log in",
+    "emailRequired": "Email is required",
+    "emailInvalid": "Enter a valid email",
+    "passwordRequired": "Password is required",
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "loginRequired": "Sign in to use this feature.",
+    "invalidCredentials": "Incorrect email or password.",
+    "passwordMin": "Password must be at least 8 characters",
+    "passwordRulesLabel": "Password requirements",
+    "passwordMeetsRequirements": "Password meets the requirements",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "passwordRule": {
+      "length": "8–72 characters",
+      "upper": "At least one uppercase letter",
+      "lower": "At least one lowercase letter",
+      "digit": "At least one number",
+      "special": "At least one special character",
+      "noSpaceOrControl": "No spaces or hidden control characters"
+    },
+    "nameRequired": "Name is required",
+    "tagline": "Your resumes, jobs, and applications — on your phone.",
+    "notice": {
+      "passwordChanged": "Your password was changed. For security, log in again with the new password.",
+      "accountDeleted": "Your account has been deleted.",
+      "sessionStoreFailed": "Your email was changed, but this phone could not save the new sign-in. Log in again with the new email."
+    },
+    "browse": "Look around without logging in"
+  },
+  "nav": {
+    "logout": "Log out",
+    "jobs": "Jobs",
+    "resumes": "Resumes",
+    "profile": "Profile",
+    "tailor": "Tailor"
+  },
+  "dashboard": {
+    "welcome": "Hello, {{name}}",
+    "subtitle": "Keep your resumes and job search moving.",
+    "newSubtitle": "Start with a resume.",
+    "resumeCenter": "Resume center",
+    "manageAll": "Manage all",
+    "updatedOn": "Updated {{date}}",
+    "readyStatus": "Complete — ready to tailor to a job",
+    "tailorByJob": "Tailor to a job",
+    "editResume": "Edit resume",
+    "createResume": "Build a resume",
+    "qualityScore": "View quality score",
+    "noResumes": "No resumes yet.",
+    "jobs": "Jobs",
+    "savedBadge": "{{n}} saved",
+    "findJobs": "Find jobs",
+    "continueSaved": "Continue with a saved job",
+    "viewJob": "View job",
+    "noSaved": "No saved jobs yet.",
+    "recentApplied": "Recent applications",
+    "viewAll": "View all",
+    "noApplied": "No applications yet.",
+    "reload": "Reload",
+    "errorTitle": "Could not load your workbench",
+    "errorBody": "Nothing came back this time. This is usually a network problem or an expired session.",
+    "resumeFailed": "Resumes could not load.",
+    "jobsFailed": "Jobs could not load.",
+    "templates": {
+      "STUDENT": "Student",
+      "INTERNSHIP": "Internship",
+      "EXPERIENCED": "Experienced",
+      "CAREER_CHANGE": "Career change",
+      "TECHNICAL": "Technical",
+      "GENERIC_ATS": "Generic ATS"
+    },
+    "onboardTitle": "Set up your job-search workbench",
+    "onboardBody": "Walk through these three steps and your applications, searches, and resumes collect here.",
+    "onboardProgress": "0 of 3 done",
+    "currentStep": "Current step",
+    "step1Title": "Create or upload a resume",
+    "step1Body": "Start a new one in the builder, or upload a PDF you already have.",
+    "step2Title": "Find and save jobs",
+    "step2Body": "Search openings and save the good ones — saved jobs show up in your jobs list.",
+    "step3Title": "Log applications and tailor",
+    "step3Body": "Mark a job applied, then rewrite your resume against that posting.",
+    "createOrUpload": "Create or upload a resume",
+    "altFindJobs": "Or find jobs first"
+  },
+  "comingSoon": {
+    "title": "Coming to the app soon",
+    "body": "This part arrives in the next build. You can use it on the website for now.",
+    "back": "Back to dashboard"
+  },
+  "account": {
+    "menuHint": "Account",
+    "cancel": "Cancel"
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "jobs": "Jobs",
+    "resumes": "Resumes",
+    "tailor": "Tailor",
+    "profile": "Me"
+  },
+  "jobs": {
+    "title": "Jobs",
+    "segments": {
+      "label": "Job lists",
+      "catalog": "Catalog",
+      "saved": "Saved",
+      "applied": "Applied"
+    },
+    "search": {
+      "keywordLabel": "Keywords",
+      "keywordPlaceholder": "Title, company or keyword",
+      "cityLabel": "City",
+      "cityPlaceholder": "Type a city (2+ letters)",
+      "cityLoading": "Looking up cities…",
+      "cityFailed": "City lookup is unavailable. You can search without a city.",
+      "cityEmpty": "No matching cities",
+      "cityClear": "Clear city",
+      "submit": "Search",
+      "clear": "Clear filters"
+    },
+    "results": {
+      "count": "{{count}} jobs",
+      "allLoaded": "All {{count}} jobs shown",
+      "loadMore": "Load more",
+      "loadMoreFailed": "The next page did not load.",
+      "refreshFailed": "Refresh failed. Showing the previous results.",
+      "emptyTitle": "No jobs match these filters",
+      "emptyBody": "Try another keyword, or clear the city.",
+      "errorTitle": "Job search is unavailable right now"
+    },
+    "card": {
+      "postedOn": "Posted {{date}}",
+      "savedOn": "Saved {{date}}",
+      "appliedOn": "Applied {{date}}"
+    },
+    "badge": {
+      "saved": "Saved",
+      "applied": "Applied",
+      "expired": "Closed"
+    },
+    "remote": {
+      "REMOTE": "Remote",
+      "HYBRID": "Hybrid",
+      "ONSITE": "On-site"
+    },
+    "employment": {
+      "FULL_TIME": "Full-time",
+      "PART_TIME": "Part-time",
+      "CONTRACT": "Contract",
+      "INTERNSHIP": "Internship",
+      "TEMPORARY": "Temporary",
+      "OTHER": "Other"
+    },
+    "salary": {
+      "range": "{{min}}–{{max}} {{currency}}",
+      "from": "From {{min}} {{currency}}",
+      "upTo": "Up to {{max}} {{currency}}"
+    },
+    "source": {
+      "FREEHIRE": "Catalog",
+      "JOB_CATALOG": "Catalog",
+      "MANUAL": "Added manually",
+      "GREENHOUSE": "Greenhouse",
+      "ADZUNA": "Adzuna",
+      "JSEARCH": "JSearch"
+    },
+    "saved": {
+      "emptyTitle": "No saved jobs yet",
+      "emptyBody": "Save jobs from the catalog and they will collect here."
+    },
+    "applied": {
+      "emptyTitle": "No applications yet",
+      "emptyBody": "Mark a job as applied from its details and it will show up here."
+    },
+    "mine": {
+      "errorTitle": "Your jobs could not load"
+    },
+    "goCatalog": "Open the catalog",
+    "retry": "Retry",
+    "detail": {
+      "back": "Back",
+      "location": "Location",
+      "workMode": "Work mode",
+      "employment": "Job type",
+      "posted": "Posted",
+      "salary": "Salary",
+      "source": "Source",
+      "savedAt": "Saved",
+      "appliedAt": "Applied",
+      "description": "Description",
+      "noDescription": "This posting has no description.",
+      "expand": "Show full description",
+      "collapse": "Show less",
+      "openOriginal": "Open original posting",
+      "loadFailedTitle": "Job details could not load",
+      "goneTitle": "This posting is gone",
+      "goneBody": "It may have just been taken down. Go back and search again.",
+      "notFoundTitle": "This job record was not found",
+      "notFoundBody": "It may have been deleted.",
+      "recordHint": "A job record you saved"
+    },
+    "actions": {
+      "save": "Save job",
+      "unsave": "Unsave",
+      "markApplied": "Mark as applied",
+      "clearApplied": "Undo applied",
+      "delete": "Delete this record"
+    },
+    "confirm": {
+      "cancel": "Cancel",
+      "markAppliedTitle": "Did you submit an application?",
+      "markAppliedBody": "Only mark it once you have actually applied. An unsaved posting is saved at the same time.",
+      "markAppliedYes": "Yes, I applied",
+      "clearAppliedTitle": "Undo the applied mark?",
+      "clearAppliedBody": "The job moves back to Saved.",
+      "clearAppliedYes": "Undo",
+      "unsaveTitle": "Unsave this job?",
+      "unsaveBody": "This deletes your job record, including its applied status.",
+      "unsaveYes": "Unsave",
+      "deleteTitle": "Delete this job record?",
+      "deleteBody": "It is removed from Saved and Applied, including its applied status.",
+      "deleteYes": "Delete"
+    },
+    "flash": {
+      "saved": "Saved",
+      "unsaved": "Removed from saved",
+      "markedApplied": "Marked as applied",
+      "clearedApplied": "Applied mark removed",
+      "failed": "That did not work: {{reason}}"
+    }
+  },
+  "resumes": {
+    "title": "Resumes",
+    "segments": {
+      "label": "Resume lists",
+      "files": "Uploaded",
+      "drafts": "Create Resume"
+    },
+    "upload": "Upload resume",
+    "uploadHint": "PDF or DOCX, up to 10 MB.",
+    "files": {
+      "emptyTitle": "No uploaded resumes yet",
+      "emptyBody": "Upload a PDF or DOCX to see its quality score and download it later.",
+      "errorTitle": "Resumes could not load",
+      "updatedOn": "Updated {{date}}",
+      "origin": {
+        "UPLOAD": "Uploaded",
+        "GENERATED": "Built online"
+      },
+      "status": {
+        "ready": "Ready",
+        "needsReview": "Needs content review",
+        "unavailable": "File unavailable"
+      },
+      "explain": "Uploaded and generated files: download them or check the quality score. To tailor one to a job, pick it in the Tailor tab. Files cannot be edited online."
+    },
+    "drafts": {
+      "emptyTitle": "No created resumes yet",
+      "emptyBody": "Create your first resume",
+      "errorTitle": "Created resumes could not load",
+      "untitled": "Untitled resume",
+      "noTargetRole": "No target role",
+      "explain": "Online resumes you can keep editing: tap \"Edit resume\" to change them. Generated Word files appear under Uploaded.",
+      "serverHint": "The live server may not have the online resume builder deployed yet. Uploaded resumes are not affected."
+    },
+    "templates": {
+      "STUDENT": "Student",
+      "INTERNSHIP": "Internship",
+      "EXPERIENCED": "Experienced",
+      "CAREER_CHANGE": "Career change",
+      "TECHNICAL": "Technical",
+      "GENERIC_ATS": "Generic ATS"
+    },
+    "pick": {
+      "confirmTitle": "Upload this resume?",
+      "size": "Size",
+      "type": "Type",
+      "cancel": "Cancel",
+      "submit": "Upload",
+      "uploading": "Uploading… {{percent}}%",
+      "uploadingNoProgress": "Uploading…",
+      "pickFailed": "The file picker could not open. Please try again."
+    },
+    "problem": {
+      "noName": "The file name could not be read. Choose another file.",
+      "badType": "Only PDF or DOCX files are supported.",
+      "badMime": "This file is not a PDF or DOCX. Check it and choose again.",
+      "empty": "This file is empty. Choose another file.",
+      "tooLarge": "This file is larger than 10 MB. Compress it and try again.",
+      "unknownSize": "The file size could not be read. Choose another file."
+    },
+    "flash": {
+      "uploaded": "Uploaded: {{name}}",
+      "uploadFailed": "Upload failed: {{reason}}",
+      "shared": "The file is ready to share or open",
+      "downloadFailed": "Download failed: {{reason}}",
+      "deleted": "Resume deleted",
+      "deleteFailed": "Delete failed: {{reason}}"
+    },
+    "detail": {
+      "back": "Back",
+      "fileType": "Type",
+      "origin": "Origin",
+      "status": "Status",
+      "createdAt": "Uploaded",
+      "updatedAt": "Updated",
+      "quality": "View quality score",
+      "download": "Download & share",
+      "downloading": "Downloading…",
+      "delete": "Delete resume",
+      "unavailableHint": "The file for this resume is missing on the server, so it cannot be downloaded.",
+      "notFoundTitle": "This resume was not found",
+      "notFoundBody": "It may have been deleted.",
+      "loadFailedTitle": "Resume details could not load",
+      "confirmStructure": "Review recognized content",
+      "fileHint": "This is a file and cannot be edited online. To adjust it for a job, open the Tailor tab and pick the job and this resume to create a new file.",
+      "structureHint": "This changes the text recognized from the PDF. The original PDF file stays unchanged."
+    },
+    "draft": {
+      "template": "Template",
+      "targetRole": "Target role",
+      "language": "Language",
+      "updatedAt": "Updated",
+      "version": "Version",
+      "contact": "Contact",
+      "fullName": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "city": "City",
+      "sections": "Filled-in sections",
+      "noSections": "No sections filled in yet.",
+      "sectionCount": "{{count}} entries",
+      "ready": "Complete — ready to tailor to a job",
+      "notReady": "Still missing a name, a contact method or a target role",
+      "notFoundTitle": "This resume was not found",
+      "loadFailedTitle": "This resume could not load",
+      "section": {
+        "education": "Education",
+        "experience": "Experience",
+        "projects": "Projects",
+        "skillCategories": "Skills",
+        "certifications": "Certifications",
+        "languages": "Languages",
+        "volunteer": "Volunteer",
+        "leadership": "Leadership",
+        "publications": "Publications",
+        "customSections": "Custom sections"
+      }
+    },
+    "confirm": {
+      "deleteTitle": "Delete this resume?",
+      "deleteBody": "This cannot be undone.",
+      "deleteFamilyBody": "This deletes the original PDF and its internal Word working copy. It cannot be undone.",
+      "deleteYes": "Delete",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "shareUnavailable": "Sharing is not available on this device.",
+      "unreadable": "The file could not be read. Upload a text-based PDF or DOCX."
+    },
+    "retry": "Retry",
+    "structure": {
+      "title": "Review recognized content",
+      "hint": "Check the text recognized from the PDF. Keep only what is really on your resume; leave anything not recognized empty.",
+      "pdfUnchanged": "This saves the recognized content; the original PDF is not changed. Later tailoring rebuilds the internal Word copy from the saved content, and pending suggestions made from the old recognition can no longer be confirmed.",
+      "recognizing": "Loading the recognized content. The first time, the server has to recognize this PDF, which can take a minute or two…",
+      "notFoundTitle": "This resume was not found",
+      "unsupported": "Only PDF resumes have recognized content.",
+      "loadFailedTitle": "The recognized content could not load",
+      "contact": "Contact",
+      "fullName": "Full name (required)",
+      "email": "Email",
+      "phone": "Phone",
+      "location": "Location",
+      "links": "Links",
+      "onePerLine": "One per line",
+      "summary": "Summary bullets",
+      "skills": "Skills",
+      "experience": "Experience",
+      "company": "Company",
+      "jobTitle": "Title",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "bullets": "Bullets",
+      "projects": "Projects",
+      "projectName": "Project name",
+      "organization": "Organization / type",
+      "dates": "Dates",
+      "education": "Education",
+      "school": "School",
+      "degree": "Degree",
+      "details": "Details",
+      "unassigned": "Unassigned text",
+      "unassignedHint": "This text was not placed in any section. It is shown for reference; put anything you need into the right section.",
+      "experienceItem": "Experience {{n}}",
+      "projectItem": "Project {{n}}",
+      "educationItem": "Education {{n}}",
+      "addExperience": "Add experience",
+      "addProject": "Add project",
+      "addEducation": "Add education",
+      "remove": "Remove",
+      "removeTitle": "Remove this entry?",
+      "removeBody": "It takes effect when you save the recognized content.",
+      "removeYes": "Remove",
+      "cancel": "Cancel",
+      "fullNameRequired": "Full name is required",
+      "needsContent": "Tailoring also needs at least one skill or one experience / project bullet; otherwise preparing the editable resume fails.",
+      "save": "Save recognized content",
+      "saving": "Saving…",
+      "saved": "Recognized content saved.",
+      "savedTailor": "Recognized content saved. Start again when you return to tailoring; the app does not tailor by itself.",
+      "saveFailed": "The recognized content was not saved: {{reason}} Your changes are kept.",
+      "continueTailor": "Back to tailoring"
+    }
+  },
+  "quality": {
+    "title": "Resume quality score",
+    "scoreOutOf": "{{score}} / 100",
+    "rubric": "Rubric {{version}}",
+    "disclaimer": "A structure and content-completeness score for your resume. It is not a hiring probability or a job-match score.",
+    "categoriesTitle": "Category breakdown",
+    "categoryScore": "{{score}} / {{max}}",
+    "strengthsTitle": "Strengths",
+    "suggestionsTitle": "Suggestions",
+    "noStrengths": "No standout strengths yet. See the suggestions.",
+    "noSuggestions": "No specific suggestions. This resume covers the rubric well.",
+    "unscorableTitle": "Unable to score right now",
+    "errorTitle": "The score could not load",
+    "level": {
+      "EXCELLENT": "Excellent",
+      "GOOD": "Good",
+      "NEEDS_WORK": "Needs work",
+      "WEAK": "Weak"
+    },
+    "category": {
+      "STRUCTURE": "Structure & sections",
+      "EXPERIENCE": "Experience & project clarity",
+      "ACHIEVEMENTS": "Quantified achievements",
+      "SKILLS": "Skills",
+      "READABILITY": "Readability & consistency"
+    },
+    "strength": {
+      "STRUCTURE_COMPLETE": "Well-organized structure with all key sections",
+      "EXPERIENCE_WELL_DESCRIBED": "Experience and projects are clearly described",
+      "QUANTIFIED_ACHIEVEMENTS": "Achievements are backed by real numbers",
+      "FOCUSED_SKILLS_LIST": "A focused, well-sized skills list",
+      "CONSISTENT_FORMATTING": "Consistent formatting throughout"
+    },
+    "suggestion": {
+      "ADD_CONTACT_INFO": "Add a way to reach you (email or phone) near the top",
+      "ADD_EXPERIENCE_OR_PROJECTS_SECTION": "Add an Experience or Projects section",
+      "ADD_EDUCATION_SECTION": "Add an Education section",
+      "ADD_SKILLS_SECTION": "Add a Skills section",
+      "ADD_MORE_DESCRIPTIVE_DETAIL": "Add more descriptive detail to your experience or project bullets",
+      "QUANTIFY_ACHIEVEMENTS": "Add real numbers or percentages to show the impact of your work",
+      "EXPAND_SKILLS_LIST": "List a few more of your actual skills",
+      "SHORTEN_LONG_BULLETS": "Shorten bullets or paragraphs that run too long",
+      "USE_CONSISTENT_DATE_FORMAT": "Use one consistent date format throughout"
+    },
+    "reason": {
+      "TEXT_NOT_AVAILABLE": "We could not read any text from this resume (common with image-only scans). Try uploading a text-based PDF or DOCX."
+    }
+  },
+  "profile": {
+    "title": "Me",
+    "memberSince": "Member since {{date}}",
+    "loadFailedTitle": "Account details could not load",
+    "cancel": "Cancel",
+    "sections": {
+      "account": "Account",
+      "language": "Language",
+      "feedback": "Site feedback"
+    },
+    "name": {
+      "title": "Change name",
+      "label": "Name",
+      "save": "Save name",
+      "saved": "Name updated.",
+      "required": "Enter a name.",
+      "tooLong": "Name cannot exceed 100 characters."
+    },
+    "email": {
+      "title": "Change email",
+      "hint": "Changing your email needs your current password. This phone stays signed in automatically; the website and app share this account, so both use the new email from now on.",
+      "currentPassword": "Current password",
+      "newEmail": "New email",
+      "save": "Save email",
+      "saved": "Email updated."
+    },
+    "password": {
+      "title": "Change password",
+      "subtitle": "You will need to log in again",
+      "hint": "After the change, every signed-in device on the website and in the app must log in again with the new password.",
+      "current": "Current password",
+      "new": "New password",
+      "save": "Save password"
+    },
+    "language": {
+      "label": "App language",
+      "saveFailed": "The language changed, but the choice could not be saved and may reset on the next launch."
+    },
+    "logout": {
+      "button": "Log out",
+      "confirmTitle": "Log out?",
+      "confirmBody": "You will need to log in again to see your resumes and jobs.",
+      "confirmYes": "Log out"
+    },
+    "danger": {
+      "title": "Delete account",
+      "body": "This deletes the account the website and app share, not just the sign-in on this phone.",
+      "open": "Delete account",
+      "scopeTitle": "What happens",
+      "removes": "Deleted: account details, uploaded resume records, saved and applied jobs, resume drafts, site feedback and job search history.",
+      "keeps": "Not deleted by this: resume files already stored on the server, and tailoring suggestions and added experience records.",
+      "irreversible": "This cannot be undone.",
+      "confirm": "Delete account permanently",
+      "finalTitle": "Final confirmation",
+      "finalBody": "Permanently delete the account {{email}}?",
+      "finalYes": "Delete",
+      "failed": "The account was not deleted and is still active: {{reason}}"
+    },
+    "errors": {
+      "incorrectPassword": "Current password is incorrect."
+    },
+    "flash": {
+      "nameFailed": "Name not updated: {{reason}}",
+      "emailFailed": "Email not updated: {{reason}}",
+      "passwordFailed": "Password not changed: {{reason}}"
+    }
+  },
+  "feedback": {
+    "loadFailed": "Feedback could not load",
+    "none": "You have not left feedback yet.",
+    "current": "Your rating: {{rating}} stars · updated {{date}}",
+    "ratingLabel": "Rating",
+    "star": "{{count}} stars",
+    "ratingRequired": "Choose a rating from 1 to 5 stars.",
+    "commentLabel": "Comment (optional)",
+    "commentPlaceholder": "What do you like, or what should we improve?",
+    "remaining": "{{count}} characters left",
+    "submit": "Submit feedback",
+    "update": "Update feedback",
+    "delete": "Delete feedback",
+    "deleteConfirmTitle": "Delete your feedback?",
+    "deleteConfirmBody": "This cannot be undone.",
+    "deleteYes": "Delete",
+    "thankYou": "Thanks for your feedback!",
+    "updated": "Your feedback was updated.",
+    "deleted": "Your feedback was deleted.",
+    "failed": "Feedback not saved: {{reason}}",
+    "deleteFailed": "Feedback not deleted: {{reason}}"
+  },
+  "builder": {
+    "untitled": "Untitled resume",
+    "list": {
+      "create": "New resume",
+      "hint": "Fill in your real experience step by step, save, then generate a Word resume."
+    },
+    "create": {
+      "title": "New resume",
+      "intro": "Choose a template and the resume language first, then fill it in. Nothing is filled in for you.",
+      "titleLabel": "Resume title (optional)",
+      "submit": "Create and start",
+      "submitting": "Creating…",
+      "failed": "Could not create it: {{reason}}"
+    },
+    "templateHints": {
+      "GENERIC_ATS": "Suggested: career summary, skills, work experience, education, certificates & awards, languages.",
+      "STUDENT": "Suggested: education, relevant courses, projects, internships, volunteer work, clubs & leadership, skills.",
+      "INTERNSHIP": "Suggested: education, skills, projects, internships, volunteer work.",
+      "EXPERIENCED": "Suggested: career summary, core competencies, work experience, key outcomes, certificates & awards, education.",
+      "CAREER_CHANGE": "Suggested: career summary, transferable skills, relevant experience, projects, training & certificates, education.",
+      "TECHNICAL": "Suggested: technical skills, work experience, projects, GitHub/portfolio links, education, technical certificates."
+    },
+    "templateNote": "Switching templates never deletes what you have filled in.",
+    "locales": {
+      "zh-CN": "Chinese",
+      "en": "English"
+    },
+    "linkTypes": {
+      "LINKEDIN": "LinkedIn",
+      "PORTFOLIO": "Portfolio",
+      "GITHUB": "GitHub",
+      "PERSONAL_WEBSITE": "Personal website",
+      "BEHANCE": "Behance",
+      "OTHER": "Other"
+    },
+    "linksHint": "Add only the links you want on the resume. Empty links are left out.",
+    "sections": {
+      "settings": "Resume settings",
+      "basicInfo": "Basic info",
+      "professionalLinks": "Professional links",
+      "jobTarget": "Job target",
+      "skills": "Skills",
+      "experience": "Work experience",
+      "education": "Education",
+      "projects": "Projects",
+      "volunteer": "Volunteer experience",
+      "certifications": "Certificates & awards",
+      "languages": "Languages",
+      "leadership": "Clubs & leadership",
+      "publications": "Publications",
+      "hobbies": "Hobbies",
+      "customSections": "Custom sections"
+    },
+    "fields": {
+      "title": "Resume title",
+      "templateType": "Template",
+      "locale": "Resume language",
+      "fullName": "Full name",
+      "city": "City",
+      "country": "Country",
+      "phone": "Phone",
+      "email": "Email",
+      "legallyEligibleToWork": "Legally eligible to work in this country",
+      "linkType": "Link type",
+      "linkLabel": "Display name (optional)",
+      "linkUrl": "URL",
+      "targetTitle": "Target job title",
+      "jobLevel": "Job level",
+      "targetIndustry": "Target industry",
+      "workMode": "Work mode",
+      "targetCity": "Target city",
+      "careerSummary": "Career summary",
+      "school": "School",
+      "degree": "Degree",
+      "major": "Major",
+      "startDate": "Start date",
+      "endDate": "End date (or expected)",
+      "gpa": "GPA (optional)",
+      "honors": "Honors (optional)",
+      "courses": "Relevant courses",
+      "company": "Company",
+      "jobTitle": "Title",
+      "location": "Location",
+      "current": "I currently work here",
+      "responsibilities": "Responsibilities",
+      "toolsUsed": "Tools used",
+      "outcomes": "Outcomes / quantified results",
+      "projectName": "Project name",
+      "purpose": "Purpose",
+      "actualDuration": "Actual time spent",
+      "role": "Your role",
+      "teamSize": "Team size",
+      "userCount": "People reached",
+      "techStack": "Tools / methods",
+      "features": "Key items",
+      "challenges": "Challenges",
+      "solutions": "Solutions",
+      "githubUrl": "Project / portfolio link",
+      "demoUrl": "Demo or related URL",
+      "organization": "Organization",
+      "serviceHours": "Service hours",
+      "workContent": "Work content",
+      "impact": "Impact / outcomes",
+      "certificateName": "Certificate / award name",
+      "issuer": "Issuer",
+      "issueDate": "Issue date",
+      "expiryDate": "Expiry date (optional)",
+      "credentialId": "Credential ID (optional)",
+      "credentialUrl": "Credential URL (optional)",
+      "language": "Language",
+      "proficiency": "Proficiency",
+      "description": "Description",
+      "publicationTitle": "Title",
+      "venue": "Venue",
+      "date": "Date",
+      "authors": "Authors",
+      "url": "URL",
+      "categoryName": "Category name",
+      "skills": "Skills",
+      "customSectionTitle": "Section title",
+      "customSectionItems": "Items"
+    },
+    "sectionCount": "{{count}} entries",
+    "showOnResume": "Show on the resume",
+    "emptySection": "Nothing here yet.",
+    "entryFallback": "Entry {{index}}",
+    "addEntry": "Add entry",
+    "addCategory": "Add skill category",
+    "addLink": "Add professional link",
+    "addCustomSection": "Add custom section",
+    "remove": "Remove",
+    "maxReached": "Limit reached ({{max}})",
+    "hints": {
+      "lines": "One per line",
+      "date": "YYYY-MM or YYYY-MM-DD; use \"Present\" if ongoing",
+      "ownWords": "In your own words, facts only."
+    },
+    "confirmRemove": {
+      "title": "Remove this entry?",
+      "body": "It is removed from the resume once you save.",
+      "cancel": "Cancel"
+    },
+    "confirmReload": {
+      "title": "Reload?",
+      "body": "Your unsaved changes here are discarded and the version saved on the server is shown."
+    },
+    "status": {
+      "saving": "Saving…",
+      "saved": "Saved",
+      "dirty": "Unsaved changes",
+      "failed": "Save failed",
+      "conflict": "Save conflict"
+    },
+    "actions": {
+      "save": "Save",
+      "saving": "Saving…",
+      "generate": "Generate resume",
+      "generating": "Generating…",
+      "reload": "Reload",
+      "confirmPrevious": "Confirm last request",
+      "generateNew": "Generate new version"
+    },
+    "notice": {
+      "conflict": "This resume was updated on the website or another device, so your changes here were not saved. Reloading discards them.",
+      "saveFailed": "Not saved: {{reason}} Your input is kept, so you can save again.",
+      "invalid": "{{count}} fields need fixing before this can be saved."
+    },
+    "missing": {
+      "name": "your name",
+      "contact": "a way to contact you (email or phone)",
+      "target": "a target job title"
+    },
+    "generate": {
+      "title": "Generate a Word resume",
+      "intro": "Builds a DOCX file from the saved content, using only what you entered.",
+      "missing": "Before generating, add {{items}}.",
+      "savesFirst": "Unsaved changes are saved before generating.",
+      "running": "Generating your resume…",
+      "done": "Resume generated: {{name}}",
+      "doneBody": "It is now in the Uploaded list, marked \"Built online\".",
+      "failed": "Generation failed: {{reason}}",
+      "unknown": "It is not clear whether the resume was generated ({{reason}}).",
+      "viewFiles": "View resume list",
+      "openFile": "Open file",
+      "restored": "The result of your last generate request has not been confirmed.",
+      "confirmHint": "\"Confirm last request\" resends that same request: if the file was made, you get that file and no second one.",
+      "staleHint": "The content changed after that request, so it can no longer be confirmed as it was. Check the resume list first; \"Generate new version\" makes a new file from the current content.",
+      "previousDone": "Generated before your edits: {{name}}",
+      "previousDoneBody": "This file does not include later changes. Save and generate again to include them."
+    },
+    "leave": {
+      "unsavedTitle": "Discard unsaved changes?",
+      "unsavedBody": "If you leave now, the changes you have not saved are lost.",
+      "busyTitle": "A request is still running",
+      "busyBody": "Leaving does not cancel it, but you will not see the result here. You can check the resume list later.",
+      "leave": "Leave",
+      "stay": "Keep editing"
+    },
+    "detail": {
+      "delete": "Delete",
+      "deleteTitle": "Delete this resume?",
+      "deleteBody": "What you filled in cannot be recovered. Resume files already generated from it are kept.",
+      "deleteFailed": "Delete failed: {{reason}}",
+      "hint": "This is an online resume you can keep editing. Change it in the editor and generate a Word file; generated files appear under Uploaded."
+    },
+    "errors": {
+      "conflict": "This resume was updated elsewhere.",
+      "draftGone": "This resume no longer exists. It may have been deleted.",
+      "notReady": "Add at least a name or a way to contact you before generating.",
+      "invalid": "The server rejected some of the content. Please check the form.",
+      "generateFailed": "The server returned an error.",
+      "unavailable": "The server does not support this feature yet."
+    },
+    "validation": {
+      "tooLong": "At most {{max}} characters",
+      "tooManyLines": "At most {{max}} lines",
+      "lineTooLong": "Each line can have at most {{max}} characters",
+      "illegalCharacters": "Contains characters that are not allowed",
+      "url": "Links must start with http:// or https://",
+      "wholeNumber": "Enter a whole number",
+      "tooLarge": "Must be at most {{max}}",
+      "date": "Use YYYY-MM or YYYY-MM-DD",
+      "endBeforeStart": "The end date cannot be before the start date",
+      "tooManyEntries": "At most {{max}} entries"
+    },
+    "confirmNew": {
+      "title": "Generate a new version?",
+      "body": "If the last request did create a file, the resume list will have one more."
+    }
+  },
+  "tailor": {
+    "title": "Tailor to a job",
+    "intro": "Pick a saved job and a resume. The server does the tailoring and only uses what your resume already says.",
+    "steps": {
+      "job": "1. Job",
+      "resume": "2. Resume",
+      "mode": "3. Mode"
+    },
+    "jobs": {
+      "empty": "No saved jobs yet.",
+      "action": "Find jobs",
+      "loadFailed": "Jobs could not load",
+      "noDescription": "No description, cannot tailor"
+    },
+    "resumes": {
+      "empty": "No resumes yet.",
+      "action": "Upload a resume",
+      "loadFailed": "Resumes could not load",
+      "unavailable": "File unavailable",
+      "unsupported": "PDF or DOCX only",
+      "pdfNote": "A PDF is recognized and turned into an editable Word copy before tailoring."
+    },
+    "modes": {
+      "CONSERVATIVE": {
+        "title": "Basic tailoring (generate now)",
+        "body": "The server tailors and writes the file right away, with no confirmation step."
+      },
+      "AGGRESSIVE": {
+        "title": "Enhanced suggestions (confirm to generate)",
+        "body": "Review the suggestions first; the file is only written after you confirm, within 24 hours."
+      },
+      "ENHANCED": {
+        "title": "Deep enhancement (answer, review, confirm)",
+        "body": "Check what can be enhanced, answer up to 5 questions, then review; the file is only written after you confirm."
+      }
+    },
+    "progress": {
+      "recognizing": "Recognizing PDF…",
+      "preparing": "Preparing an editable resume…",
+      "tailoring": "Tailoring for this job, this can take a minute or two…"
+    },
+    "actions": {
+      "runConservative": "Start tailoring",
+      "runAggressive": "Generate suggestions",
+      "confirm": "Confirm and generate file",
+      "confirming": "Generating file…",
+      "discard": "Discard suggestions",
+      "check": "Check confirmation",
+      "checking": "Checking…",
+      "again": "Start over",
+      "retryRun": "Tailor again",
+      "regenerate": "Generate suggestions again",
+      "retryRestore": "Reload suggestions",
+      "downloadDocx": "Download DOCX & share",
+      "downloadPdf": "Download PDF",
+      "downloading": "Downloading…",
+      "runEnhanced": "Check what can be enhanced"
+    },
+    "preview": {
+      "title": "Enhanced suggestions (no file yet)",
+      "filesAfterConfirm": "No file is written until you confirm. Confirming submits all suggestions below; the server may still reject some.",
+      "expiresAt": "Confirm before {{time}}",
+      "expired": "These suggestions expired and can no longer be confirmed.",
+      "noChanges": "There are no suggestions to write, so no file will be generated.",
+      "restored": "Restored the suggestions you had not confirmed yet.",
+      "notConfirmed": "The last confirmation did not complete. These suggestions can still be confirmed."
+    },
+    "confirmDiscard": {
+      "title": "Discard these suggestions?",
+      "body": "No file is generated. You would need to generate suggestions again.",
+      "yes": "Discard",
+      "no": "Cancel"
+    },
+    "confirmRetry": {
+      "title": "Tailor again?",
+      "body": "The last request may already have generated a file that the app cannot retrieve. Tailoring again generates another file."
+    },
+    "result": {
+      "title": "Result",
+      "fileReady": "File generated",
+      "appliedCount": "{{count}} written",
+      "rejectedCount": "{{count}} not used",
+      "unchanged": "No change was written; the generated file has the same content as the original resume.",
+      "pdfFailed": "PDF export failed; the DOCX is available."
+    },
+    "status": {
+      "APPLIED": "Edits applied",
+      "NO_SUPPORTED_GAP": "No safe overlapping gap",
+      "NEEDS_USER_EVIDENCE": "More evidence needed",
+      "GENERATION_REJECTED": "Rewrite rejected; original kept",
+      "PENDING": "Pending",
+      "CONFIRMING": "Confirming",
+      "CONFIRMED": "Confirmed"
+    },
+    "change": {
+      "original": "Original",
+      "rewritten": "Rewritten",
+      "whyBetter": "Why this is better",
+      "applied": "Written to file",
+      "notApplied": "Not written",
+      "noChanges": "No changes to display.",
+      "quote": "Evidence quote: {{quote}}",
+      "evidence": {
+        "VERIFIED": "Based on: original resume text",
+        "USER_EDITED": "Edited by you",
+        "INFERRED": "Inferred skill: {{skill}}. Your resume has no direct evidence; make sure it is true.",
+        "INFERRED_NO_SKILL": "Inferred content. Your resume has no direct evidence; make sure it is true."
+      }
+    },
+    "rejected": {
+      "title": "Changes not used ({{count}})",
+      "summary": "Some bullets could not be rewritten without adding new facts, so the original wording was kept.",
+      "unknownCode": "Other reason ({{code}})"
+    },
+    "reasonCode": {
+      "EMPTY_REQUIRED_FIELD": "A required field is empty",
+      "UNKNOWN_NODE_ID": "Unknown node",
+      "NODE_NOT_ALLOWED": "This node cannot be tailored",
+      "ORIGINAL_TEXT_MISMATCH": "Original text does not match",
+      "TEXT_UNCHANGED": "Text is unchanged",
+      "TEXT_TOO_LONG": "Rewritten text is too long",
+      "UNKNOWN_EVIDENCE_TYPE": "Unknown evidence type",
+      "INFERRED_NOT_ALLOWED": "Inferred changes are not allowed in this mode",
+      "DUPLICATE_NODE_ID": "Duplicate node",
+      "MAX_CHANGE_LIMIT_EXCEEDED": "Maximum number of changes exceeded",
+      "MISSING_EVIDENCE": "Evidence is missing",
+      "UNKNOWN_EVIDENCE_NODE_ID": "Unknown evidence node",
+      "EVIDENCE_QUOTE_MISMATCH": "Evidence quote does not match",
+      "UNSUPPORTED_CLAIM": "Claim is not supported by the resume",
+      "CROSS_NODE_EVIDENCE_NOT_ALLOWED": "Evidence from another bullet is not allowed",
+      "CROSS_ENTRY_EVIDENCE_NOT_ALLOWED": "Evidence from another project or job is not allowed",
+      "LOW_VALUE_REWRITE": "The rewrite did not improve the wording enough",
+      "OPPORTUNITY_NOT_RESOLVED": "The rewrite did not fix the marked issue",
+      "FACT_CARDINALITY_CHANGED": "The rewrite changed a singular fact into a plural without evidence",
+      "INFORMATION_LOSS": "The rewrite dropped original facts",
+      "SKILL_REMOVAL_NOT_ALLOWED": "Existing skills cannot be removed",
+      "GRAMMAR_QUALITY_FAILED": "The rewrite had grammar problems",
+      "KEYWORD_STUFFING": "The rewrite stuffed job keywords",
+      "ROLE_SEMANTIC_ESCALATION": "The rewrite overstated the role or responsibility",
+      "RELATION_NOT_SUPPORTED": "A relationship in the rewrite is not supported by evidence",
+      "SOURCE_FACT_WOULD_DUPLICATE": "The rewrite would repeat a fact already in the resume",
+      "UNSUPPORTED_ACTION": "An action in the rewrite is not supported by evidence"
+    },
+    "unknown": {
+      "runCONSERVATIVE": "It is not clear whether a file was generated ({{reason}}). The server offers no way to look it up, so the app cannot retrieve a file that may exist.",
+      "runAGGRESSIVE": "It is not clear whether suggestions were created ({{reason}}). This step never writes a file, so you can generate suggestions again.",
+      "confirm": "It is not clear whether the file was generated ({{reason}}). You can check this proposal; nothing is generated twice.",
+      "stillConfirming": "The server is still confirming these suggestions. Check again shortly."
+    },
+    "gone": {
+      "expired": "These suggestions expired and no file was generated. Generate suggestions again.",
+      "unavailable": "These suggestions are no longer available: they may have been confirmed or expired.",
+      "maybeConfirmed": "These suggestions are no longer pending. A file may have been generated, but the server offers no way to retrieve it."
+    },
+    "failed": "Tailoring failed: {{reason}}",
+    "confirmFailed": "The file was not generated: {{reason}} The suggestions are kept, so you can confirm again.",
+    "restoreFailed": "Your earlier suggestions could not load: {{reason}}",
+    "errors": {
+      "docxOnly": "This resume cannot be tailored. Use a DOCX or a recognizable PDF.",
+      "incompleteRecognition": "The PDF recognition is incomplete. Review the recognized content before tailoring.",
+      "noDescription": "This job has no description, so it cannot be tailored.",
+      "unreadable": "The resume or job text could not be read.",
+      "proposalGone": "These suggestions expired or do not exist.",
+      "confirmInProgress": "These suggestions are being confirmed.",
+      "badFileUrl": "The server returned an invalid file address.",
+      "unexpected": "The server returned a result the app does not recognize."
+    },
+    "flash": {
+      "shared": "The file is ready to share or open",
+      "downloadFailed": "Download failed: {{reason}}"
+    },
+    "enhanced": {
+      "progress": {
+        "scanning": "Checking what can be enhanced…",
+        "restoring": "Restoring your earlier suggestions…",
+        "submitting": "Saving your answers…",
+        "generating": "Generating deep enhancement suggestions, this can take a minute or two…"
+      },
+      "opportunity": {
+        "title": "What can be enhanced",
+        "checked": "Checked {{count}} experiences",
+        "worth": "{{count}} worth enhancing",
+        "questions": "{{count}} questions",
+        "mostRelevant": "Most relevant to this job: {{names}}",
+        "cannotInvent": "Related experience is never added unless it is on your resume or confirmed by you."
+      },
+      "questions": {
+        "title": "Add key details",
+        "none": "There are no questions to answer. You can still generate enhancement suggestions.",
+        "progress": "Question {{current}} / {{total}}",
+        "whyAsking": "Why we are asking: {{text}}",
+        "chooseEntry": "Choose the related project or experience",
+        "answerLabel": "Your answer",
+        "used": "Yes, I did this",
+        "notUsed": "I have not done this",
+        "skipped": "Skip for now",
+        "specificDetails": "Describe what you actually did",
+        "saved": "Saved",
+        "failed": "This answer was not saved: {{reason}} All your input is kept, so you can fix it and retry.",
+        "saveNote": "Submitting saves your answers as added details; unanswered questions are submitted as skipped. The tailored file is only written after the final confirmation.",
+        "previous": "Previous",
+        "next": "Next",
+        "submit": "Submit answers and generate",
+        "discardBody": "Answers you have not submitted are lost. Details already saved are kept."
+      },
+      "errors": {
+        "needRealDetails": "Enter a real experience. Do not answer with only yes, 是, or used.",
+        "questionStale": "The questions changed. Check what can be enhanced again.",
+        "unavailable": "Deep enhancement is not enabled on the server.",
+        "nothingSelected": "Select at least one suggestion.",
+        "editRejected": "The server rejected the edit: no line may be empty or longer than 180 characters.",
+        "evidenceInvalid": "The server rejected this detail. Change it and retry.",
+        "evidenceConflict": "You already saved evidence of using this skill. Delete the existing evidence before marking it as not used.",
+        "editBlank": "No edited line may be empty.",
+        "editTooLong": "Each edited line can have at most {{max}} characters.",
+        "scanFailed": "The check failed: {{reason}}",
+        "rescanFailed": "Your answers were saved, but checking again failed: {{reason}}",
+        "generateFailed": "Suggestions were not generated: {{reason}} Saved answers are kept.",
+        "generateUnknown": "It is not clear whether suggestions were generated ({{reason}}). This step never writes a file; generating again may leave more than one pending suggestion on the server.",
+        "confirmFailed": "Confirmation failed: {{reason}} Your selections and edits are kept."
+      },
+      "review": {
+        "title": "Deep enhancement suggestions (no file yet)",
+        "noFilesYet": "No file is generated until you review and confirm. Unselected content stays as original.",
+        "expired": "These suggestions are past the expiry time the server gave and can no longer be confirmed.",
+        "stale": "Your added details changed after these suggestions were made, so they can no longer be confirmed. Check and generate again.",
+        "noHighValue": "The check is complete. No evidence-backed enhancement is clearly stronger than the original wording.",
+        "selected": "Selected {{selected}} / {{total}}",
+        "discardNote": "Discarding does not delete the details you saved.",
+        "discardBody": "No file is generated. Details you saved are kept.",
+        "confirm": "Confirm and generate resume",
+        "regenerate": "Check and generate again",
+        "retryGenerate": "Generate suggestions again",
+        "retryGenerateTitle": "Generate suggestions again?",
+        "retryGenerateBody": "The last request may already have created suggestions. Generating again writes no file, but the server may keep one more pending suggestion."
+      },
+      "entry": {
+        "typeEvidence": "Enhancement from added details",
+        "typeJd": "Job-targeted optimization",
+        "typeClarity": "Wording and structure improvement",
+        "selected": "Selected, written on confirm",
+        "notSelected": "Not selected, kept as original",
+        "usedYourInfo": "Used details you added",
+        "matched": "Related job requirements: {{items}}",
+        "enhanced": "Enhanced version",
+        "editLabel": "Edit \"{{title}}\"",
+        "editHint": "{{count}} bullet(s): one per line, keep the number of lines.",
+        "edited": "Edited by you",
+        "edit": "Edit suggestion",
+        "saveEdit": "Save edit",
+        "cancelEdit": "Cancel edit",
+        "restoreAi": "Restore AI suggestion"
+      },
+      "skills": {
+        "title": "Skills update",
+        "original": "Original Skills",
+        "proposed": "Suggested Skills",
+        "added": "Added skills: {{names}}",
+        "editLabel": "Edit suggested skills"
+      },
+      "evidence": {
+        "title": "Added details",
+        "summary": "Saved {{saved}} added details: {{used}} used in enhancements; {{unused}} did not produce a version clearly stronger than the original.",
+        "usedInEntry": "Used in {{name}}",
+        "usedInSkills": "Used in Skills ({{names}})",
+        "usedInEnhancement": "Used in an enhancement",
+        "userRejected": "You marked this as not used",
+        "reasons": {
+          "NO_ADMITTED_REWRITE": "Did not produce a version clearly stronger than the original.",
+          "FACT_ALREADY_PRESENT": "This detail is already in the original text.",
+          "NOT_A_SKILL": "This is a project result, so it was not added to Skills.",
+          "NO_SKILLS_SECTION": "This resume has no Skills section, and a new section was not created.",
+          "NOT_RELEVANT_TO_JD": "Not relevant enough to this job.",
+          "VALIDATOR_REJECTED": "This added detail did not pass validation.",
+          "CONFIRMED_FACT_NOT_USED": "Confirmed details were not used in the final enhancement."
+        },
+        "correct": "Correct",
+        "delete": "Delete",
+        "save": "Save correction",
+        "cancel": "Cancel",
+        "correctLabel": "Correct what you did",
+        "correctTitle": "Save this correction?",
+        "correctBody": "The correction is saved on the server. These suggestions do not update themselves; check and generate again before confirming.",
+        "deleteTitle": "Delete this detail?",
+        "deleteBody": "This does not change the original resume or generated files. These suggestions must be checked and generated again before confirming.",
+        "failed": "The detail was not updated: {{reason}}",
+        "loadFailed": "Added details could not load: {{reason}}",
+        "noText": "(empty)"
+      },
+      "done": {
+        "completed": "The deep enhancement resume is ready. Your selected sections were written to the file; unselected experiences stay as original."
+      },
+      "gone": {
+        "unavailable": "These suggestions are no longer available: they may have been confirmed, expired, or never existed. The app cannot retrieve a file that may have been generated.",
+        "pastExpiry": "By the expiry time the server gave, these suggestions have expired."
+      }
+    },
+    "known": {
+      "title": "Last result saved on this device",
+      "note": "A download shortcut kept on this device, not a server history. It stops working if the file is removed from the server.",
+      "savedAt": "Saved {{time}}",
+      "remove": "Remove this entry"
+    },
+    "structure": {
+      "needed": "The recognized content of this PDF is incomplete. Review and save it, then come back and start tailoring again.",
+      "open": "Review recognized content",
+      "outdated": "The recognized content of this resume changed. These suggestions were made from the old recognition and can no longer be confirmed. Discard them and generate again."
+    }
+  },
+  "welcome": {
+    "title": "Find jobs, build resumes, tailor them to a job",
+    "subtitle": "Browse public jobs without an account. Log in to manage resumes, build one online and tailor it to a job.",
+    "browseJobs": "Browse jobs",
+    "login": "Log in",
+    "register": "Create account",
+    "featuresTitle": "What you can do",
+    "publicBadge": "No account needed",
+    "loginBadge": "Account needed",
+    "features": {
+      "jobs": {
+        "title": "Find jobs",
+        "body": "Search public jobs by keyword and city and open their details.",
+        "action": "Browse jobs"
+      },
+      "resumes": {
+        "title": "Upload and check resumes",
+        "body": "Upload a PDF or DOCX, see its quality score, download and share it.",
+        "action": "Log in to upload"
+      },
+      "builder": {
+        "title": "Build a resume online",
+        "body": "Fill in your real experience, generate a Word resume, and keep editing later.",
+        "action": "Log in to build"
+      },
+      "tailor": {
+        "title": "Tailor to a job",
+        "body": "Pick a saved job and a resume to get a version written for that job.",
+        "action": "Log in to tailor"
+      },
+      "track": {
+        "title": "Save and track",
+        "body": "Save jobs you like and keep track of the ones you applied to.",
+        "action": "Log in to manage"
+      }
+    },
+    "examplesTitle": "Examples",
+    "examplesBadge": "Example · not real data",
+    "examplesNote": "The content below only shows how the screens look. It comes from no user, resume or job.",
+    "tailorExample": {
+      "title": "Tailoring example",
+      "original": "Original",
+      "rewritten": "Rewritten",
+      "originalText": "Was responsible for making the weekly sales reports.",
+      "rewrittenText": "Prepared weekly sales reports.",
+      "note": "Tailoring changes the wording only; it never adds facts that are not in the resume."
+    },
+    "qualityExample": {
+      "title": "Quality score example",
+      "score": "72 / 100",
+      "structure": "Structure 18 / 25",
+      "achievements": "Achievements 9 / 20",
+      "note": "Your own score appears after you log in and upload a resume."
+    }
+  },
+  "guest": {
+    "back": "Back to home",
+    "jobsNotice": "You are browsing public jobs as a visitor. Saving, marking applied and tailoring need an account.",
+    "catalogNotice": "Log in to save this job, mark it applied, or tailor a resume to it.",
+    "catalogLogin": "Log in to save or apply"
+  }
+}

@@ -23,10 +23,10 @@ import aijob.enums.TailorMode;
 import aijob.service.JobApplicationStatsService;
 import aijob.service.JobService;
 import aijob.service.TailorAnalysisService;
+import aijob.util.ResumeFileNames;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -427,13 +427,10 @@ public class JobController {
             throw new IllegalStateException("Failed to read tailored resume");
         }
 
-        ContentDisposition disposition = ContentDisposition.attachment()
-                .filename(file.getFileName().toString(), StandardCharsets.UTF_8)
-                .build();
-
         return ResponseEntity.ok()
                 .contentType(tailoredMediaType(fileName))
-                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ResumeFileNames.attachmentHeader(file.getFileName().toString()))
                 .body(resource);
     }
 

@@ -98,7 +98,7 @@ class ResumeControllerQualityScoreSecurityTest {
 
         int status = mockMvc.perform(get("/api/v1/resumes/" + resumeId + "/quality-score"))
                 .andReturn().getResponse().getStatus();
-        org.junit.jupiter.api.Assertions.assertTrue(status == 401 || status == 403, "status=" + status);
+        org.junit.jupiter.api.Assertions.assertEquals(401, status, "missing credentials must be 401");
         // (auth is unused here except to confirm the resume exists under a real owner)
         org.junit.jupiter.api.Assertions.assertNotNull(auth);
     }

@@ -729,7 +729,7 @@ class FreeHireEndToEndControllerTest {
 
         int status = mockMvc.perform(post("/api/v1/job-catalog/freehire:acme-swe-e2e/save"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "save must still require a JWT: status=" + status);
+        assertEquals(401, status, "save must still require a JWT");
     }
 
     // ---------------------------------------------------------------------------
@@ -829,7 +829,7 @@ class FreeHireEndToEndControllerTest {
         int before = REQUEST_COUNT.get();
         int status = mockMvc.perform(post("/api/v1/job-catalog/freehire:acme-swe-e2e/applied"))
                 .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "status=" + status);
+        assertEquals(401, status, "status");
         assertEquals(before, REQUEST_COUNT.get(), "an unauthenticated request must never reach FreeHire");
     }
 

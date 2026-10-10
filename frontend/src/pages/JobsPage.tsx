@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { apiErrorKey } from '../api/client'
 import {
   bulkDeleteJobs,
@@ -13,12 +13,21 @@ import {
 } from '../api/jobs'
 import type { JobForm, JobResponse } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { loginPathWithReturnTo } from '../auth/returnTo'
+import { loginPathForAnonymousFeature } from '../auth/returnTo'
 import { Alert } from '../components/Alert'
 import { ApplicationStatsPanel } from '../components/ApplicationStatsPanel'
 import { EmptyState } from '../components/EmptyState'
 import { JobCatalogSearch } from '../components/JobCatalogSearch'
-import { Spinner } from '../components/Spinner'
+import { Badge } from '../components/ui/Badge'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
+import {
+  jobsTabFromLocation,
+  jobsTabReturnPath,
+  writeJobsTabParam,
+  type JobsTab,
+} from '../jobs/jobsTab'
 
 const emptyForm: JobForm = {
   company: '',
@@ -29,7 +38,6 @@ const emptyForm: JobForm = {
 }
 
 type SourceFilter = 'ALL' | 'MANUAL' | 'GREENHOUSE' | 'ADZUNA' | 'JSEARCH' | 'JOB_CATALOG'
-type JobsTab = 'SEARCH' | 'SAVED' | 'APPLIED'
 
 // Same small check icon JobCatalogSearch's own "已投递" badge uses -- kept visually
 // identical here rather than shared, since the two components are otherwise decoupled.
@@ -45,10 +53,13 @@ export function JobsPage() {
   const { t } = useTranslation()
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
-
-  const [activeTab, setActiveTab] = useState<JobsTab>('SEARCH')
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const requestedTab = jobsTabFromLocation(searchParams, location.hash)
+  const activeTab: JobsTab = !isAuthenticated && requestedTab !== 'SEARCH' ? 'SEARCH' : requestedTab
   const [items, setItems] = useState<JobResponse[]>([])
-  const [loading, setLoading] = useState(isAuthenticated)
+  const [privateLoaded, setPrivateLoaded] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState<JobForm>(emptyForm)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -66,6 +77,7 @@ export function JobsPage() {
       const { data } = await listJobs()
       setItems(data)
       setSelectedIds([])
+      setPrivateLoaded(true)
     } catch (err) {
       setError(t(apiErrorKey(err)))
     } finally {
@@ -74,16 +86,29 @@ export function JobsPage() {
   }
 
   useEffect(() => {
-    // The personal jobs list (manual create/edit/delete, saved/applied tabs, the
-    // Greenhouse-import selection table) is account data -- never fetched for a
-    // visitor who is not logged in. The catalog search below still renders for
-    // everyone, and clicking either personal-jobs tab redirects to /login instead of
-    // ever reaching this effect's data.
-    if (isAuthenticated) {
-      void load()
+    // Personal jobs (favorites/applied, counts, bulk actions) are account data.
+    // Public catalog search must never wait on GET /jobs — including for tab counts.
+    if (!isAuthenticated || activeTab === 'SEARCH' || privateLoaded) {
+      return
     }
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated])
+  }, [isAuthenticated, activeTab, privateLoaded])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (requestedTab !== 'SEARCH') {
+        navigate(loginPathForAnonymousFeature(jobsTabReturnPath(requestedTab)), { replace: true })
+      }
+      return
+    }
+    if (location.hash !== '#applied' && location.hash !== '#saved' && location.hash !== '#favorites') {
+      return
+    }
+    const next = writeJobsTabParam(searchParams, requestedTab)
+    const search = next.toString()
+    navigate({ pathname: '/jobs', search: search ? `?${search}` : '', hash: '' }, { replace: true })
+  }, [isAuthenticated, requestedTab, location.hash, navigate, searchParams])
 
   const filtered = useMemo(() => {
     if (sourceFilter === 'ALL') {
@@ -108,12 +133,18 @@ export function JobsPage() {
     greenhouseVisible.length > 0
     && greenhouseVisible.every((job) => selectedIds.includes(job.id))
 
+  function commitTab(tab: JobsTab) {
+    const next = writeJobsTabParam(searchParams, tab)
+    const search = next.toString()
+    navigate({ pathname: '/jobs', search: search ? `?${search}` : '', hash: '' }, { replace: true })
+  }
+
   function onTabClick(tab: JobsTab) {
     if (tab !== 'SEARCH' && !isAuthenticated) {
-      navigate(loginPathWithReturnTo('/jobs'))
+      navigate(loginPathForAnonymousFeature(jobsTabReturnPath(tab)))
       return
     }
-    setActiveTab(tab)
+    commitTab(tab)
   }
 
   function startEdit(job: JobResponse) {
@@ -224,9 +255,7 @@ export function JobsPage() {
     try {
       await markJobApplied(id)
       await load()
-      // Moves from 已保存职位 to 已投递职位 -- switching tabs is what makes that move
-      // visible rather than the row just silently changing state off-screen.
-      setActiveTab('APPLIED')
+      commitTab('APPLIED')
     } catch {
       setAppliedErrorId(id)
     } finally {
@@ -240,8 +269,7 @@ export function JobsPage() {
     try {
       await clearJobApplied(id)
       await load()
-      // Moves back from 已投递职位 to 已保存职位.
-      setActiveTab('SAVED')
+      commitTab('SAVED')
     } catch {
       setAppliedErrorId(id)
     } finally {
@@ -251,98 +279,83 @@ export function JobsPage() {
 
   function tabClass(selected: boolean) {
     return selected
-      ? 'rounded-lg bg-slate-900 px-4 py-2 text-sm text-white'
-      : 'rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700'
+      ? 'min-h-11 min-w-0 rounded-md bg-accent-soft px-4 py-2 text-sm font-medium text-brand'
+      : 'min-h-11 min-w-0 rounded-md px-4 py-2 text-sm text-muted hover:bg-slate-100 hover:text-ink'
   }
 
-  function renderJobsTable(list: JobResponse[], mode: 'SAVED' | 'APPLIED') {
+  function renderJobCards(list: JobResponse[], mode: 'SAVED' | 'APPLIED') {
     return (
-      <table className="min-w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
-          <tr>
-            <th className="px-4 py-3 w-10"></th>
-            <th className="px-4 py-3">{t('jobs.company')}</th>
-            <th className="px-4 py-3">{t('jobs.jobTitle')}</th>
-            <th className="px-4 py-3">{t('jobs.location')}</th>
-            <th className="px-4 py-3">{t('jobs.source')}</th>
-            <th className="px-4 py-3">{t('jobs.status')}</th>
-            <th className="px-4 py-3">{t('resumes.actions')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {list.map((job) => (
-            <tr key={job.id} className="border-b border-slate-100 last:border-0 align-top">
-              <td className="px-4 py-3">
+      <ul className="mt-6 space-y-3">
+        {list.map((job) => (
+          <li key={job.id}>
+            <Card className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <div className="flex min-w-0 flex-1 gap-3">
                 {job.source === 'GREENHOUSE' ? (
                   <input
                     type="checkbox"
+                    className="mt-1"
                     checked={selectedIds.includes(job.id)}
                     onChange={(event) => toggleSelect(job.id, event.target.checked)}
                   />
                 ) : null}
-              </td>
-              <td className="px-4 py-3">{job.company}</td>
-              <td className="px-4 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span>{job.title}</span>
-                  {mode === 'APPLIED' ? (
-                    <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
-                      <CheckIcon />
-                      {t('jobs.appliedBadge')}
-                    </span>
-                  ) : null}
-                </div>
-                {mode === 'APPLIED' && job.appliedAt ? (
-                  <p className="mt-1 text-xs text-slate-500">
-                    {t('jobs.appliedAtLabel')}: {job.appliedAt.slice(0, 10)}
-                  </p>
-                ) : null}
-              </td>
-              <td className="px-4 py-3">{job.location}</td>
-              <td className="px-4 py-3">
-                {t(`status.jobSource.${job.source}`, { defaultValue: job.source })}
-              </td>
-              <td className="px-4 py-3">
-                {t(`status.job.${job.status}`, { defaultValue: job.status })}
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex flex-col items-start gap-2">
-                  <div className="flex flex-wrap gap-3">
-                    <button type="button" className="underline" onClick={() => startEdit(job)}>
-                      {t('jobs.edit')}
-                    </button>
-                    <button type="button" className="text-red-700 underline" onClick={() => void onDelete(job.id)}>
-                      {t('jobs.delete')}
-                    </button>
-                    {mode === 'SAVED' ? (
-                      <button
-                        type="button"
-                        disabled={appliedBusyId === job.id}
-                        className="text-emerald-700 underline disabled:opacity-60"
-                        onClick={() => void onMarkApplied(job.id)}
-                      >
-                        {t('jobs.confirmApplied')}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={appliedBusyId === job.id}
-                        className="text-slate-500 underline disabled:opacity-60"
-                        onClick={() => void onClearApplied(job.id)}
-                      >
-                        {t('jobs.revokeApplied')}
-                      </button>
-                    )}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-base font-semibold text-ink">{job.title}</p>
+                    {mode === 'APPLIED' ? (
+                      <Badge tone="success" icon={<CheckIcon />}>{t('jobs.appliedBadge')}</Badge>
+                    ) : null}
                   </div>
-                  {appliedErrorId === job.id ? (
-                    <p role="alert" className="text-xs text-red-700">{t('jobs.appliedFailed')}</p>
+                  <p className="mt-1 text-sm text-ink">{job.company}</p>
+                  <p className="mt-1 text-sm text-muted">{job.location}</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {t(`status.jobSource.${job.source}`, { defaultValue: job.source })}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    {t(`status.job.${job.status}`, { defaultValue: job.status })}
+                  </p>
+                  {mode === 'APPLIED' && job.appliedAt ? (
+                    <p className="mt-1 text-sm text-muted">
+                      {t('jobs.appliedAtLabel')}: {job.appliedAt.slice(0, 10)}
+                    </p>
                   ) : null}
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+              <div className="flex min-w-0 flex-col items-stretch gap-2 sm:items-end">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => startEdit(job)}>
+                    {t('jobs.edit')}
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => void onDelete(job.id)}>
+                    {t('jobs.delete')}
+                  </Button>
+                  {mode === 'SAVED' ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={appliedBusyId === job.id}
+                      onClick={() => void onMarkApplied(job.id)}
+                    >
+                      {t('jobs.confirmApplied')}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={appliedBusyId === job.id}
+                      onClick={() => void onClearApplied(job.id)}
+                    >
+                      {t('jobs.revokeApplied')}
+                    </Button>
+                  )}
+                </div>
+                {appliedErrorId === job.id ? (
+                  <p role="alert" className="text-sm text-danger">{t('jobs.appliedFailed')}</p>
+                ) : null}
+              </div>
+            </Card>
+          </li>
+        ))}
+      </ul>
     )
   }
 
@@ -352,7 +365,7 @@ export function JobsPage() {
         <label className="text-sm">
           <span className="mr-2">{t('jobs.source')}</span>
           <select
-            className="rounded-lg border border-slate-300 px-3 py-2"
+            className="ui-input mt-0 w-auto min-w-40"
             value={sourceFilter}
             onChange={(event) => {
               setSourceFilter(event.target.value as SourceFilter)
@@ -380,7 +393,7 @@ export function JobsPage() {
             <button
               type="button"
               disabled={saving || selectedIds.length === 0}
-              className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-800 disabled:opacity-60"
+              className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger disabled:opacity-60"
               onClick={() => void onDeleteSelected()}
             >
               {t('jobs.deleteSelected')}
@@ -393,9 +406,11 @@ export function JobsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-slate-900">{t('jobs.title')}</h1>
+      {/* Title and tabs share one row on desktop so the search card starts higher. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
+      <h1 className="page-title">{t('jobs.title')}</h1>
 
-      <div role="tablist" aria-label={t('jobs.tabsLabel')} className="mt-4 flex flex-wrap gap-2">
+      <div role="tablist" aria-label={t('jobs.tabsLabel')} className="flex w-full min-w-0 flex-wrap gap-1 rounded-lg border border-line bg-card p-1 md:w-auto">
         <button
           type="button"
           role="tab"
@@ -412,7 +427,15 @@ export function JobsPage() {
           className={tabClass(activeTab === 'SAVED')}
           onClick={() => onTabClick('SAVED')}
         >
-          {t('jobs.tabSaved', { count: savedCount })}
+          {isAuthenticated
+            ? (privateLoaded ? t('jobs.tabSaved', { count: savedCount }) : t('jobs.tabSavedLocked'))
+            : (
+            <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
+              <span>{t('jobs.tabSavedLocked')}</span>
+              <span aria-hidden="true">🔒</span>
+              <span className="sr-only">{t('jobs.loginToView')}</span>
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -421,34 +444,34 @@ export function JobsPage() {
           className={tabClass(activeTab === 'APPLIED')}
           onClick={() => onTabClick('APPLIED')}
         >
-          {t('jobs.tabApplied', { count: appliedCount })}
+          {isAuthenticated
+            ? (privateLoaded ? t('jobs.tabApplied', { count: appliedCount }) : t('jobs.tabAppliedLocked'))
+            : (
+            <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
+              <span>{t('jobs.tabAppliedLocked')}</span>
+              <span aria-hidden="true">🔒</span>
+              <span className="sr-only">{t('jobs.loginToView')}</span>
+            </span>
+          )}
         </button>
+      </div>
       </div>
 
       {isAuthenticated && loading && activeTab !== 'SEARCH' ? (
-        <div className="mt-6"><Spinner label={t('common.loading')} /></div>
+        <div className="mt-6"><LoadingSkeleton rows={3} label={t('common.loading')} /></div>
       ) : null}
-      {error ? <div className="mt-4"><Alert message={error} onRetry={() => void load()} /></div> : null}
 
       {/* Always mounted, just hidden -- switching tabs must never lose an in-progress
           search (typed keywords, results, city selection) the way unmounting would.
           `hidden` (not a CSS class) so it is truly removed from the accessibility tree
           in every environment, matching how a real browser would hide it. */}
       <div hidden={activeTab !== 'SEARCH'}>
-        <JobCatalogSearch
-          onSaved={() => { void load(); setActiveTab('SAVED') }}
-          onApplied={() => { void load(); setActiveTab('APPLIED') }}
-        />
+        <JobCatalogSearch />
       </div>
-
-      {activeTab !== 'SEARCH' && !isAuthenticated ? (
-        <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-          {t('jobs.loginToTrackPrompt')}
-        </p>
-      ) : null}
 
       {activeTab === 'SAVED' && isAuthenticated ? (
         <>
+          {error ? <div className="mt-4"><Alert message={error} onRetry={() => void load()} /></div> : null}
           <div className="mt-6">
             <button
               type="button"
@@ -468,7 +491,7 @@ export function JobsPage() {
           {showManualForm ? (
             <div className="mt-4">
               <form className="rounded-xl border border-slate-200 bg-white p-5" onSubmit={onSubmit}>
-                <h2 className="text-lg font-medium">
+                <h2 className="section-title">
                   {editingId === null ? t('jobs.create') : t('jobs.edit')}
                 </h2>
                 <label className="mt-4 block text-sm">
@@ -518,16 +541,13 @@ export function JobsPage() {
             <div className="mt-6"><EmptyState title={t('jobs.emptySaved')} /></div>
           ) : null}
 
-          {savedJobs.length > 0 ? (
-            <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-              {renderJobsTable(savedJobs, 'SAVED')}
-            </div>
-          ) : null}
+          {savedJobs.length > 0 ? renderJobCards(savedJobs, 'SAVED') : null}
         </>
       ) : null}
 
       {activeTab === 'APPLIED' && isAuthenticated ? (
         <>
+          {error ? <div className="mt-4"><Alert message={error} onRetry={() => void load()} /></div> : null}
           <ApplicationStatsPanel />
           {renderSourceFilterAndBulkActions()}
 
@@ -535,11 +555,7 @@ export function JobsPage() {
             <div className="mt-6"><EmptyState title={t('jobs.emptyApplied')} /></div>
           ) : null}
 
-          {appliedJobs.length > 0 ? (
-            <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-              {renderJobsTable(appliedJobs, 'APPLIED')}
-            </div>
-          ) : null}
+          {appliedJobs.length > 0 ? renderJobCards(appliedJobs, 'APPLIED') : null}
         </>
       ) : null}
     </div>

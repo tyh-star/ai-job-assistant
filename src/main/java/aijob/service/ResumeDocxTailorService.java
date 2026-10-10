@@ -13,4 +13,11 @@ public interface ResumeDocxTailorService {
             Long userId,
             Long jobId
     );
+
+    /** Same write-back and verification, into an output path the caller chose. */
+    Path createTailoredDocx(
+            Path originalDocx,
+            List<TailorChange> changes,
+            Path outputPath
+    );
 }

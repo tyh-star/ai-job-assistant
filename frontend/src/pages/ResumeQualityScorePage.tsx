@@ -7,16 +7,16 @@ import type { ResumeQualityScoreResponse } from '../api/types'
 import { Alert } from '../components/Alert'
 import { Spinner } from '../components/Spinner'
 
-const SECTION_CLASS = 'rounded-xl border border-slate-200 bg-white p-6'
+const SECTION_CLASS = 'rounded-lg border border-line bg-card p-6 shadow-card'
 
 const LEVEL_BADGE_CLASS: Record<string, string> = {
-  EXCELLENT: 'bg-emerald-100 text-emerald-800',
-  GOOD: 'bg-sky-100 text-sky-800',
-  NEEDS_WORK: 'bg-amber-100 text-amber-800',
-  WEAK: 'bg-red-100 text-red-800',
+  EXCELLENT: 'bg-success-soft text-success',
+  GOOD: 'bg-accent-soft text-brand',
+  NEEDS_WORK: 'bg-warning-soft text-warning',
+  WEAK: 'bg-danger-soft text-danger',
 }
 
-const CATEGORY_BAR_CLASS = 'bg-slate-900'
+const CATEGORY_BAR_CLASS = 'bg-accent'
 
 export function ResumeQualityScorePage() {
   const { t } = useTranslation()
@@ -56,7 +56,7 @@ export function ResumeQualityScorePage() {
       <Link className="text-sm text-slate-600 underline" to="/resumes">
         {t('resumes.backToList')}
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold text-slate-900">{t('resumeQuality.title')}</h1>
+      <h1 className="page-title mt-3">{t('resumeQuality.title')}</h1>
 
       {loading ? <div className="mt-6"><Spinner label={t('resumeQuality.loading')} /></div> : null}
       {error ? <div className="mt-4"><Alert message={error} onRetry={() => void load()} /></div> : null}
@@ -81,12 +81,10 @@ function ScoredView({ result }: { result: ResumeQualityScoreResponse }) {
   return (
     <div className="mt-6 space-y-6">
       <section className={SECTION_CLASS}>
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <p className="text-4xl font-semibold text-slate-900">
-            {t('resumeQuality.scoreOutOf100', { score })}
-          </p>
+        <div className="flex flex-wrap items-center gap-5">
+          <ScoreRing score={score} label={t('resumeQuality.scoreOutOf100', { score })} />
           <span
-            className={`rounded-full px-3 py-1 text-sm font-medium ${LEVEL_BADGE_CLASS[level] ?? 'bg-slate-100 text-slate-800'}`}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${LEVEL_BADGE_CLASS[level] ?? 'bg-slate-100 text-ink'}`}
           >
             {t(`resumeQuality.level.${level}`, level)}
           </span>
@@ -128,30 +126,55 @@ function ScoredView({ result }: { result: ResumeQualityScoreResponse }) {
       </section>
 
       <section className={SECTION_CLASS}>
-        <h2 className="text-lg font-medium text-slate-900">{t('resumeQuality.strengthsTitle')}</h2>
+        <h2 className="text-lg font-semibold text-ink">{t('resumeQuality.strengthsTitle')}</h2>
         {result.strengths.length > 0 ? (
-          <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-slate-700">
+          <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-success">
             {result.strengths.map((code) => (
               <li key={code}>{t(`resumeQuality.strength.${code}`, code)}</li>
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-slate-500">{t('resumeQuality.noStrengths')}</p>
+          <p className="mt-3 text-sm text-muted">{t('resumeQuality.noStrengths')}</p>
         )}
       </section>
 
       <section className={SECTION_CLASS}>
-        <h2 className="text-lg font-medium text-slate-900">{t('resumeQuality.suggestionsTitle')}</h2>
+        <h2 className="text-lg font-semibold text-ink">{t('resumeQuality.suggestionsTitle')}</h2>
         {topSuggestions.length > 0 ? (
-          <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-slate-700">
+          <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-warning">
             {topSuggestions.map((code) => (
               <li key={code}>{t(`resumeQuality.suggestion.${code}`, code)}</li>
             ))}
           </ol>
         ) : (
-          <p className="mt-3 text-sm text-slate-500">{t('resumeQuality.noSuggestions')}</p>
+          <p className="mt-3 text-sm text-muted">{t('resumeQuality.noSuggestions')}</p>
         )}
       </section>
+    </div>
+  )
+}
+
+function ScoreRing({ score, label }: { score: number; label: string }) {
+  const radius = 36
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference * (1 - Math.min(100, Math.max(0, score)) / 100)
+  return (
+    <div className="relative h-24 w-24 shrink-0">
+      <svg className="h-24 w-24 -rotate-90" viewBox="0 0 88 88" aria-hidden="true">
+        <circle cx="44" cy="44" r={radius} fill="none" className="stroke-slate-200" strokeWidth="8" />
+        <circle
+          cx="44"
+          cy="44"
+          r={radius}
+          fill="none"
+          className="stroke-accent"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <p className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-ink">{label}</p>
     </div>
   )
 }

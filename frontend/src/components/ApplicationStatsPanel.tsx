@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { getJobApplicationStats } from '../api/jobs'
 import type { JobApplicationStatsResponse } from '../api/types'
 import { Alert } from './Alert'
+import { EmptyState } from './EmptyState'
+import { LoadingSkeleton } from './ui/LoadingSkeleton'
+import { StatCard } from './ui/StatCard'
+import { cx } from './ui/cx'
 
 const RANGES = [7, 30, 90] as const
 
@@ -16,10 +20,12 @@ export function ApplicationStatsPanel() {
   const [days, setDays] = useState<7 | 30 | 90>(30)
   const [stats, setStats] = useState<JobApplicationStatsResponse | null>(null)
   const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
     setError(false)
+    setLoading(true)
     getJobApplicationStats(days, timeZone)
       .then((response) => {
         if (!cancelled) {
@@ -32,28 +38,37 @@ export function ApplicationStatsPanel() {
           setError(true)
         }
       })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      })
     return () => {
       cancelled = true
     }
   }, [days, timeZone])
 
   const maxDaily = Math.max(1, ...(stats?.daily.map((day) => day.count) ?? [1]))
+  const hasDailyData = Boolean(stats && stats.daily.some((day) => day.count > 0))
 
   return (
-    <section className="mt-4 min-w-0 rounded-xl border border-slate-200 bg-white p-4">
+    <section className="mt-4 min-w-0 rounded-lg border border-line bg-card p-4 shadow-card">
       <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard label={t('jobs.statsToday')} value={stats?.todayCount ?? '—'} />
         <StatCard label={t('jobs.statsLast7')} value={stats?.last7DaysCount ?? '—'} />
         <StatCard label={t('jobs.statsLast30')} value={stats?.last30DaysCount ?? '—'} />
         <StatCard label={t('jobs.statsTotal')} value={stats?.totalApplied ?? '—'} />
       </div>
-      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-xs text-slate-600">
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted">
         <span>{t('jobs.statsRange')}</span>
         {RANGES.map((range) => (
           <button
             key={range}
             type="button"
-            className={`rounded-lg border px-2 py-1 ${days === range ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300'}`}
+            className={cx(
+              'rounded-md border px-2 py-1',
+              days === range ? 'border-brand bg-brand text-white' : 'border-line',
+            )}
             onClick={() => setDays(range)}
           >
             {t('jobs.statsDays', { count: range })}
@@ -61,20 +76,38 @@ export function ApplicationStatsPanel() {
         ))}
       </div>
       {error ? <div className="mt-3"><Alert message={t('jobs.statsLoadFailed')} /></div> : null}
-      {stats ? (
+      {loading && !stats ? <LoadingSkeleton className="mt-3" rows={2} label={t('common.loading')} /> : null}
+      {stats && !hasDailyData ? (
+        <div className="mt-3"><EmptyState title={t('jobs.statsEmpty')} /></div>
+      ) : null}
+      {stats && hasDailyData ? (
         <div className="mt-3 min-w-0">
-          <p className="text-xs font-medium text-slate-700">{t('jobs.statsDaily')}</p>
-          <div className="mt-2 flex h-24 min-w-0 items-end gap-px overflow-hidden">
-            {stats.daily.map((day) => (
-              <div
-                key={day.date}
-                className="min-w-0 flex-1 rounded-t bg-slate-700"
-                style={{ height: `${Math.max(day.count === 0 ? 4 : (day.count / maxDaily) * 100, 4)}%` }}
-                title={`${day.date}: ${day.count}`}
-              />
-            ))}
-          </div>
-          <ul className="mt-2 max-h-32 overflow-y-auto text-xs text-slate-600">
+          <p className="text-sm font-medium text-ink">{t('jobs.statsDaily')}</p>
+          <svg
+            className="mt-2 h-24 w-full"
+            viewBox={`0 0 ${Math.max(stats.daily.length, 1) * 8} 40`}
+            role="img"
+            aria-label={t('jobs.statsDaily')}
+            preserveAspectRatio="none"
+          >
+            {stats.daily.map((day, index) => {
+              const height = Math.max((day.count / maxDaily) * 36, day.count === 0 ? 1 : 2)
+              return (
+                <rect
+                  key={day.date}
+                  x={index * 8 + 1}
+                  y={40 - height}
+                  width="6"
+                  height={height}
+                  rx="1"
+                  className="fill-accent"
+                >
+                  <title>{`${day.date}: ${day.count}`}</title>
+                </rect>
+              )
+            })}
+          </svg>
+          <ul className="mt-2 max-h-32 overflow-y-auto text-sm text-muted">
             {stats.daily.map((day) => (
               <li key={`row-${day.date}`} className="flex justify-between gap-2">
                 <span>{day.date}</span>
@@ -85,14 +118,5 @@ export function ApplicationStatsPanel() {
         </div>
       ) : null}
     </section>
-  )
-}
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="min-w-0 rounded-lg bg-slate-50 px-3 py-2">
-      <p className="truncate text-xs text-slate-500">{label}</p>
-      <p className="text-lg font-semibold text-slate-900">{value}</p>
-    </div>
   )
 }

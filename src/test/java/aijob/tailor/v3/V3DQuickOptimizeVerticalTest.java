@@ -156,14 +156,17 @@ class V3DQuickOptimizeVerticalTest {
         verify(tailorProposalMapper, never()).insert(any());
         verify(aiResumeService, never()).generateConstrainedTailorCandidates(any(), any(), any(), any());
 
-        String flow = Files.readString(Path.of("frontend/src/tailor/runTailorFlow.ts"), StandardCharsets.UTF_8);
-        assertTrue(flow.contains("getResumeStructure"));
-        assertTrue(flow.contains("canonicalizeResume"));
-        assertTrue(flow.contains("tailorResume(jobId, tailorResumeId, 'CONSERVATIVE')"));
-        assertFalse(flow.contains("createTailorProposal"));
+        // The website's Resume Rewrite no longer uses this endpoint: Free has its own
+        // /resume-rewrites/free call and never touches job matching. The endpoint itself
+        // stays for the mobile app's CONSERVATIVE tailoring.
         String page = Files.readString(Path.of("frontend/src/pages/TailorPage.tsx"), StandardCharsets.UTF_8);
-        assertTrue(page.contains("runTailorFlow"));
-        assertTrue(page.contains("tailorResume"));
+        assertTrue(page.contains("getResumeStructure"));
+        assertTrue(page.contains("canonicalizeResume"));
+        assertTrue(page.contains("createFreeRewrite"));
+        assertFalse(page.contains("tailorResume("));
+        assertFalse(page.contains("analyzeTailorFit"));
+        String rewriteApi = Files.readString(Path.of("frontend/src/api/resumeRewrite.ts"), StandardCharsets.UTF_8);
+        assertTrue(rewriteApi.contains("endpoints.resumeRewriteFree"));
         String jobSource = Files.readString(
                 Path.of("src/main/java/aijob/service/impl/JobServiceImpl.java"), StandardCharsets.UTF_8);
         assertTrue(jobSource.contains("v3BasicTailorService.run(nodes, jobDescription)"));
@@ -174,8 +177,8 @@ class V3DQuickOptimizeVerticalTest {
 
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("callGraph", List.of(
-                "frontend Quick Optimize click",
-                "runTailorFlow: PDF getResumeStructure then canonicalizeResume",
+                "mobile CONSERVATIVE tailor (website Resume Rewrite uses /resume-rewrites instead)",
+                "PDF: getResumeStructure then canonicalizeResume",
                 "POST /jobs/{jobId}/tailor?resumeId=&mode=CONSERVATIVE",
                 "AIJOB_TAILOR_ENGINE=V3",
                 "JobServiceImpl.tailorResumeV3Basic",
@@ -262,6 +265,11 @@ class V3DQuickOptimizeVerticalTest {
             calls.incrementAndGet();
             last = inner.createTailoredDocx(originalDocx, changes, userId, jobId);
             return last;
+        }
+
+        @Override
+        public Path createTailoredDocx(Path originalDocx, List<TailorChange> changes, Path outputPath) {
+            return inner.createTailoredDocx(originalDocx, changes, outputPath);
         }
     }
 

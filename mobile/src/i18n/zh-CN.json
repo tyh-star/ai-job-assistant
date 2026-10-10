@@ -1,0 +1,1190 @@
+{
+  "brand": "AI Job Assistant",
+  "common": {
+    "loading": "加载中…",
+    "saving": "保存中…",
+    "error": "出错了",
+    "retry": "重试",
+    "close": "关闭",
+    "yes": "确定",
+    "no": "取消",
+    "processing": "处理中…"
+  },
+  "errors": {
+    "requestFailed": "请求失败，请稍后重试。",
+    "unauthorized": "登录已过期，请重新登录。",
+    "forbidden": "没有权限执行该操作。",
+    "notFound": "未找到该资源。",
+    "conflict": "数据冲突，请检查后重试。",
+    "emailExists": "该邮箱已被注册。",
+    "badRequest": "请求无效，请检查填写内容。",
+    "weakPassword": "密码不符合强度要求。",
+    "network": "网络异常，请检查连接。",
+    "rateLimited": "请求过于频繁，请稍后再试。",
+    "serviceUnavailable": "服务暂时不可用，请稍后再试。",
+    "detailGone": "这个职位的详情已经失效，可能刚刚下架。"
+  },
+  "auth": {
+    "loginTitle": "登录",
+    "registerTitle": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "name": "姓名",
+    "submitLogin": "登录",
+    "submitRegister": "创建账号",
+    "noAccount": "还没有账号？",
+    "hasAccount": "已有账号？",
+    "goRegister": "去注册",
+    "goLogin": "去登录",
+    "emailRequired": "请输入邮箱",
+    "emailInvalid": "邮箱格式不正确",
+    "passwordRequired": "请输入密码",
+    "sessionExpired": "登录状态已过期，请重新登录。",
+    "loginRequired": "登录后即可使用此功能。",
+    "invalidCredentials": "邮箱或密码不正确。",
+    "passwordMin": "密码至少 8 位",
+    "passwordRulesLabel": "密码要求",
+    "passwordMeetsRequirements": "密码强度符合要求",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码",
+    "passwordRule": {
+      "length": "长度为 8–72 个字符",
+      "upper": "至少 1 个大写字母",
+      "lower": "至少 1 个小写字母",
+      "digit": "至少 1 个数字",
+      "special": "至少 1 个特殊字符",
+      "noSpaceOrControl": "不能包含空格或控制字符"
+    },
+    "nameRequired": "请输入姓名",
+    "tagline": "简历、职位和投递进度，在手机上随时继续。",
+    "notice": {
+      "passwordChanged": "密码已修改。为了安全，请用新密码重新登录。",
+      "accountDeleted": "账户已注销。",
+      "sessionStoreFailed": "邮箱已修改，但这台手机没能保存新的登录状态，请用新邮箱重新登录。"
+    },
+    "browse": "先不登录，随便看看"
+  },
+  "nav": {
+    "logout": "退出登录",
+    "jobs": "职位",
+    "resumes": "简历",
+    "profile": "个人中心",
+    "tailor": "简历改写"
+  },
+  "dashboard": {
+    "welcome": "你好，{{name}}",
+    "subtitle": "继续管理你的简历和求职进度。",
+    "newSubtitle": "从一份简历开始你的求职准备。",
+    "resumeCenter": "简历中心",
+    "manageAll": "管理全部",
+    "updatedOn": "更新于 {{date}}",
+    "readyStatus": "内容完整，可继续针对职位优化",
+    "tailorByJob": "按职位改写",
+    "editResume": "编辑简历",
+    "createResume": "创建简历",
+    "qualityScore": "查看简历质量评分",
+    "noResumes": "还没有简历。",
+    "jobs": "职位",
+    "savedBadge": "{{n}} 个已收藏",
+    "findJobs": "查找职位",
+    "continueSaved": "继续处理收藏",
+    "viewJob": "查看职位",
+    "noSaved": "还没有收藏的职位。",
+    "recentApplied": "最近投递",
+    "viewAll": "查看全部",
+    "noApplied": "还没有投递记录。",
+    "reload": "重新加载",
+    "errorTitle": "无法加载工作台",
+    "errorBody": "这次没有取到数据，可能是网络问题或会话已过期。",
+    "resumeFailed": "简历暂时无法加载。",
+    "jobsFailed": "职位数据暂时无法加载。",
+    "templates": {
+      "STUDENT": "学生模板",
+      "INTERNSHIP": "实习模板",
+      "EXPERIENCED": "经验模板",
+      "CAREER_CHANGE": "转行模板",
+      "TECHNICAL": "技术岗模板",
+      "GENERIC_ATS": "通用 ATS 模板"
+    },
+    "onboardTitle": "开始你的求职工作台",
+    "onboardBody": "按下面三步走一遍，投递、搜索和简历就会汇总到这里。",
+    "onboardProgress": "0 / 3 已完成",
+    "currentStep": "当前步骤",
+    "step1Title": "创建或上传简历",
+    "step1Body": "用简历生成器新建一份，或上传已有的 PDF 简历。",
+    "step2Title": "查找并收藏职位",
+    "step2Body": "搜索职位并收藏合适的，收藏后会出现在职位列表里。",
+    "step3Title": "记录投递并按职位改写简历",
+    "step3Body": "投递后标记为已投递，并针对该职位描述改写简历。",
+    "createOrUpload": "创建或上传简历",
+    "altFindJobs": "也可以先查找职位"
+  },
+  "comingSoon": {
+    "title": "即将在 App 中推出",
+    "body": "这部分会在下一批开发中加入。现在可以先在网站上使用。",
+    "back": "返回控制台"
+  },
+  "account": {
+    "menuHint": "账户",
+    "cancel": "取消"
+  },
+  "tabs": {
+    "dashboard": "控制台",
+    "jobs": "职位",
+    "resumes": "简历",
+    "tailor": "改写",
+    "profile": "我的"
+  },
+  "jobs": {
+    "title": "职位",
+    "segments": {
+      "label": "职位分类",
+      "catalog": "职位库",
+      "saved": "已收藏",
+      "applied": "已投递"
+    },
+    "search": {
+      "keywordLabel": "关键词",
+      "keywordPlaceholder": "职位名称、公司或关键词",
+      "cityLabel": "城市",
+      "cityPlaceholder": "输入城市，至少 2 个字",
+      "cityLoading": "正在查找城市…",
+      "cityFailed": "城市查询暂时不可用，可以先不选城市搜索。",
+      "cityEmpty": "没有匹配的城市",
+      "cityClear": "清除城市",
+      "submit": "搜索",
+      "clear": "清除筛选"
+    },
+    "results": {
+      "count": "共 {{count}} 个职位",
+      "allLoaded": "已显示全部 {{count}} 个职位",
+      "loadMore": "加载更多",
+      "loadMoreFailed": "下一页没有加载成功。",
+      "refreshFailed": "刷新没有成功，下面是上次的结果。",
+      "emptyTitle": "没有找到符合条件的职位",
+      "emptyBody": "换个关键词，或清除城市后再试。",
+      "errorTitle": "职位搜索暂时不可用"
+    },
+    "card": {
+      "postedOn": "发布于 {{date}}",
+      "savedOn": "收藏于 {{date}}",
+      "appliedOn": "投递于 {{date}}"
+    },
+    "badge": {
+      "saved": "已收藏",
+      "applied": "已投递",
+      "expired": "已下线"
+    },
+    "remote": {
+      "REMOTE": "远程",
+      "HYBRID": "混合",
+      "ONSITE": "现场"
+    },
+    "employment": {
+      "FULL_TIME": "全职",
+      "PART_TIME": "兼职",
+      "CONTRACT": "合同",
+      "INTERNSHIP": "实习",
+      "TEMPORARY": "临时",
+      "OTHER": "其他"
+    },
+    "salary": {
+      "range": "{{min}}–{{max}} {{currency}}",
+      "from": "{{min}} {{currency}} 起",
+      "upTo": "最高 {{max}} {{currency}}"
+    },
+    "source": {
+      "FREEHIRE": "职位库",
+      "JOB_CATALOG": "职位库",
+      "MANUAL": "手动添加",
+      "GREENHOUSE": "Greenhouse",
+      "ADZUNA": "Adzuna",
+      "JSEARCH": "JSearch"
+    },
+    "saved": {
+      "emptyTitle": "还没有收藏的职位",
+      "emptyBody": "在职位库里收藏感兴趣的职位，会集中显示在这里。"
+    },
+    "applied": {
+      "emptyTitle": "还没有投递记录",
+      "emptyBody": "在职位详情里标记已投递后，会显示在这里。"
+    },
+    "mine": {
+      "errorTitle": "职位数据暂时无法加载"
+    },
+    "goCatalog": "去职位库",
+    "retry": "重试",
+    "detail": {
+      "back": "返回",
+      "location": "地点",
+      "workMode": "工作方式",
+      "employment": "职位类型",
+      "posted": "发布时间",
+      "salary": "薪资",
+      "source": "来源",
+      "savedAt": "收藏时间",
+      "appliedAt": "投递时间",
+      "description": "职位描述",
+      "noDescription": "这个职位没有提供描述。",
+      "expand": "展开全文",
+      "collapse": "收起",
+      "openOriginal": "查看原始职位",
+      "loadFailedTitle": "职位详情暂时无法加载",
+      "goneTitle": "这个职位已经失效",
+      "goneBody": "它可能刚刚下架，请回到列表重新搜索。",
+      "notFoundTitle": "找不到这条职位记录",
+      "notFoundBody": "它可能已经被删除。",
+      "recordHint": "这是你保存的职位记录"
+    },
+    "actions": {
+      "save": "收藏职位",
+      "unsave": "取消收藏",
+      "markApplied": "标记已投递",
+      "clearApplied": "取消已投递",
+      "delete": "删除这条记录"
+    },
+    "confirm": {
+      "cancel": "取消",
+      "markAppliedTitle": "你已经提交申请了吗？",
+      "markAppliedBody": "只有真正提交申请后再标记。还没收藏的职位会同时加入已收藏。",
+      "markAppliedYes": "是，已投递",
+      "clearAppliedTitle": "取消已投递标记？",
+      "clearAppliedBody": "这条职位会回到已收藏。",
+      "clearAppliedYes": "取消标记",
+      "unsaveTitle": "取消收藏？",
+      "unsaveBody": "这会删除你的这条职位记录，已投递状态也会一起删除。",
+      "unsaveYes": "取消收藏",
+      "deleteTitle": "删除这条职位记录？",
+      "deleteBody": "删除后会从已收藏和已投递中移除，投递状态也会一起删除。",
+      "deleteYes": "删除"
+    },
+    "flash": {
+      "saved": "已收藏",
+      "unsaved": "已取消收藏",
+      "markedApplied": "已标记为已投递",
+      "clearedApplied": "已取消已投递标记",
+      "failed": "操作没有成功：{{reason}}"
+    }
+  },
+  "resumes": {
+    "title": "简历",
+    "segments": {
+      "label": "简历分类",
+      "files": "上传的简历",
+      "drafts": "生成简历"
+    },
+    "upload": "上传简历",
+    "uploadHint": "支持 PDF 或 DOCX，单个文件不超过 10MB。",
+    "files": {
+      "emptyTitle": "还没有上传的简历",
+      "emptyBody": "上传一份 PDF 或 DOCX，之后可以查看质量评分并下载。",
+      "errorTitle": "简历暂时无法加载",
+      "updatedOn": "更新于 {{date}}",
+      "origin": {
+        "UPLOAD": "已上传",
+        "GENERATED": "在线生成"
+      },
+      "status": {
+        "ready": "可用",
+        "needsReview": "待确认内容",
+        "unavailable": "文件不可用"
+      },
+      "explain": "这里是上传或生成的文件：可以下载、查看质量评分；想针对职位改写，请到底部「改写」标签选择这份文件。文件本身不能在线编辑。"
+    },
+    "drafts": {
+      "emptyTitle": "还没有生成的简历",
+      "emptyBody": "创建你的第一份简历",
+      "errorTitle": "生成的简历暂时无法加载",
+      "untitled": "未命名简历",
+      "noTargetRole": "未填写目标职位",
+      "explain": "这里是可以继续编辑的在线简历：点「编辑简历」修改内容，生成的 Word 文件会出现在「上传的简历」里。",
+      "serverHint": "可能是线上服务器还没有部署在线创建简历功能；上传的简历不受影响。"
+    },
+    "templates": {
+      "STUDENT": "学生模板",
+      "INTERNSHIP": "实习模板",
+      "EXPERIENCED": "经验模板",
+      "CAREER_CHANGE": "转行模板",
+      "TECHNICAL": "技术岗模板",
+      "GENERIC_ATS": "通用 ATS 模板"
+    },
+    "pick": {
+      "confirmTitle": "确认上传这份简历？",
+      "size": "大小",
+      "type": "类型",
+      "cancel": "取消",
+      "submit": "上传",
+      "uploading": "正在上传… {{percent}}%",
+      "uploadingNoProgress": "正在上传…",
+      "pickFailed": "无法打开文件选择器，请稍后再试。"
+    },
+    "problem": {
+      "noName": "无法读取文件名，请换一个文件。",
+      "badType": "只支持 PDF 或 DOCX 文件。",
+      "badMime": "文件内容类型不是 PDF 或 DOCX，请确认后重新选择。",
+      "empty": "这个文件是空的，请换一个文件。",
+      "tooLarge": "文件超过 10MB，请压缩后再上传。",
+      "unknownSize": "无法读取文件大小，请换一个文件。"
+    },
+    "flash": {
+      "uploaded": "已上传：{{name}}",
+      "uploadFailed": "上传没有成功：{{reason}}",
+      "shared": "文件已准备好，可以分享或打开",
+      "downloadFailed": "下载没有成功：{{reason}}",
+      "deleted": "已删除这份简历",
+      "deleteFailed": "删除没有成功：{{reason}}"
+    },
+    "detail": {
+      "back": "返回",
+      "fileType": "类型",
+      "origin": "来源",
+      "status": "状态",
+      "createdAt": "上传时间",
+      "updatedAt": "更新时间",
+      "quality": "查看质量评分",
+      "download": "下载并分享",
+      "downloading": "正在下载…",
+      "delete": "删除简历",
+      "unavailableHint": "服务器上找不到这份简历的文件，暂时无法下载。",
+      "notFoundTitle": "找不到这份简历",
+      "notFoundBody": "它可能已经被删除。",
+      "loadFailedTitle": "简历详情暂时无法加载",
+      "confirmStructure": "确认识别结果",
+      "fileHint": "这是一个文件，不能直接在线编辑。想针对职位调整内容，请到底部「改写」标签选择职位和这份简历，生成新文件。",
+      "structureHint": "修改的是从 PDF 识别出的文字，原 PDF 文件不会改变。"
+    },
+    "draft": {
+      "template": "模板",
+      "targetRole": "目标职位",
+      "language": "语言",
+      "updatedAt": "更新时间",
+      "version": "版本",
+      "contact": "联系信息",
+      "fullName": "姓名",
+      "email": "邮箱",
+      "phone": "电话",
+      "city": "城市",
+      "sections": "已填写的章节",
+      "noSections": "还没有填写任何章节。",
+      "sectionCount": "{{count}} 项",
+      "ready": "内容完整，可继续针对职位优化",
+      "notReady": "还缺少姓名、联系方式或目标职位",
+      "notFoundTitle": "找不到这份生成的简历",
+      "loadFailedTitle": "生成的简历暂时无法加载",
+      "section": {
+        "education": "教育经历",
+        "experience": "工作经历",
+        "projects": "项目经历",
+        "skillCategories": "技能",
+        "certifications": "证书",
+        "languages": "语言",
+        "volunteer": "志愿经历",
+        "leadership": "领导经历",
+        "publications": "出版物",
+        "customSections": "自定义章节"
+      }
+    },
+    "confirm": {
+      "deleteTitle": "删除这份简历？",
+      "deleteBody": "删除后无法恢复。",
+      "deleteFamilyBody": "将同时删除原 PDF 和系统为改写生成的内部 Word 文件，删除后无法恢复。",
+      "deleteYes": "删除",
+      "cancel": "取消"
+    },
+    "errors": {
+      "shareUnavailable": "这台设备不支持系统分享。",
+      "unreadable": "文件格式无法读取，请上传可提取文字的 PDF 或 DOCX。"
+    },
+    "retry": "重试",
+    "structure": {
+      "title": "确认识别结果",
+      "hint": "核对从 PDF 识别出的文字。只保留简历上真实存在的内容，没有识别到的可以留空。",
+      "pdfUnchanged": "这里保存的是识别结果，原 PDF 文件不会被修改。之后改写会用保存后的识别结果重新生成内部 Word 副本；之前基于旧识别结果的待确认建议不能再确认。",
+      "recognizing": "正在读取识别结果。第一次打开时服务器需要识别这份 PDF，可能需要一两分钟…",
+      "notFoundTitle": "找不到这份简历",
+      "unsupported": "只有 PDF 简历有识别结果。",
+      "loadFailedTitle": "识别结果暂时无法加载",
+      "contact": "联系信息",
+      "fullName": "姓名（必填）",
+      "email": "邮箱",
+      "phone": "电话",
+      "location": "地点",
+      "links": "链接",
+      "onePerLine": "每行一条",
+      "summary": "摘要要点",
+      "skills": "技能",
+      "experience": "经历",
+      "company": "公司",
+      "jobTitle": "职位",
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "bullets": "要点",
+      "projects": "项目",
+      "projectName": "项目名称",
+      "organization": "组织 / 类型",
+      "dates": "日期",
+      "education": "教育",
+      "school": "学校",
+      "degree": "学位",
+      "details": "详情",
+      "unassigned": "未归类文本",
+      "unassignedHint": "这些文字没有归入任何栏目，只供对照；需要的内容请填到对应栏目里。",
+      "experienceItem": "经历 {{n}}",
+      "projectItem": "项目 {{n}}",
+      "educationItem": "教育 {{n}}",
+      "addExperience": "添加经历",
+      "addProject": "添加项目",
+      "addEducation": "添加教育",
+      "remove": "删除",
+      "removeTitle": "删除这一项？",
+      "removeBody": "保存识别结果后才会生效。",
+      "removeYes": "删除",
+      "cancel": "取消",
+      "fullNameRequired": "姓名不能为空",
+      "needsContent": "改写还需要至少一项技能，或一条经历 / 项目要点；否则准备可编辑简历时会失败。",
+      "save": "保存识别结果",
+      "saving": "正在保存…",
+      "saved": "识别结果已保存。",
+      "savedTailor": "识别结果已保存。回到改写后请重新开始，App 不会自动改写。",
+      "saveFailed": "识别结果没有保存：{{reason}} 你的修改都已保留。",
+      "continueTailor": "返回改写"
+    }
+  },
+  "quality": {
+    "title": "简历质量评分",
+    "scoreOutOf": "{{score}} / 100",
+    "rubric": "评分规则 {{version}}",
+    "disclaimer": "这是简历结构与内容完整度评分，不是录用概率，也不是职位匹配分数。",
+    "categoriesTitle": "分项得分",
+    "categoryScore": "{{score}} / {{max}}",
+    "strengthsTitle": "优点",
+    "suggestionsTitle": "改进建议",
+    "noStrengths": "暂时没有突出的优点，可以先参考改进建议。",
+    "noSuggestions": "暂无具体建议，这份简历在各项规则上表现良好。",
+    "unscorableTitle": "暂时无法评分",
+    "errorTitle": "评分暂时无法加载",
+    "level": {
+      "EXCELLENT": "优秀",
+      "GOOD": "良好",
+      "NEEDS_WORK": "待改进",
+      "WEAK": "较弱"
+    },
+    "category": {
+      "STRUCTURE": "结构与章节完整性",
+      "EXPERIENCE": "经历与项目清晰度",
+      "ACHIEVEMENTS": "可量化成果",
+      "SKILLS": "技能",
+      "READABILITY": "可读性与格式一致性"
+    },
+    "strength": {
+      "STRUCTURE_COMPLETE": "结构完整，章节齐全",
+      "EXPERIENCE_WELL_DESCRIBED": "经历与项目描述清晰",
+      "QUANTIFIED_ACHIEVEMENTS": "成果有具体数字支撑",
+      "FOCUSED_SKILLS_LIST": "技能列表精炼聚焦",
+      "CONSISTENT_FORMATTING": "格式全文一致"
+    },
+    "suggestion": {
+      "ADD_CONTACT_INFO": "在简历顶部添加联系方式（邮箱或电话）",
+      "ADD_EXPERIENCE_OR_PROJECTS_SECTION": "添加工作经历或项目经历章节",
+      "ADD_EDUCATION_SECTION": "添加教育经历章节",
+      "ADD_SKILLS_SECTION": "添加技能章节",
+      "ADD_MORE_DESCRIPTIVE_DETAIL": "为经历或项目条目补充更具体的描述",
+      "QUANTIFY_ACHIEVEMENTS": "为你的成果添加具体数字或百分比",
+      "EXPAND_SKILLS_LIST": "列出更多你实际掌握的技能",
+      "SHORTEN_LONG_BULLETS": "精简过长的条目或段落",
+      "USE_CONSISTENT_DATE_FORMAT": "全文使用统一的日期格式"
+    },
+    "reason": {
+      "TEXT_NOT_AVAILABLE": "未能从这份简历中提取到文字内容（常见于纯图片扫描件）。请重新上传可提取文字的 PDF 或 DOCX 文件。"
+    }
+  },
+  "profile": {
+    "title": "我的",
+    "memberSince": "注册于 {{date}}",
+    "loadFailedTitle": "账户信息暂时无法加载",
+    "cancel": "取消",
+    "sections": {
+      "account": "账户",
+      "language": "语言",
+      "feedback": "网站评价"
+    },
+    "name": {
+      "title": "修改姓名",
+      "label": "姓名",
+      "save": "保存姓名",
+      "saved": "姓名已更新。",
+      "required": "请输入姓名。",
+      "tooLong": "姓名不能超过 100 个字符。"
+    },
+    "email": {
+      "title": "修改邮箱",
+      "hint": "修改邮箱需要验证当前密码。成功后这台手机会自动更新登录状态；网站和 App 共用这个账户，之后都要用新邮箱登录。",
+      "currentPassword": "当前密码",
+      "newEmail": "新邮箱",
+      "save": "保存邮箱",
+      "saved": "邮箱已更新。"
+    },
+    "password": {
+      "title": "修改密码",
+      "subtitle": "修改后需要重新登录",
+      "hint": "修改后，网站和 App 上所有已登录的设备都需要用新密码重新登录。",
+      "current": "当前密码",
+      "new": "新密码",
+      "save": "保存密码"
+    },
+    "language": {
+      "label": "界面语言",
+      "saveFailed": "语言已切换，但没能保存这个选择，下次打开可能恢复为系统语言。"
+    },
+    "logout": {
+      "button": "退出登录",
+      "confirmTitle": "退出登录？",
+      "confirmBody": "退出后需要重新登录才能查看你的简历和职位。",
+      "confirmYes": "退出"
+    },
+    "danger": {
+      "title": "注销账户",
+      "body": "这会注销网站和 App 共用的账户，不只是退出这台手机上的登录。",
+      "open": "注销账户",
+      "scopeTitle": "注销后会发生什么",
+      "removes": "会删除：账户信息、上传简历的记录、保存和投递的职位、生成简历的草稿、网站评价和职位搜索记录。",
+      "keeps": "不在删除范围内：服务器上已保存的简历文件，以及职位改写生成的建议和补充的经历记录。",
+      "irreversible": "此操作无法撤销。",
+      "confirm": "永久注销账户",
+      "finalTitle": "最后确认",
+      "finalBody": "确定要永久注销 {{email}} 这个账户吗？",
+      "finalYes": "注销",
+      "failed": "注销没有成功，账户仍然保留：{{reason}}"
+    },
+    "errors": {
+      "incorrectPassword": "当前密码不正确。"
+    },
+    "flash": {
+      "nameFailed": "姓名没有更新：{{reason}}",
+      "emailFailed": "邮箱没有更新：{{reason}}",
+      "passwordFailed": "密码没有修改：{{reason}}"
+    }
+  },
+  "feedback": {
+    "loadFailed": "评价暂时无法加载",
+    "none": "你还没有评价。",
+    "current": "你的评分：{{rating}} 星 · 更新于 {{date}}",
+    "ratingLabel": "评分",
+    "star": "{{count}} 星",
+    "ratingRequired": "请选择 1-5 星评分。",
+    "commentLabel": "评价（可选）",
+    "commentPlaceholder": "你喜欢什么，或者我们应该改进什么？",
+    "remaining": "还可输入 {{count}} 字",
+    "submit": "提交评价",
+    "update": "更新评价",
+    "delete": "删除评价",
+    "deleteConfirmTitle": "删除你的评价？",
+    "deleteConfirmBody": "删除后无法恢复。",
+    "deleteYes": "删除",
+    "thankYou": "感谢你的评价！",
+    "updated": "你的评价已更新。",
+    "deleted": "你的评价已删除。",
+    "failed": "评价没有保存：{{reason}}",
+    "deleteFailed": "评价没有删除：{{reason}}"
+  },
+  "builder": {
+    "untitled": "未命名简历",
+    "list": {
+      "create": "新建简历",
+      "hint": "逐项填写你的真实经历，保存后可以生成 Word 简历。"
+    },
+    "create": {
+      "title": "新建简历",
+      "intro": "先选择模板和简历语言，之后再逐项填写。不会自动填入任何内容。",
+      "titleLabel": "简历标题（可选）",
+      "submit": "创建并开始填写",
+      "submitting": "正在创建…",
+      "failed": "没有创建成功：{{reason}}"
+    },
+    "templateHints": {
+      "GENERIC_ATS": "建议栏目：职业总结、技能、工作经历、教育背景、证书与奖项、语言能力。",
+      "STUDENT": "建议栏目：教育背景、相关课程、项目经历、实习经历、志愿者经历、社团与领导经历、技能。",
+      "INTERNSHIP": "建议栏目：教育背景、技能、项目经历、实习经历、志愿者经历。",
+      "EXPERIENCED": "建议栏目：职业总结、核心能力、工作经历、主要成果、证书与奖项、教育背景。",
+      "CAREER_CHANGE": "建议栏目：职业总结、可迁移技能、相关经历、项目经历、培训与证书、教育背景。",
+      "TECHNICAL": "建议栏目：技术技能、工作经历、项目经历、GitHub/作品集链接、教育背景、技术证书。"
+    },
+    "templateNote": "切换模板不会删除已经填写的内容。",
+    "locales": {
+      "zh-CN": "中文",
+      "en": "English"
+    },
+    "linkTypes": {
+      "LINKEDIN": "LinkedIn",
+      "PORTFOLIO": "作品集",
+      "GITHUB": "GitHub",
+      "PERSONAL_WEBSITE": "个人网站",
+      "BEHANCE": "Behance",
+      "OTHER": "其他"
+    },
+    "linksHint": "只添加你希望出现在简历上的链接，空白链接不会写入简历。",
+    "sections": {
+      "settings": "简历设置",
+      "basicInfo": "基本信息",
+      "professionalLinks": "专业链接",
+      "jobTarget": "任职意向",
+      "skills": "技能",
+      "experience": "工作经历",
+      "education": "教育背景",
+      "projects": "项目经历",
+      "volunteer": "志愿者经历",
+      "certifications": "证书与奖项",
+      "languages": "语言能力",
+      "leadership": "社团与领导经历",
+      "publications": "出版物",
+      "hobbies": "兴趣爱好",
+      "customSections": "自定义栏目"
+    },
+    "fields": {
+      "title": "简历标题",
+      "templateType": "模板",
+      "locale": "简历语言",
+      "fullName": "姓名",
+      "city": "城市",
+      "country": "国家",
+      "phone": "电话",
+      "email": "邮箱",
+      "legallyEligibleToWork": "拥有当地合法工作资格",
+      "linkType": "链接类型",
+      "linkLabel": "显示名称（可选）",
+      "linkUrl": "链接",
+      "targetTitle": "目标职位",
+      "jobLevel": "职级",
+      "targetIndustry": "目标行业",
+      "workMode": "工作方式",
+      "targetCity": "目标城市",
+      "careerSummary": "职业总结",
+      "school": "学校",
+      "degree": "学位",
+      "major": "专业",
+      "startDate": "开始日期",
+      "endDate": "结束（或预计毕业）日期",
+      "gpa": "GPA（选填）",
+      "honors": "荣誉（选填）",
+      "courses": "相关课程",
+      "company": "公司",
+      "jobTitle": "职位",
+      "location": "地点",
+      "current": "目前仍在此工作",
+      "responsibilities": "工作职责",
+      "toolsUsed": "使用工具",
+      "outcomes": "成果 / 量化结果",
+      "projectName": "项目名称",
+      "purpose": "项目目的",
+      "actualDuration": "实际耗时",
+      "role": "担任角色",
+      "teamSize": "团队规模",
+      "userCount": "覆盖人数",
+      "techStack": "工具或方法",
+      "features": "要点",
+      "challenges": "遇到的挑战",
+      "solutions": "解决方案",
+      "githubUrl": "项目或作品集链接",
+      "demoUrl": "演示或相关链接",
+      "organization": "组织 / 机构",
+      "serviceHours": "服务时长",
+      "workContent": "工作内容",
+      "impact": "影响 / 成果",
+      "certificateName": "证书 / 奖项名称",
+      "issuer": "颁发机构",
+      "issueDate": "颁发日期",
+      "expiryDate": "过期日期（选填）",
+      "credentialId": "证书编号（选填）",
+      "credentialUrl": "证书链接（选填）",
+      "language": "语言",
+      "proficiency": "熟练程度",
+      "description": "描述",
+      "publicationTitle": "标题",
+      "venue": "发表平台",
+      "date": "日期",
+      "authors": "作者",
+      "url": "链接",
+      "categoryName": "分类名称",
+      "skills": "技能",
+      "customSectionTitle": "栏目标题",
+      "customSectionItems": "条目"
+    },
+    "sectionCount": "{{count}} 条",
+    "showOnResume": "在简历中显示",
+    "emptySection": "还没有内容。",
+    "entryFallback": "第 {{index}} 条",
+    "addEntry": "添加一条",
+    "addCategory": "添加技能分类",
+    "addLink": "添加专业链接",
+    "addCustomSection": "添加自定义栏目",
+    "remove": "删除",
+    "maxReached": "已达到上限 {{max}} 条",
+    "hints": {
+      "lines": "每行一条",
+      "date": "格式 YYYY-MM 或 YYYY-MM-DD；仍在进行可填“至今”",
+      "ownWords": "用你自己的话写，只写真实经历。"
+    },
+    "confirmRemove": {
+      "title": "删除这一条？",
+      "body": "保存后才会从简历中删除。",
+      "cancel": "取消"
+    },
+    "confirmReload": {
+      "title": "重新加载？",
+      "body": "会放弃你在这里还没有保存的修改，并显示服务器上保存的版本。"
+    },
+    "status": {
+      "saving": "正在保存…",
+      "saved": "已保存",
+      "dirty": "有未保存的修改",
+      "failed": "保存失败",
+      "conflict": "保存冲突"
+    },
+    "actions": {
+      "save": "保存",
+      "saving": "保存中…",
+      "generate": "生成简历",
+      "generating": "正在生成…",
+      "reload": "重新加载",
+      "confirmPrevious": "确认上一次生成",
+      "generateNew": "生成新版本"
+    },
+    "notice": {
+      "conflict": "这份简历已在网站或其他设备上更新，你在这里的修改没有保存。重新加载会放弃这里的修改。",
+      "saveFailed": "保存没有成功：{{reason}} 填写的内容仍保留，可以再次保存。",
+      "invalid": "有 {{count}} 处内容需要修改后才能保存。"
+    },
+    "missing": {
+      "name": "姓名",
+      "contact": "联系方式（邮箱或电话）",
+      "target": "目标职位"
+    },
+    "generate": {
+      "title": "生成 Word 简历",
+      "intro": "根据已保存的内容生成 DOCX 文件，只使用你填写的信息。",
+      "missing": "生成前还需要填写：{{items}}",
+      "savesFirst": "有未保存的修改，生成前会先保存。",
+      "running": "正在生成简历，请稍候…",
+      "done": "简历已生成：{{name}}",
+      "doneBody": "文件已加入「上传的简历」列表，标记为「在线生成」。",
+      "failed": "生成没有成功：{{reason}}",
+      "unknown": "暂时无法确认简历是否已经生成（{{reason}}）。",
+      "viewFiles": "查看简历列表",
+      "openFile": "查看文件",
+      "restored": "上一次生成请求的结果还没有确认。",
+      "confirmHint": "「确认上一次生成」会沿用同一个请求：如果文件已经生成，会返回那份文件，不会再创建一份。",
+      "staleHint": "上一次请求之后内容已经修改，不能再按原请求确认。请先在简历列表中查看是否已经生成；「生成新版本」会用当前内容新建文件。",
+      "previousDone": "修改前生成的文件：{{name}}",
+      "previousDoneBody": "这份文件不包含之后的修改。要包含修改，请保存后再生成。"
+    },
+    "leave": {
+      "unsavedTitle": "放弃未保存的修改？",
+      "unsavedBody": "离开后，这次没有保存的修改会丢失。",
+      "busyTitle": "请求还没有完成",
+      "busyBody": "离开不会取消已经发出的请求，但你将看不到结果。之后可以在简历列表中查看。",
+      "leave": "离开",
+      "stay": "继续编辑"
+    },
+    "detail": {
+      "delete": "删除",
+      "deleteTitle": "删除这份简历？",
+      "deleteBody": "填写的内容删除后无法恢复。已经生成的简历文件不会被删除。",
+      "deleteFailed": "删除没有成功：{{reason}}",
+      "hint": "这是可以继续编辑的在线简历。在编辑页修改并生成 Word 文件，生成的文件会出现在「上传的简历」里。"
+    },
+    "errors": {
+      "conflict": "这份简历已在别处更新。",
+      "draftGone": "这份简历已不存在，可能已被删除。",
+      "notReady": "生成前请至少填写姓名或一种联系方式。",
+      "invalid": "内容没有通过服务器校验，请检查填写内容。",
+      "generateFailed": "服务器返回了错误。",
+      "unavailable": "服务器暂时不支持这个功能。"
+    },
+    "validation": {
+      "tooLong": "最多 {{max}} 个字符",
+      "tooManyLines": "最多 {{max}} 行",
+      "lineTooLong": "每行最多 {{max}} 个字符",
+      "illegalCharacters": "包含不允许的字符",
+      "url": "链接需要以 http:// 或 https:// 开头",
+      "wholeNumber": "请输入整数",
+      "tooLarge": "不能超过 {{max}}",
+      "date": "请使用 YYYY-MM 或 YYYY-MM-DD 格式",
+      "endBeforeStart": "结束日期不能早于开始日期",
+      "tooManyEntries": "最多 {{max}} 条"
+    },
+    "confirmNew": {
+      "title": "生成新版本？",
+      "body": "如果上一次请求其实已经生成了文件，简历列表中会多出一份。"
+    }
+  },
+  "tailor": {
+    "title": "按职位改写",
+    "intro": "选择一个已保存的职位和一份简历。改写由服务器完成，只依据简历中已有的内容。",
+    "steps": {
+      "job": "1. 选择职位",
+      "resume": "2. 选择简历",
+      "mode": "3. 选择改写模式"
+    },
+    "jobs": {
+      "empty": "还没有保存的职位。",
+      "action": "去找职位",
+      "loadFailed": "职位暂时无法加载",
+      "noDescription": "没有职位描述，无法改写"
+    },
+    "resumes": {
+      "empty": "还没有简历。",
+      "action": "去上传简历",
+      "loadFailed": "简历暂时无法加载",
+      "unavailable": "文件不可用",
+      "unsupported": "只支持 PDF 或 DOCX",
+      "pdfNote": "PDF 会先识别并转换为可编辑的 Word，再进行改写。"
+    },
+    "modes": {
+      "CONSERVATIVE": {
+        "title": "基础润色（直接生成）",
+        "body": "服务器完成改写后直接生成文件，不需要确认。"
+      },
+      "AGGRESSIVE": {
+        "title": "增强建议（确认后生成）",
+        "body": "先查看建议，确认后才生成文件；建议 24 小时内有效。"
+      },
+      "ENHANCED": {
+        "title": "深度增强（问答后审阅确认）",
+        "body": "先检查可增强内容，回答最多 5 个问题，审阅并确认建议后才生成文件。"
+      }
+    },
+    "progress": {
+      "recognizing": "正在识别 PDF…",
+      "preparing": "正在准备可编辑简历…",
+      "tailoring": "正在根据职位改写，可能需要一两分钟…"
+    },
+    "actions": {
+      "runConservative": "开始改写",
+      "runAggressive": "生成增强建议",
+      "confirm": "确认并生成文件",
+      "confirming": "正在生成文件…",
+      "discard": "放弃这份建议",
+      "check": "查询确认结果",
+      "checking": "正在查询…",
+      "again": "重新选择",
+      "retryRun": "重新改写",
+      "regenerate": "重新生成建议",
+      "retryRestore": "重新加载建议",
+      "downloadDocx": "下载 DOCX 并分享",
+      "downloadPdf": "下载 PDF",
+      "downloading": "正在下载…",
+      "runEnhanced": "检查可增强内容"
+    },
+    "preview": {
+      "title": "增强建议（尚未生成文件）",
+      "filesAfterConfirm": "确认前不会生成文件。确认会提交下面全部建议，服务器仍可能拒绝其中一部分。",
+      "expiresAt": "请在 {{time}} 前确认",
+      "expired": "这份建议已过期，不能再确认。",
+      "noChanges": "没有可以写入的建议，不会生成文件。",
+      "restored": "已恢复上次还没有确认的建议。",
+      "notConfirmed": "上次确认没有完成，这份建议仍然可以确认。"
+    },
+    "confirmDiscard": {
+      "title": "放弃这份建议？",
+      "body": "不会生成文件，之后需要重新生成建议。",
+      "yes": "放弃",
+      "no": "取消"
+    },
+    "confirmRetry": {
+      "title": "重新改写？",
+      "body": "上一次请求可能已经生成了文件，但 App 无法取回它。重新改写会再生成一份文件。"
+    },
+    "result": {
+      "title": "改写结果",
+      "fileReady": "文件已生成",
+      "appliedCount": "写入 {{count}} 条",
+      "rejectedCount": "未采用 {{count}} 条",
+      "unchanged": "没有写入任何改写，生成的文件内容与原简历相同。",
+      "pdfFailed": "PDF 导出失败，可以下载 DOCX。"
+    },
+    "status": {
+      "APPLIED": "已应用改写",
+      "NO_SUPPORTED_GAP": "没有可安全改写的重叠内容",
+      "NEEDS_USER_EVIDENCE": "需要补充事实后再改写",
+      "GENERATION_REJECTED": "改写未通过校验，已保留原文",
+      "PENDING": "待确认",
+      "CONFIRMING": "确认中",
+      "CONFIRMED": "已确认"
+    },
+    "change": {
+      "original": "原文",
+      "rewritten": "改写后",
+      "whyBetter": "为什么更好",
+      "applied": "已写入文件",
+      "notApplied": "未写入文件",
+      "noChanges": "没有可展示的改写。",
+      "quote": "证据摘录：{{quote}}",
+      "evidence": {
+        "VERIFIED": "依据：简历原文",
+        "USER_EDITED": "已由你编辑",
+        "INFERRED": "推断技能：{{skill}}。原简历中没有直接证据，请确认属实。",
+        "INFERRED_NO_SKILL": "推断内容，原简历中没有直接证据，请确认属实。"
+      }
+    },
+    "rejected": {
+      "title": "未采用的改写（{{count}}）",
+      "summary": "部分条目无法在不引入新事实的前提下改写，已保留原文。",
+      "unknownCode": "其他原因（{{code}}）"
+    },
+    "reasonCode": {
+      "EMPTY_REQUIRED_FIELD": "必填项为空",
+      "UNKNOWN_NODE_ID": "未知节点",
+      "NODE_NOT_ALLOWED": "该节点不允许改写",
+      "ORIGINAL_TEXT_MISMATCH": "原文不匹配",
+      "TEXT_UNCHANGED": "文本未变化",
+      "TEXT_TOO_LONG": "改写过长",
+      "UNKNOWN_EVIDENCE_TYPE": "未知证据类型",
+      "INFERRED_NOT_ALLOWED": "当前模式不允许推断改写",
+      "DUPLICATE_NODE_ID": "重复的节点",
+      "MAX_CHANGE_LIMIT_EXCEEDED": "超过最大改写数量",
+      "MISSING_EVIDENCE": "缺少证据",
+      "UNKNOWN_EVIDENCE_NODE_ID": "未知证据节点",
+      "EVIDENCE_QUOTE_MISMATCH": "证据摘录不匹配",
+      "UNSUPPORTED_CLAIM": "包含简历中不存在的主张",
+      "CROSS_NODE_EVIDENCE_NOT_ALLOWED": "不允许引用其他条目的证据",
+      "CROSS_ENTRY_EVIDENCE_NOT_ALLOWED": "不允许引用其他项目或工作经历的证据",
+      "LOW_VALUE_REWRITE": "改写没有实质提升表达",
+      "OPPORTUNITY_NOT_RESOLVED": "改写没有解决标记的问题",
+      "FACT_CARDINALITY_CHANGED": "改写在没有证据的情况下把单数改成了复数",
+      "INFORMATION_LOSS": "改写丢失了原有事实",
+      "SKILL_REMOVAL_NOT_ALLOWED": "不能删除已有技能",
+      "GRAMMAR_QUALITY_FAILED": "改写存在语法问题",
+      "KEYWORD_STUFFING": "改写堆砌了职位关键词",
+      "ROLE_SEMANTIC_ESCALATION": "改写夸大了角色或职责",
+      "RELATION_NOT_SUPPORTED": "改写中的关系没有证据支撑",
+      "SOURCE_FACT_WOULD_DUPLICATE": "改写会重复简历中已有的事实",
+      "UNSUPPORTED_ACTION": "改写中的行动没有证据支撑"
+    },
+    "unknown": {
+      "runCONSERVATIVE": "暂时无法确认文件是否已经生成（{{reason}}）。后端没有提供查询或取回接口，App 无法找回可能已经生成的文件。",
+      "runAGGRESSIVE": "暂时无法确认建议是否已经生成（{{reason}}）。这一步不会生成文件，可以重新生成建议。",
+      "confirm": "暂时无法确认文件是否已经生成（{{reason}}）。可以查询这份建议的状态，不会重复生成。",
+      "stillConfirming": "服务器还在确认这份建议，请稍后再查询。"
+    },
+    "gone": {
+      "expired": "这份建议已过期，没有生成文件。请重新生成建议。",
+      "unavailable": "这份建议已不可用：可能已被确认，或已经过期。",
+      "maybeConfirmed": "这份建议已不在待确认状态，文件可能已经生成，但后端没有提供取回已生成文件的接口。"
+    },
+    "failed": "改写没有成功：{{reason}}",
+    "confirmFailed": "生成文件没有成功：{{reason}} 建议仍然保留，可以再次确认。",
+    "restoreFailed": "上次的建议暂时无法加载：{{reason}}",
+    "errors": {
+      "docxOnly": "这份简历不能用于改写，请使用 DOCX 或可识别的 PDF。",
+      "incompleteRecognition": "PDF 自动识别的信息不完整，请先确认识别结果后再改写。",
+      "noDescription": "这个职位没有职位描述，无法改写。",
+      "unreadable": "简历或职位的文字无法读取。",
+      "proposalGone": "这份建议已过期或不存在。",
+      "confirmInProgress": "这份建议正在确认中。",
+      "badFileUrl": "服务器返回的文件地址无效。",
+      "unexpected": "服务器返回了无法识别的结果。"
+    },
+    "flash": {
+      "shared": "文件已准备好，可以分享或打开",
+      "downloadFailed": "下载没有成功：{{reason}}"
+    },
+    "enhanced": {
+      "progress": {
+        "scanning": "正在检查可增强内容…",
+        "restoring": "正在恢复上次的建议…",
+        "submitting": "正在保存你的回答…",
+        "generating": "正在生成深度增强建议，可能需要一两分钟…"
+      },
+      "opportunity": {
+        "title": "可增强内容",
+        "checked": "已检查 {{count}} 段经历",
+        "worth": "{{count}} 段值得增强",
+        "questions": "{{count}} 个问题",
+        "mostRelevant": "与职位最相关：{{names}}",
+        "cannotInvent": "没有简历或你确认的信息作为依据时，系统不会自动加入相关经历。"
+      },
+      "questions": {
+        "title": "补充关键信息",
+        "none": "目前没有需要回答的问题，仍可继续生成增强建议。",
+        "progress": "问题 {{current}} / {{total}}",
+        "whyAsking": "为什么询问：{{text}}",
+        "chooseEntry": "选择对应的项目或经历",
+        "answerLabel": "你的回答",
+        "used": "是，我做过",
+        "notUsed": "没有做过",
+        "skipped": "暂时跳过",
+        "specificDetails": "请说明你具体做了什么",
+        "saved": "这题已保存",
+        "failed": "这一题没有保存成功：{{reason}} 你的输入都已保留，可以修改后重试。",
+        "saveNote": "提交会把回答保存为补充信息；未作答的问题按“暂时跳过”提交。最终确认后才会生成改写文件。",
+        "previous": "上一题",
+        "next": "下一题",
+        "submit": "提交回答并生成建议",
+        "discardBody": "还没有提交的回答会丢失。已经保存的补充信息不会删除。"
+      },
+      "errors": {
+        "needRealDetails": "请填写真实经历，不要只输入“是”或“做过”。",
+        "questionStale": "问题已经变化，请重新检查可增强内容。",
+        "unavailable": "服务器目前没有开启深度增强。",
+        "nothingSelected": "请至少选择一项建议。",
+        "editRejected": "编辑内容没有通过服务器校验：每行都不能为空，也不能超过 180 个字符。",
+        "evidenceInvalid": "补充信息没有通过服务器校验，请修改后重试。",
+        "evidenceConflict": "你已经保存过这项技能的使用经历。请先删除已有证据，再标记为“没有做过”。",
+        "editBlank": "编辑后的每一行都不能为空。",
+        "editTooLong": "编辑后的每一行不能超过 {{max}} 个字符。",
+        "scanFailed": "检查没有成功：{{reason}}",
+        "rescanFailed": "回答已保存，但重新检查没有成功：{{reason}}",
+        "generateFailed": "生成增强建议没有成功：{{reason}} 已保存的回答不会丢失。",
+        "generateUnknown": "暂时无法确认建议是否已经生成（{{reason}}）。这一步不会生成文件；重新生成可能会在服务器留下多份待确认的建议。",
+        "confirmFailed": "确认没有成功：{{reason}} 你的选择和编辑都已保留。"
+      },
+      "review": {
+        "title": "深度增强建议（尚未生成文件）",
+        "noFilesYet": "当前不会生成文件，完成审阅并确认后才会生成 DOCX 和 PDF。未选择的内容保持原文。",
+        "expired": "这份建议已超过服务器给出的有效期，不能再确认。",
+        "stale": "补充信息已经修改，这份建议是按修改前的信息生成的，不能再确认。请重新检查并生成建议。",
+        "noHighValue": "已完成检查，目前没有发现明显优于原文且有事实依据的增强方式。",
+        "selected": "已选择 {{selected}} / {{total}} 项",
+        "discardNote": "放弃建议不会删除已经保存的补充信息。",
+        "discardBody": "不会生成文件。已经保存的补充信息会保留。",
+        "confirm": "确认并生成简历",
+        "regenerate": "重新检查并生成建议",
+        "retryGenerate": "重新生成建议",
+        "retryGenerateTitle": "重新生成建议？",
+        "retryGenerateBody": "上一次请求可能已经生成了建议。重新生成不会生成文件，但服务器可能会多出一份待确认的建议。"
+      },
+      "entry": {
+        "typeEvidence": "基于补充信息的增强",
+        "typeJd": "职位定向优化",
+        "typeClarity": "表达与结构优化",
+        "selected": "已选择，确认后写入",
+        "notSelected": "未选择，保持原文",
+        "usedYourInfo": "使用了你补充的信息",
+        "matched": "对应的职位要求：{{items}}",
+        "enhanced": "增强版本",
+        "editLabel": "编辑「{{title}}」",
+        "editHint": "共 {{count}} 条要点，每行对应一条，保持行数不变。",
+        "edited": "已由你编辑",
+        "edit": "编辑建议",
+        "saveEdit": "保存编辑",
+        "cancelEdit": "取消编辑",
+        "restoreAi": "恢复 AI 建议"
+      },
+      "skills": {
+        "title": "技能更新",
+        "original": "原技能",
+        "proposed": "建议技能",
+        "added": "新增技能：{{names}}",
+        "editLabel": "编辑建议技能"
+      },
+      "evidence": {
+        "title": "补充信息",
+        "summary": "已保存 {{saved}} 条补充信息：{{used}} 条用于增强；{{unused}} 条暂未生成明显优于原文的版本。",
+        "usedInEntry": "用于 {{name}}",
+        "usedInSkills": "用于技能（{{names}}）",
+        "usedInEnhancement": "用于增强",
+        "userRejected": "你已标记为未使用",
+        "reasons": {
+          "NO_ADMITTED_REWRITE": "暂未生成明显优于原文的版本。",
+          "FACT_ALREADY_PRESENT": "该信息已出现在原文中。",
+          "NOT_A_SKILL": "属于项目成果，不适合放入技能。",
+          "NO_SKILLS_SECTION": "简历没有技能章节，未新建章节。",
+          "NOT_RELEVANT_TO_JD": "与当前职位不够相关。",
+          "VALIDATOR_REJECTED": "补充信息未通过校验。",
+          "CONFIRMED_FACT_NOT_USED": "已确认的补充信息未进入最终增强文本。"
+        },
+        "correct": "更正",
+        "delete": "删除",
+        "save": "保存更正",
+        "cancel": "取消",
+        "correctLabel": "更正你做过的内容",
+        "correctTitle": "保存更正？",
+        "correctBody": "更正会保存到服务器。当前建议不会自动更新，需要重新检查并生成后才能确认。",
+        "deleteTitle": "删除这条补充信息？",
+        "deleteBody": "删除不会改动原始简历或已生成的文件。当前建议需要重新检查并生成后才能确认。",
+        "failed": "补充信息没有更新：{{reason}}",
+        "loadFailed": "补充信息暂时无法加载：{{reason}}",
+        "noText": "（无内容）"
+      },
+      "done": {
+        "completed": "深度增强简历已生成。你选择的内容已经写入文件，未选择的经历保持原文。"
+      },
+      "gone": {
+        "unavailable": "这份建议已不可用：可能已被确认、已过期或不存在。App 无法取回可能已生成的文件。",
+        "pastExpiry": "按服务器给出的有效期，这份建议已经过期。"
+      }
+    },
+    "known": {
+      "title": "本机保存的上次结果",
+      "note": "这是这台设备上保存的下载入口，不是服务器的改写历史；服务器上的文件被删除后将无法下载。",
+      "savedAt": "保存于 {{time}}",
+      "remove": "移除这条记录"
+    },
+    "structure": {
+      "needed": "这份 PDF 的识别结果不完整。请先确认并保存识别结果，再回来重新开始改写。",
+      "open": "确认识别结果",
+      "outdated": "这份简历的识别结果已经修改，这份建议基于旧的识别结果，不能再确认。请放弃后重新生成。"
+    }
+  },
+  "welcome": {
+    "title": "找职位、做简历、按职位改写",
+    "subtitle": "不登录也能先浏览公开职位。登录后可以管理简历、在线创建简历，并按职位改写。",
+    "browseJobs": "浏览职位",
+    "login": "登录",
+    "register": "注册账号",
+    "featuresTitle": "可以做什么",
+    "publicBadge": "无需登录",
+    "loginBadge": "需要登录",
+    "features": {
+      "jobs": {
+        "title": "查找职位",
+        "body": "按关键词和城市搜索公开职位，查看职位详情。",
+        "action": "浏览职位"
+      },
+      "resumes": {
+        "title": "上传与检查简历",
+        "body": "上传 PDF 或 DOCX，查看质量评分，下载和分享。",
+        "action": "登录后上传简历"
+      },
+      "builder": {
+        "title": "在线创建简历",
+        "body": "逐项填写真实经历，保存后生成 Word 简历，之后还能继续编辑。",
+        "action": "登录后创建简历"
+      },
+      "tailor": {
+        "title": "按职位改写",
+        "body": "选择收藏的职位和一份简历，生成针对这个职位的改写版本。",
+        "action": "登录后改写简历"
+      },
+      "track": {
+        "title": "收藏与投递",
+        "body": "收藏感兴趣的职位，记录已经投递的职位。",
+        "action": "登录后管理收藏"
+      }
+    },
+    "examplesTitle": "示例内容",
+    "examplesBadge": "示例 · 不是真实数据",
+    "examplesNote": "下面的内容只用来演示页面效果，不来自任何用户、简历或职位。",
+    "tailorExample": {
+      "title": "改写示例",
+      "original": "原文",
+      "rewritten": "改写后",
+      "originalText": "负责制作每周的销售报表。",
+      "rewrittenText": "每周制作销售报表。",
+      "note": "改写只调整表达，不会加入简历里没有的事实。"
+    },
+    "qualityExample": {
+      "title": "简历质量评分示例",
+      "score": "72 / 100",
+      "structure": "结构 18 / 25",
+      "achievements": "成果 9 / 20",
+      "note": "登录并上传简历后，才会看到你自己简历的评分。"
+    }
+  },
+  "guest": {
+    "back": "返回首页",
+    "jobsNotice": "正在以游客身份浏览公开职位。收藏、标记投递和按职位改写需要登录。",
+    "catalogNotice": "登录后可以收藏这个职位、标记投递，或按职位改写简历。",
+    "catalogLogin": "登录后收藏或投递"
+  }
+}

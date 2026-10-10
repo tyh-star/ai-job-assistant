@@ -406,7 +406,7 @@ class ResumeBuilderMySqlIntegrationTest {
         JsonNode preview = objectMapper.readTree(previewBody);
         List<String> previewSectionTitles = new ArrayList<>();
         preview.get("sections").forEach(s -> previewSectionTitles.add(s.get("title").asText()));
-        assertTrue(previewSectionTitles.contains("Experience"));
+        assertTrue(previewSectionTitles.contains("Work experience"));
         assertTrue(previewSectionTitles.contains("Projects"));
         assertTrue(preview.get("omittedSectionIds").toString().contains("EDUCATION"));
 

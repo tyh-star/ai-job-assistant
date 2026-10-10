@@ -1,0 +1,317 @@
+/*
+ * Top navigation for /dashboard only. Every selector is under .wbNav, and the
+ * component is rendered by AppLayout exclusively on that route, so the shared
+ * header on every other page is untouched.
+ *
+ * Ported from the approved workbench design: 64px white bar aligned to the same
+ * container as the page, text-only links with a 2px hairline under the current
+ * one, a 中文/EN pill, and an avatar dropdown for 个人中心 / 退出登录.
+ */
+
+.wbNav {
+  --nav-ink: #0d1526;
+  --nav-ink-2: #33405a;
+  --nav-ink-3: #55637d;
+  --nav-ink-4: #7d8ba5;
+  --nav-line: #e4e9f1;
+  --nav-line-2: #eef1f7;
+  --nav-blue: #2563eb;
+  --nav-navy: #1b2f7a;
+
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgb(255 255 255 / 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e3edf7;
+  box-shadow: 0 2px 11px rgb(65 128 188 / 0.09);
+  font-family: "Noto Sans SC", Inter, "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--nav-ink);
+}
+.wbNav[data-stuck="true"] { border-bottom-color: #d5e4f2; }
+
+.wbNav *,
+.wbNav *::before,
+.wbNav *::after { box-sizing: border-box; }
+.wbNav a { color: inherit; text-decoration: none; }
+.wbNav button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+.wbNav svg { display: block; }
+.wbNav :focus-visible { outline: 2px solid var(--nav-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* The approved design keeps the bar a little narrower than the page content,
+   so the brand sits just inside the cards rather than flush with them. */
+.wbNav__inner {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 64px;
+  width: min(1200px, calc(100% - 40px));
+  margin-inline: auto;
+  padding-inline: 0;
+}
+
+/* --- brand --------------------------------------------------------------- */
+
+.wbNav__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  margin-right: 34px;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.15px;
+}
+.wbNav__mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, #108bff 0%, #2765ee 67%, #193d9d 100%);
+  box-shadow: 0 6px 15px rgb(25 105 229 / 0.24);
+  flex: none;
+}
+
+/* --- links --------------------------------------------------------------- */
+
+.wbNav__links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.wbNav__links > a,
+.wbNav__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  min-width: 62px;
+  height: 63px;
+  padding: 0 15px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #52698e;
+  white-space: nowrap;
+}
+.wbNav__links > a:hover,
+.wbNav__trigger:hover { color: #0c69f4; }
+
+/* a hairline under the current section -- never a filled pill */
+.wbNav__links > a.is-current { color: #0869f4; font-weight: 700; }
+.wbNav__links > a.is-current::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  right: 15px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #1c78ff;
+}
+.wbNav__group { position: relative; }
+.wbNav__chev { display: grid; place-items: center; color: var(--nav-ink-4); }
+
+/* --- actions ------------------------------------------------------------- */
+
+.wbNav__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  margin-left: auto;
+}
+
+.wbNav__lang {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 20px;
+  background: #edf2fa;
+  flex: none;
+}
+.wbNav__lang button {
+  position: relative;
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #24395e;
+  white-space: nowrap;
+}
+.wbNav__lang button[aria-pressed="true"] {
+  background: #fff;
+  color: #09142a;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgb(18 59 110 / 0.08);
+}
+
+.wbNav__acct { position: relative; }
+.wbNav__acctTrigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 8px 0 4px;
+  border-radius: 999px;
+  color: var(--nav-ink);
+  max-width: 15rem;
+}
+.wbNav__acctTrigger:hover { background: var(--nav-line-2); }
+.wbNav__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: linear-gradient(145deg, #1d93fc, #2461dc);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.wbNav__acctName {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- dropdowns ----------------------------------------------------------- */
+
+.wbNav__menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 190px;
+  padding: 5px;
+  border-radius: 10px;
+  border: 1px solid var(--nav-line);
+  background: #fff;
+  box-shadow: 0 12px 32px -12px rgb(13 21 38 / 0.22), 0 2px 6px rgb(13 21 38 / 0.06);
+  display: grid;
+  gap: 2px;
+}
+.wbNav__menu--under { top: calc(100% - 8px); left: 0; }
+.wbNav__menu--right { top: calc(100% + 4px); right: 0; }
+
+.wbNav__menu a,
+.wbNav__menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--nav-ink);
+  text-align: left;
+  width: 100%;
+}
+.wbNav__menu a:hover,
+.wbNav__menu button:hover { background: #eff5ff; color: var(--nav-navy); }
+.wbNav__sep { display: block; height: 1px; background: var(--nav-line-2); margin: 3px 0; }
+
+/* --- mobile -------------------------------------------------------------- */
+
+.wbNav__burger {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  place-items: center;
+  color: var(--nav-ink-2);
+  flex: none;
+}
+.wbNav__burger:hover { background: var(--nav-line-2); }
+
+.wbNav__drawer {
+  border-top: 1px solid var(--nav-line);
+  background: #fff;
+  padding: 10px 20px 16px;
+}
+.wbNav__drawer nav { display: grid; gap: 2px; }
+.wbNav__drawer nav a {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--nav-ink-2);
+}
+.wbNav__drawer nav a:hover { background: var(--nav-line-2); color: var(--nav-ink); }
+
+.wbNav__drawerFoot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--nav-line-2);
+  display: grid;
+  gap: 2px;
+}
+.wbNav__drawerName {
+  margin: 0;
+  padding: 0 12px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nav-ink-4);
+}
+.wbNav__drawerFoot a,
+.wbNav__drawerFoot button {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: var(--nav-ink-2);
+  text-align: left;
+  width: 100%;
+}
+.wbNav__drawerFoot a:hover,
+.wbNav__drawerFoot button:hover { background: var(--nav-line-2); color: var(--nav-ink); }
+
+/* The account name is the first thing to go when the bar gets tight. */
+@media (min-width: 1500px) {
+  .wbNav__inner { width: 1377px; }
+  .wbNav__brand { gap: 12px; margin-right: 22px; font-size: 22px; }
+  .wbNav__mark { width: 40px; height: 40px; border-radius: 9px; }
+  .wbNav__mark svg { width: 23px; height: 23px; }
+  .wbNav__links > a,
+  .wbNav__trigger { min-width: 72px; padding: 0 16px; font-size: 20px; }
+  .wbNav__links > a.is-current::after { left: 16px; right: 16px; }
+  .wbNav__lang { padding: 4px; }
+  .wbNav__lang button { min-height: 32px; padding: 0 13px; font-size: 16px; }
+  .wbNav__acctTrigger { gap: 10px; }
+  .wbNav__acctName { font-size: 17px; }
+  .wbNav__avatar { width: 40px; height: 40px; font-size: 14px; }
+}
+
+@media (max-width: 1120px) {
+  .wbNav__acctName { display: none; }
+  .wbNav__acctTrigger { padding-right: 4px; }
+}
+
+/* Below this the four items plus the brand no longer fit on one line. */
+@media (max-width: 899px) {
+  .wbNav__links { display: none; }
+  .wbNav__acct { display: none; }
+  .wbNav__burger { display: grid; }
+}
+
+@media (max-width: 560px) {
+  .wbNav__inner { height: 58px; padding-inline: 18px; gap: 10px; }
+  .wbNav__drawer { padding-inline: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wbNav * { transition: none !important; }
+}

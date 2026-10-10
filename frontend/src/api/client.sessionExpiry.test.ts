@@ -6,8 +6,9 @@ import {
   isLoginRequiredFeedbackAction,
   isLoginRequiredJobsAction,
   isProtectedPath,
+  isPublicApiRequest,
 } from './client'
-import { getToken, saveSession } from '../auth/session'
+import { clearSessionExpiredMark, getToken, hasSessionExpiredMark, saveSession } from '../auth/session'
 
 function axios401(requestUrl: string) {
   return {
@@ -83,6 +84,7 @@ describe('handleResponseError (the 401 side of the axios interceptor)', () => {
 
   afterEach(() => {
     localStorage.clear()
+    clearSessionExpiredMark()
     vi.restoreAllMocks()
   })
 
@@ -198,5 +200,51 @@ describe('handleResponseError (the 401 side of the axios interceptor)', () => {
     await expect(handleResponseError(networkError())).rejects.toBeTruthy()
     expect(getToken()).toBe('stale-token')
     expect(window.location.assign).not.toHaveBeenCalled()
+  })
+
+  it('a real 403 (permission denied) never signs out, never marks expiry, never navigates', async () => {
+    setLocation('/dashboard')
+    const forbidden = {
+      config: { url: '/resumes', method: 'get' },
+      response: { status: 403, data: { message: 'You do not have permission to perform this action.' } },
+    } as AxiosError
+    await expect(handleResponseError(forbidden)).rejects.toBeTruthy()
+    expect(getToken()).toBe('stale-token')
+    expect(localStorage.getItem('aijob.user')).not.toBeNull()
+    expect(hasSessionExpiredMark()).toBe(false)
+    expect(window.location.assign).not.toHaveBeenCalled()
+  })
+
+  it('an expired token on the signed-in dashboard clears token and cached user and returns there after login', async () => {
+    setLocation('/dashboard')
+    await expect(handleResponseError(axios401('/resume-builder/drafts'))).rejects.toBeTruthy()
+    expect(getToken()).toBeNull()
+    expect(localStorage.getItem('aijob.user')).toBeNull()
+    expect(hasSessionExpiredMark()).toBe(true)
+    expect(window.location.assign).toHaveBeenCalledWith('/login?returnTo=%2Fdashboard&reason=session_expired')
+  })
+
+  it('a login-required request goes to login even when the current page is public', async () => {
+    setLocation('/')
+    await expect(handleResponseError(axios401('/jobs'))).rejects.toBeTruthy()
+    expect(window.location.assign).toHaveBeenCalledWith('/login?returnTo=%2F&reason=session_expired')
+  })
+
+  it('does not redirect again while already on the login page (no loop)', async () => {
+    setLocation('/login', '?returnTo=%2Fdashboard&reason=session_expired')
+    await expect(handleResponseError(axios401('/feedback/me'))).rejects.toBeTruthy()
+    expect(getToken()).toBeNull()
+    expect(window.location.assign).not.toHaveBeenCalled()
+  })
+})
+
+describe('isPublicApiRequest', () => {
+  it('knows the routes the backend serves to visitors', () => {
+    expect(isPublicApiRequest('get', '/job-catalog/search?q=nurse')).toBe(true)
+    expect(isPublicApiRequest('get', '/job-catalog/freehire:abc')).toBe(true)
+    expect(isPublicApiRequest('get', '/feedback/summary')).toBe(true)
+    expect(isPublicApiRequest('post', '/job-catalog/freehire:abc/save')).toBe(false)
+    expect(isPublicApiRequest('get', '/resumes')).toBe(false)
+    expect(isPublicApiRequest('get', '/api/v1/resume-builder/drafts')).toBe(false)
   })
 })

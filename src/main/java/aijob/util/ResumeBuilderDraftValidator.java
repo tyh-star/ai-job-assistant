@@ -9,6 +9,7 @@ import aijob.dto.builder.ResumeBuilderDraftContent.EducationEntry;
 import aijob.dto.builder.ResumeBuilderDraftContent.JobTarget;
 import aijob.dto.builder.ResumeBuilderDraftContent.LanguageEntry;
 import aijob.dto.builder.ResumeBuilderDraftContent.LeadershipEntry;
+import aijob.dto.builder.ResumeBuilderDraftContent.ProfessionalLink;
 import aijob.dto.builder.ResumeBuilderDraftContent.ProjectEntry;
 import aijob.dto.builder.ResumeBuilderDraftContent.Publication;
 import aijob.dto.builder.ResumeBuilderDraftContent.SkillCategory;
@@ -70,6 +71,7 @@ public class ResumeBuilderDraftValidator {
     private static final int MAX_ITEMS_PER_CUSTOM_SECTION = 100;
     private static final int MAX_LINES_PER_ENTRY = 30;
     private static final int MAX_COURSES = 100;
+    private static final int MAX_PROFESSIONAL_LINKS = 12;
 
     private static final long MAX_TEAM_SIZE = 100_000L;
     private static final long MAX_USER_COUNT = 2_000_000_000L;
@@ -133,6 +135,24 @@ public class ResumeBuilderDraftValidator {
         url("basicInfo.linkedin", info.getLinkedin(), errors);
         url("basicInfo.github", info.getGithub(), errors);
         url("basicInfo.website", info.getWebsite(), errors);
+        validateProfessionalLinks(info.getProfessionalLinks(), errors);
+    }
+
+    private void validateProfessionalLinks(List<ProfessionalLink> links, List<String> errors) {
+        if (links == null) {
+            return;
+        }
+        maxSize("basicInfo.professionalLinks", links.size(), MAX_PROFESSIONAL_LINKS, errors);
+        for (int i = 0; i < links.size(); i++) {
+            ProfessionalLink link = links.get(i);
+            if (link == null) {
+                continue;
+            }
+            String p = "basicInfo.professionalLinks[" + i + "].";
+            text(p + "type", link.getType(), SHORT, errors);
+            text(p + "label", link.getLabel(), SHORT, errors);
+            url(p + "url", link.getUrl(), errors);
+        }
     }
 
     private void validateJobTarget(JobTarget target, List<String> errors) {

@@ -27,6 +27,31 @@ public interface TailorProposalMapper {
     @Select("SELECT * FROM tailor_proposals WHERE id = #{id}")
     TailorProposal findById(Long id);
 
+    /**
+     * Pro Resume Rewrite session step: moves one PRO_REWRITE row owned by the user from
+     * the expected status to the next one. 0 rows = another request already moved it.
+     */
+    @Update("""
+            UPDATE tailor_proposals
+               SET status = #{toStatus},
+                   changes_json = #{changesJson},
+                   generated_file_name = #{generatedFileName},
+                   generated_file_path = #{generatedFilePath}
+             WHERE id = #{id}
+               AND user_id = #{userId}
+               AND mode = 'PRO_REWRITE'
+               AND status = #{fromStatus}
+            """)
+    int updateRewriteSession(
+            @Param("id") Long id,
+            @Param("userId") Long userId,
+            @Param("fromStatus") String fromStatus,
+            @Param("toStatus") String toStatus,
+            @Param("changesJson") String changesJson,
+            @Param("generatedFileName") String generatedFileName,
+            @Param("generatedFilePath") String generatedFilePath
+    );
+
     @Update("""
             UPDATE tailor_proposals
             SET status = 'CONFIRMING',

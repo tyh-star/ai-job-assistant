@@ -4,7 +4,11 @@ import aijob.dto.builder.NormalizedResume;
 import aijob.util.ResumeBuilderNormalizer;
 import aijob.dto.builder.ResumeBuilderDraftContent;
 import aijob.dto.builder.ResumeBuilderDraftContent.EducationEntry;
+import aijob.dto.builder.ResumeBuilderDraftContent.ProfessionalLink;
+import aijob.dto.builder.ResumeBuilderDraftContent.ProjectEntry;
+import aijob.dto.builder.ResumeBuilderDraftContent.SkillCategory;
 import aijob.dto.builder.ResumeBuilderDraftContent.WorkExperienceEntry;
+import aijob.util.ResumeBuilderProfessionalLinks;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.junit.jupiter.api.Test;
@@ -161,5 +165,69 @@ class ResumeBuilderDocxServiceImplTest {
             }
         }
         return sizes;
+    }
+
+    @Test
+    void jamieLeeDocxOmitsGithubJavaPythonAwsAndEmptyLinks() throws IOException {
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Jamie Lee");
+        content.getBasicInfo().setEmail("jamie.lee@example.test");
+        content.getBasicInfo().setPhone("613-555-0140");
+        content.getJobTarget().setTargetTitle("Administrative Assistant");
+        SkillCategory skills = new SkillCategory();
+        skills.setName("Office support");
+        skills.setSkills(List.of("Customer service", "Calendar management"));
+        content.setSkillCategories(List.of(skills));
+        WorkExperienceEntry exp = new WorkExperienceEntry();
+        exp.setCompany("Example Civic Office");
+        exp.setTitle("Administrative Assistant");
+        exp.setResponsibilities(List.of("Scheduled meetings"));
+        content.setExperience(List.of(exp));
+        content.getBasicInfo().setProfessionalLinks(List.of(
+                ResumeBuilderProfessionalLinks.empty("LINKEDIN"),
+                ResumeBuilderProfessionalLinks.empty("GITHUB")));
+        content.normalize();
+
+        String text = writeAndRead(normalizer.normalize(content, "en", "GENERIC_ATS"), "jamie-lee.docx");
+        assertTrue(text.contains("Jamie Lee"));
+        assertTrue(text.contains("Administrative Assistant"));
+        assertTrue(text.contains("Customer service"));
+        assertFalse(text.toLowerCase().contains("github"));
+        assertFalse(text.contains("Java"));
+        assertFalse(text.contains("Python"));
+        assertFalse(text.contains("AWS"));
+        assertFalse(text.contains("N/A"));
+        assertFalse(text.toLowerCase().contains("not provided"));
+    }
+
+    @Test
+    void alexMorganDocxStillIncludesGithubAndProjectAtlas() throws IOException {
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Alex Morgan");
+        content.getBasicInfo().setEmail("alex.morgan@example.com");
+        content.getJobTarget().setTargetTitle("Junior Software Developer");
+        ProfessionalLink github = ResumeBuilderProfessionalLinks.empty("GITHUB");
+        github.setUrl("https://github.com/alexmorgan");
+        content.getBasicInfo().setProfessionalLinks(List.of(github));
+        ProjectEntry project = new ProjectEntry();
+        project.setName("Project Atlas");
+        project.setGithubUrl("https://github.com/alexmorgan/atlas");
+        content.setProjects(List.of(project));
+        content.normalize();
+
+        String text = writeAndRead(normalizer.normalize(content, "en", "TECHNICAL"), "alex-morgan.docx");
+        assertTrue(text.contains("Alex Morgan"));
+        assertTrue(text.contains("https://github.com/alexmorgan"));
+        assertTrue(text.contains("Project Atlas"));
+        assertFalse(text.contains("GitHub: "));
+    }
+
+    private String writeAndRead(NormalizedResume normalized, String filename) throws IOException {
+        Path out = tempDir.resolve(filename);
+        writer.write(normalized, out);
+        try (FileInputStream in = new FileInputStream(out.toFile());
+             XWPFDocument doc = new XWPFDocument(in)) {
+            return doc.getParagraphs().stream().map(XWPFParagraph::getText).collect(Collectors.joining("\n"));
+        }
     }
 }

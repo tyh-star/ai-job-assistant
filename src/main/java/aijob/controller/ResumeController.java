@@ -7,9 +7,9 @@ import aijob.dto.ResumeQualityScoreResponse;
 import aijob.dto.ResumeResponse;
 import aijob.dto.ResumeStructure;
 import aijob.service.ResumeService;
+import aijob.util.ResumeFileNames;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -217,13 +217,9 @@ public class ResumeController {
             throw new IllegalStateException("Failed to read resume file");
         }
 
-        ContentDisposition disposition = ContentDisposition.attachment()
-                .filename(download.getFileName(), StandardCharsets.UTF_8)
-                .build();
-
         return ResponseEntity.ok()
                 .contentType(resumeMediaType(download.getFileType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ResumeFileNames.attachmentHeader(download.getFileName()))
                 .body(resource);
     }
 

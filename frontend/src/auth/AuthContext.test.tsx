@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { SESSION_EXPIRED_EVENT } from '../api/client'
 import { AuthProvider, useAuth } from './AuthContext'
-import { clearSession, getToken, saveSession } from './session'
+import {
+  clearSession,
+  clearSessionExpiredMark,
+  getToken,
+  hasSessionExpiredMark,
+  isTokenExpired,
+  saveSession,
+} from './session'
 
 function renderAuth() {
   return renderHook(() => useAuth(), { wrapper: AuthProvider })
@@ -51,5 +58,44 @@ describe('AuthContext session-expiry listener', () => {
     })
     expect(result.current.isAuthenticated).toBe(false)
     expect(getToken()).toBeNull()
+  })
+})
+
+function jwtWithExp(expSeconds: number) {
+  const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+  return `${encode({ alg: 'HS256' })}.${encode({ sub: 'alice@example.com', exp: expSeconds })}.signature`
+}
+
+describe('AuthContext startup with a stored JWT', () => {
+  afterEach(() => {
+    cleanup()
+    localStorage.clear()
+    clearSessionExpiredMark()
+  })
+
+  it('drops an already expired token before the cached name is ever shown', () => {
+    saveSession(jwtWithExp(Math.floor(Date.now() / 1000) - 60), { userId: 1, name: 'Alice', email: 'alice@example.com', role: 'USER' })
+    const { result } = renderAuth()
+    expect(result.current.isAuthenticated).toBe(false)
+    expect(result.current.user).toBeNull()
+    expect(getToken()).toBeNull()
+    expect(localStorage.getItem('aijob.user')).toBeNull()
+    expect(hasSessionExpiredMark()).toBe(true)
+  })
+
+  it('keeps a token that has not expired', () => {
+    saveSession(jwtWithExp(Math.floor(Date.now() / 1000) + 3600), { userId: 1, name: 'Alice', email: 'alice@example.com', role: 'USER' })
+    const { result } = renderAuth()
+    expect(result.current.user?.name).toBe('Alice')
+    expect(hasSessionExpiredMark()).toBe(false)
+  })
+})
+
+describe('isTokenExpired', () => {
+  it('reads exp and leaves unreadable tokens to the server', () => {
+    expect(isTokenExpired(jwtWithExp(100), 101_000)).toBe(true)
+    expect(isTokenExpired(jwtWithExp(100), 99_000)).toBe(false)
+    expect(isTokenExpired('stale-token')).toBe(false)
+    expect(isTokenExpired('a.%%%.c')).toBe(false)
   })
 })

@@ -1140,6 +1140,11 @@ class V3DLiveEvalTest {
             last = inner.createTailoredDocx(originalDocx, changes, userId, jobId);
             return last;
         }
+
+        @Override
+        public Path createTailoredDocx(Path originalDocx, List<TailorChange> changes, Path outputPath) {
+            return inner.createTailoredDocx(originalDocx, changes, outputPath);
+        }
     }
 
     private static final class MemoryEvidence implements ResumeEvidenceService {

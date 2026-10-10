@@ -2381,7 +2381,10 @@ public class JobServiceImpl implements JobService {
         TailorProposal proposal = tailorProposalMapper.findById(proposalId);
         if (proposal == null
                 || !userId.equals(proposal.getUserId())
-                || !jobId.equals(proposal.getJobId())) {
+                || !jobId.equals(proposal.getJobId())
+                || aijob.rewrite.ProResumeRewriteService.MODE.equals(proposal.getMode())) {
+            // Pro Resume Rewrite sessions share the table but are only reachable through
+            // /api/v1/resume-rewrites/pro/sessions.
             throw new TailorProposalNotFoundException("Tailor proposal not found");
         }
         return proposal;

@@ -15,7 +15,29 @@ import {
 } from '../api/auth'
 import { SESSION_EXPIRED_EVENT } from '../api/client'
 import type { StoredUser } from '../api/types'
-import { clearSession, getStoredUser, getToken, saveSession } from './session'
+import {
+  clearSession,
+  clearSessionExpiredMark,
+  getStoredUser,
+  getToken,
+  isTokenExpired,
+  markSessionExpired,
+  saveSession,
+} from './session'
+
+/** A stored token that has already expired is dropped before anything shows the cached name. */
+function initialUser(): StoredUser | null {
+  const token = getToken()
+  if (!token) {
+    return null
+  }
+  if (isTokenExpired(token)) {
+    clearSession()
+    markSessionExpired()
+    return null
+  }
+  return getStoredUser()
+}
 
 interface AuthContextValue {
   user: StoredUser | null
@@ -36,9 +58,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<StoredUser | null>(() =>
-    getToken() ? getStoredUser() : null,
-  )
+  const [user, setUser] = useState<StoredUser | null>(initialUser)
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await loginApi({ email, password })
@@ -49,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: data.role,
     }
     saveSession(data.token, stored)
+    clearSessionExpiredMark()
     setUser(stored)
   }, [])
 
@@ -62,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearSession()
+    clearSessionExpiredMark()
     setUser(null)
   }, [])
 

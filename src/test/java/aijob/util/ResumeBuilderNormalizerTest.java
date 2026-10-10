@@ -5,6 +5,7 @@ import aijob.dto.builder.ResumeBuilderDraftContent;
 import aijob.dto.builder.ResumeBuilderDraftContent.CustomSection;
 import aijob.dto.builder.ResumeBuilderDraftContent.EducationEntry;
 import aijob.dto.builder.ResumeBuilderDraftContent.ProjectEntry;
+import aijob.dto.builder.ResumeBuilderDraftContent.ProfessionalLink;
 import aijob.dto.builder.ResumeBuilderDraftContent.SkillCategory;
 import aijob.dto.builder.ResumeBuilderDraftContent.WorkExperienceEntry;
 import aijob.dto.builder.ResumeBuilderSectionIds;
@@ -221,5 +222,100 @@ class ResumeBuilderNormalizerTest {
         var section = normalized.getSections().stream()
                 .filter(s -> ResumeBuilderSectionIds.EXPERIENCE.equals(s.getId())).findFirst().orElseThrow();
         assertEquals("工作经历", section.getTitle());
+    }
+
+    @Test
+    void emptyProfessionalLinkRowsAreOmittedFromTheHeader() {
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Jamie Lee");
+        content.getBasicInfo().setEmail("jamie.lee@example.test");
+        ProfessionalLink emptyGithub = ResumeBuilderProfessionalLinks.empty("GITHUB");
+        content.getBasicInfo().setProfessionalLinks(List.of(emptyGithub));
+        content.normalize();
+
+        NormalizedResume normalized = normalizer.normalize(content, "en", "GENERIC_ATS");
+        assertTrue(normalized.getHeader().getLinks().isEmpty());
+        assertFalse(String.join("\n", normalized.getHeader().getLinks()).toLowerCase().contains("github"));
+    }
+
+    @Test
+    void jamieLeeAdministrativeAssistantNeverEmitsGithubOrTechStackPlaceholders() {
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Jamie Lee");
+        content.getBasicInfo().setCity("Ottawa");
+        content.getBasicInfo().setCountry("Canada");
+        content.getBasicInfo().setEmail("jamie.lee@example.test");
+        content.getBasicInfo().setPhone("613-555-0140");
+        content.getJobTarget().setTargetTitle("Administrative Assistant");
+        content.getJobTarget().setCareerSummary("Keeps office schedules and correspondence organized.");
+        SkillCategory skills = new SkillCategory();
+        skills.setName("Office support");
+        skills.setSkills(List.of("Customer service", "Calendar management", "Records filing"));
+        content.setSkillCategories(List.of(skills));
+        WorkExperienceEntry exp = new WorkExperienceEntry();
+        exp.setCompany("Example Civic Office");
+        exp.setTitle("Administrative Assistant");
+        exp.setResponsibilities(List.of("Scheduled meetings", "Filed correspondence"));
+        content.setExperience(List.of(exp));
+        content.getBasicInfo().setProfessionalLinks(List.of());
+        content.normalize();
+
+        NormalizedResume normalized = normalizer.normalize(content, "en", "GENERIC_ATS");
+        String blob = blob(normalized);
+        assertTrue(blob.contains("Jamie Lee"));
+        assertTrue(blob.contains("Administrative Assistant"));
+        assertTrue(blob.contains("Customer service"));
+        assertFalse(blob.toLowerCase().contains("github"));
+        assertFalse(blob.contains("Java"));
+        assertFalse(blob.contains("Python"));
+        assertFalse(blob.contains("AWS"));
+        assertFalse(blob.contains("N/A"));
+        assertFalse(blob.toLowerCase().contains("not provided"));
+        assertTrue(normalized.getHeader().getLinks().isEmpty());
+    }
+
+    @Test
+    void alexMorganTechnicalDraftStillOutputsGithubAndProjectAtlas() {
+        ResumeBuilderDraftContent content = ResumeBuilderDraftContent.blank();
+        content.getBasicInfo().setFullName("Alex Morgan");
+        content.getBasicInfo().setEmail("alex.morgan@example.com");
+        content.getJobTarget().setTargetTitle("Junior Software Developer");
+        ProfessionalLink github = ResumeBuilderProfessionalLinks.empty("GITHUB");
+        github.setUrl("https://github.com/alexmorgan");
+        content.getBasicInfo().setProfessionalLinks(List.of(github));
+        ProjectEntry project = new ProjectEntry();
+        project.setName("Project Atlas");
+        project.setGithubUrl("https://github.com/alexmorgan/atlas");
+        content.setProjects(List.of(project));
+        content.normalize();
+
+        NormalizedResume normalized = normalizer.normalize(content, "en", "TECHNICAL");
+        String blob = blob(normalized);
+        assertTrue(blob.contains("https://github.com/alexmorgan"));
+        assertTrue(blob.contains("Project Atlas"));
+        assertTrue(blob.contains("Link: https://github.com/alexmorgan/atlas"));
+        assertFalse(blob.contains("GitHub: "));
+        assertEquals("Projects", normalized.getSections().stream()
+                .filter(s -> ResumeBuilderSectionIds.PROJECTS.equals(s.getId()))
+                .findFirst().orElseThrow()
+                .getTitle());
+    }
+
+    private static String blob(NormalizedResume normalized) {
+        StringBuilder text = new StringBuilder();
+        text.append(normalized.getHeader().getFullName()).append('\n');
+        text.append(String.join("\n", normalized.getHeader().getLinks())).append('\n');
+        text.append(normalized.getHeader().getTargetTitle()).append('\n');
+        if (normalized.getSummary() != null) {
+            text.append(normalized.getSummary()).append('\n');
+        }
+        normalized.getSections().forEach(section -> {
+            text.append(section.getTitle()).append('\n');
+            section.getBlocks().forEach(block -> {
+                text.append(block.getHeading()).append('\n');
+                block.getLines().forEach(line -> text.append(line).append('\n'));
+            });
+        });
+        return text.toString();
     }
 }

@@ -1,0 +1,16 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://3.99.54.214.sslip.io/api/v1"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}

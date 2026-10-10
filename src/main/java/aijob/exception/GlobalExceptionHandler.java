@@ -306,6 +306,27 @@ public class GlobalExceptionHandler {
                 .body(error);
     }
 
+    /** Resume Rewrite AI failures carry a stable code the frontend maps to a message. */
+    @ExceptionHandler(aijob.rewrite.ai.RewriteAiException.class)
+    public ResponseEntity<ErrorResponse> handleRewriteAi(
+            aijob.rewrite.ai.RewriteAiException ex,
+            HttpServletRequest request) {
+
+        HttpStatus status = ex.status();
+        ErrorResponse error = new ErrorResponse(
+                status.value(),
+                status.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now()
+        ).withCode(ex.code());
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(status);
+        if (status == HttpStatus.TOO_MANY_REQUESTS) {
+            builder.header(HttpHeaders.RETRY_AFTER, "60");
+        }
+        return builder.body(error);
+    }
+
     @ExceptionHandler(AiServiceException.class)
     public ResponseEntity<ErrorResponse> handleAiService(
             AiServiceException ex,

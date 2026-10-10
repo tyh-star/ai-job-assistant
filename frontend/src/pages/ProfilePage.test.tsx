@@ -179,10 +179,13 @@ describe('ProfilePage', () => {
     await screen.findByText('alice@example.com')
     const user = userEvent.setup()
     const passwordField = section('Change password')
+    expect(passwordField.queryByRole('list', { name: 'Password requirements' })).not.toBeInTheDocument()
     await user.type(passwordField.getByLabelText('Current password'), 'correct-password')
     await user.type(passwordField.getByLabelText('New password'), 'short')
     await user.click(passwordField.getByRole('button', { name: 'Save password' }))
     expect(await screen.findByText('This password does not meet the requirements shown.')).toBeInTheDocument()
+    expect(passwordField.getByText('8–72 characters').closest('li')).toHaveAttribute('data-tone', 'danger')
+    expect(passwordField.getByLabelText('New password')).toHaveFocus()
     expect(changePassword).not.toHaveBeenCalled()
   })
 

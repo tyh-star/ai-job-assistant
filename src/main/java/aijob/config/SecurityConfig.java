@@ -1,6 +1,8 @@
 package aijob.config;
 
 import aijob.security.JwtAuthenticationFilter;
+import aijob.security.RestSecurityErrorHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -30,12 +32,15 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final List<String> allowedOrigins;
+    private final RestSecurityErrorHandler securityErrorHandler;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            @Value("${aijob.cors.allowed-origins}") String allowedOriginsRaw) {
+            @Value("${aijob.cors.allowed-origins}") String allowedOriginsRaw,
+            ObjectMapper objectMapper) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.allowedOrigins = parseAllowedOrigins(allowedOriginsRaw);
+        this.securityErrorHandler = new RestSecurityErrorHandler(objectMapper);
     }
 
     static List<String> parseAllowedOrigins(String raw) {
@@ -113,6 +118,12 @@ public class SecurityConfig {
                         // anyRequest().authenticated() below.
                         .requestMatchers(HttpMethod.GET, "/api/v1/feedback/summary").permitAll()
                         .anyRequest().authenticated()
+                )
+                // 401 for missing/invalid/expired credentials, 403 only for an
+                // authenticated user who is not allowed -- see RestSecurityErrorHandler.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint(securityErrorHandler)
+                        .accessDeniedHandler(securityErrorHandler)
                 )
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())

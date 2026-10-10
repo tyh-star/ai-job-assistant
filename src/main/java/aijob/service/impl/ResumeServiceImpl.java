@@ -33,6 +33,7 @@ import aijob.service.ResumeService;
 import aijob.service.ResumeStructureLlmService;
 import aijob.service.ResumeTemplateDocxService;
 import aijob.util.PdfLayoutExtractor;
+import aijob.util.ResumeFileNames;
 import aijob.util.ResumeQualityScorer;
 import aijob.util.ResumeStructureDraftBuilder;
 import aijob.util.LayoutProfileBuilder;
@@ -113,7 +114,7 @@ public class ResumeServiceImpl implements ResumeService {
         User user = getUserByEmail(email);
         validateFile(file);
 
-        String originalFileName = sanitizeOriginalFileName(file.getOriginalFilename());
+        String originalFileName = ResumeFileNames.uploadName(file.getOriginalFilename());
         String extension = getExtension(originalFileName);
         String fileType = extension.substring(1);
         String storedFileName = UUID.randomUUID() + extension;
@@ -442,7 +443,7 @@ public class ResumeServiceImpl implements ResumeService {
         String fileType = resume.getFileType() == null
                 ? ""
                 : resume.getFileType().toLowerCase(Locale.ROOT);
-        String fileName = sanitizeDownloadFileName(resume.getFileName(), fileType);
+        String fileName = ResumeFileNames.downloadName(resume.getFileName(), fileType);
         return new ResumeFileDownload(resolved, fileName, fileType);
     }
 
@@ -843,8 +844,10 @@ public class ResumeServiceImpl implements ResumeService {
             throw new InvalidResumeFileException("File cannot be empty");
         }
 
-        String originalFileName = file.getOriginalFilename();
-        if (originalFileName == null || originalFileName.isBlank()) {
+        // Checked on the decoded, cleaned name that will be stored, so an encoded
+        // "cv.pdf%00.exe" is judged as "cv.pdf.exe", not as a .exe hidden behind a NUL.
+        String originalFileName = ResumeFileNames.uploadName(file.getOriginalFilename());
+        if (originalFileName.isBlank()) {
             throw new InvalidResumeFileException("File name is required");
         }
 
@@ -860,17 +863,6 @@ public class ResumeServiceImpl implements ResumeService {
                 && !"application/octet-stream".equalsIgnoreCase(contentType)) {
             throw new InvalidResumeFileException("Only PDF and DOCX files are allowed");
         }
-    }
-
-    private String sanitizeOriginalFileName(String originalFileName) {
-
-        String fileName = Path.of(originalFileName).getFileName().toString();
-
-        if (fileName.length() > 255) {
-            return fileName.substring(0, 255);
-        }
-
-        return fileName;
     }
 
     private String getExtension(String fileName) {
@@ -891,7 +883,7 @@ public class ResumeServiceImpl implements ResumeService {
                 : null;
         return new ResumeResponse(
                 resume.getId(),
-                resume.getFileName(),
+                ResumeFileNames.displayName(resume.getFileName()),
                 resume.getFileType(),
                 resume.getCreatedAt(),
                 resume.getUpdatedAt(),
@@ -970,11 +962,4 @@ public class ResumeServiceImpl implements ResumeService {
         return isUploadOrigin(resume) || ResumeOrigin.GENERATED.name().equals(resume.getOrigin());
     }
 
-    private String sanitizeDownloadFileName(String fileName, String fileType) {
-        String name = fileName == null ? "" : Path.of(fileName).getFileName().toString().trim();
-        if (name.isBlank() || name.contains("..")) {
-            return "resume." + fileType;
-        }
-        return name;
-    }
 }

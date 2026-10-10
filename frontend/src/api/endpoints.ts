@@ -58,6 +58,13 @@ export const endpoints = {
   jobsApplicationStats: '/jobs/application-stats',
   jobSearchHistory: '/job-search-history',
   jobSearchHistoryItem: (id: number | string) => `/job-search-history/${id}`,
+  // Resume Rewrite: Free (resume only, one request) and Pro (resume + job, stepwise).
+  resumeRewriteFree: '/resume-rewrites/free',
+  resumeRewriteProSessions: '/resume-rewrites/pro/sessions',
+  resumeRewriteProSession: (id: number | string) => `/resume-rewrites/pro/sessions/${id}`,
+  resumeRewriteProAnswers: (id: number | string) => `/resume-rewrites/pro/sessions/${id}/answers`,
+  resumeRewriteProPreview: (id: number | string) => `/resume-rewrites/pro/sessions/${id}/preview`,
+  resumeRewriteProConfirm: (id: number | string) => `/resume-rewrites/pro/sessions/${id}/confirm`,
 } as const
 
 /** Backend routes the UI does not wrap, still joined with the same Scheme A rule. */

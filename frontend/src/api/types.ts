@@ -784,15 +784,37 @@ export type ResumeBuilderTemplateType =
 
 export type ResumeBuilderLocale = 'en' | 'zh-CN'
 
+export type ResumeBuilderProfessionalLinkType =
+  | 'LINKEDIN'
+  | 'PORTFOLIO'
+  | 'GITHUB'
+  | 'PERSONAL_WEBSITE'
+  | 'BEHANCE'
+  | 'OTHER'
+
+export interface ResumeBuilderProfessionalLink {
+  type: string
+  label: string
+  url: string
+}
+
 export interface ResumeBuilderBasicInfo {
   fullName: string
   city: string
   country: string
   phone: string
   email: string
+  /** Kept so pre-upgrade drafts that stored a single LinkedIn URL still load. */
   linkedin: string
+  /** Kept so pre-upgrade GitHub URLs are not lost. */
   github: string
+  /** Kept so pre-upgrade personal-website URLs are not lost. */
   website: string
+  /**
+   * Canonical repeatable links. `null`/`undefined` on old drafts means migrate from
+   * the three scalar URL fields; an empty array means the user cleared them.
+   */
+  professionalLinks?: ResumeBuilderProfessionalLink[] | null
   /** Null = not stated. Deliberately the ONLY "eligibility" style field -- age,
    * gender, photo, and marital status are never collected by this form. */
   legallyEligibleToWork: boolean | null
@@ -1016,4 +1038,97 @@ export interface CareerMaterialsResponse {
   aiReflection: string
   strengthsAndWeaknesses: string
   developmentPlan: string
+}
+
+// ---------------------------------------------------------------------------
+// Resume Rewrite (简历改写): /api/v1/resume-rewrites
+// ---------------------------------------------------------------------------
+
+export interface RewriteChangeView {
+  nodeId: string
+  originalText: string
+  revisedText: string
+  reason: string
+}
+
+/** Free: grammar, wording and clarity only; the resume alone, no job. */
+export interface FreeRewriteResponse {
+  resumeId: number
+  model: string
+  changes: RewriteChangeView[]
+  changeCount: number
+  rejectedCount: number
+  unchanged: boolean
+  downloadUrl: string
+  downloadFileName: string
+}
+
+export type ProRewriteStatus = 'ANALYZED' | 'ANSWERED' | 'PREVIEWED' | 'COMPLETED'
+
+export type ProEvidenceStatus = 'VERIFIED' | 'INFERRED' | 'UNSUPPORTED' | 'USER_CONFIRMED'
+
+export interface ProRewriteRequirements {
+  requiredSkills: string[]
+  preferredSkills: string[]
+  responsibilities: string[]
+  keywords: string[]
+  experienceLevel: string
+}
+
+export interface ProRewriteItem {
+  id: string
+  category: 'REQUIRED_SKILL' | 'PREFERRED_SKILL' | 'RESPONSIBILITY' | 'KEYWORD'
+  text: string
+  status: ProEvidenceStatus
+  evidenceNodeIds: string[]
+  note: string
+}
+
+export interface ProRewriteQuestion {
+  id: string
+  requirementId: string
+  question: string
+  reason: string
+  hasExperience: boolean | null
+  detail: string | null
+}
+
+export interface ProRewriteSuggestion {
+  id: string
+  nodeId: string
+  originalText: string
+  revisedText: string
+  reason: string
+  requirementIds: string[]
+  evidenceStatus: 'VERIFIED' | 'USER_CONFIRMED'
+}
+
+export interface ProRewriteFinalChange {
+  suggestionId: string
+  nodeId: string
+  originalText: string
+  finalText: string
+}
+
+export interface ProRewriteSession {
+  sessionId: number
+  status: ProRewriteStatus
+  resumeId: number
+  jobId: number
+  model: string
+  expiresAt: string | null
+  requirements: ProRewriteRequirements
+  items: ProRewriteItem[]
+  questions: ProRewriteQuestion[]
+  suggestions: ProRewriteSuggestion[]
+  rejectedSuggestionCount: number
+  finalChanges: ProRewriteFinalChange[]
+  downloadUrl: string | null
+  downloadFileName: string | null
+}
+
+export interface ProRewriteAnswer {
+  questionId: string
+  hasExperience: boolean
+  detail?: string
 }

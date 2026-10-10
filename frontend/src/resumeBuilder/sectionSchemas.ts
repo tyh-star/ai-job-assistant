@@ -69,8 +69,8 @@ export function buildSectionSchemas(t: TFunc): Record<string, SectionSchema> {
         { key: 'challenges', label: t('resumeBuilder.fields.challenges'), kind: 'list' },
         { key: 'solutions', label: t('resumeBuilder.fields.solutions'), kind: 'list' },
         { key: 'outcomes', label: t('resumeBuilder.fields.outcomes'), kind: 'list' },
-        { key: 'githubUrl', label: t('resumeBuilder.fields.githubUrl'), kind: 'text', placeholder: 'https://github.com/...' },
-        { key: 'demoUrl', label: t('resumeBuilder.fields.demoUrl'), kind: 'text', placeholder: 'https://...' },
+        { key: 'githubUrl', label: t('resumeBuilder.fields.githubUrl'), kind: 'text', placeholder: 'https://' },
+        { key: 'demoUrl', label: t('resumeBuilder.fields.demoUrl'), kind: 'text', placeholder: 'https://' },
       ],
       emptyEntry: () => ({
         name: '', purpose: '', startDate: '', endDate: '', actualDuration: '', techStack: [], role: '',
